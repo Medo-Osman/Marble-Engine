@@ -32,7 +32,7 @@ struct Light
     float       range;
     int         type;
     BOOL        enabled;
-    float       pad;
+    BOOL        isCastingShadow;
 };
 
 const UINT LIGHT_CAP = 20;

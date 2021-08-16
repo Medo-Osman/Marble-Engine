@@ -11,6 +11,9 @@ struct ShaderFiles
 	LPCWSTR cs = L""; // Compute Shader
 };
 
+enum ShaderStates {PHONG, PBR, NUM};
+static const char* ShaderStatesNames[]{"Phong", "PBR"};
+
 class Shaders
 {
 protected:

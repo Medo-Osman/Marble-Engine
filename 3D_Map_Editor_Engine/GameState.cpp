@@ -1,9 +1,8 @@
 #include "pch.h"
 #include "GameState.h"
 
-void GameState::loadModelList()
+void GameState::loadModelList(std::string path)
 {
-	std::string path = "Models\\";
 	std::string name = "";
 	std::string fileExtension = "";
 	struct dirent* entry;
@@ -11,22 +10,39 @@ void GameState::loadModelList()
 
 	m_modelNames.clear();
 	m_modelNameHoveringState.clear();
-
+	std::vector<std::string> modelNames;
 	if (dir != NULL)
 	{
 		while ((entry = readdir(dir)) != NULL)
 		{
 			name = entry->d_name;
-			size_t i = name.rfind('.', name.length());
-			if (i != std::string::npos) 
+			if (entry->d_type == DT_DIR && name != "." &&
+				((path == m_rootModelDirectory && name != "..") ||
+				(path != m_rootModelDirectory && name == "..")))
 			{
-				fileExtension = name.substr(i + 1, name.length() - i);
-				if (fileExtension == "obj" || fileExtension == "FBX" || fileExtension == "fbx")
+				std::pair<std::string, bool> directory(name, true);
+				m_modelNames.push_back(directory);
+				m_modelNameHoveringState.push_back(false);
+			}
+			else
+			{
+				size_t i = name.rfind('.', name.length());
+				if (i != std::string::npos) 
 				{
-					m_modelNames.push_back(entry->d_name);
-					m_modelNameHoveringState.push_back(false);
+					fileExtension = name.substr(i + 1, name.length() - i);
+					if (fileExtension == "obj" || fileExtension == "FBX" || fileExtension == "fbx")
+					{
+						modelNames.push_back(name);
+					}
 				}
 			}
+		}
+
+		for (size_t i = 0; i < modelNames.size(); i++)
+		{
+			std::pair<std::string, bool> modelFile(modelNames[i], false);
+			m_modelNames.push_back(modelFile);
+			m_modelNameHoveringState.push_back(false);
 		}
 
 		closedir(dir);
@@ -106,6 +122,8 @@ GameState::GameState()
 	m_windowResizeFlag = false;
 	m_windowMoveFlag = false;
 	m_defaultModelThumbnail = nullptr;
+	m_currentDirectoryPath = m_rootModelDirectory;
+	m_currentDirectoryName = m_rootModelDirectory;
 	m_selectedIndex = -1;
 	m_dragging = false;
 	m_draggingDimension = 'n';
@@ -142,6 +160,59 @@ void GameState::initialize(Settings settings)
 
 	// - Game Objects from Map file
 	m_mapHandler.importGameObjects(m_gameObjects);
+
+	// Lights
+	// Point Light 0
+	Light light;
+	light.position = XMFLOAT4(-10.f, 5.f, 0.f, 1.f);
+	light.color = XMFLOAT4(1.f, 0.f, 0.f, 0.f);
+	light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
+	light.range = 30.f;
+	light.type = POINT_LIGHT;
+	light.enabled = true;
+	light.isCastingShadow = false;
+	m_lights.push_back(new Light(light));
+	m_renderHandler->addLight(light);
+
+	// Point Light 1
+	light.position = XMFLOAT4(0.f, 10.f, -10.f, 1.f);
+	light.color = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
+	light.range = 30.f;
+	light.type = POINT_LIGHT;
+	light.enabled = true;
+	light.isCastingShadow = false;
+	m_lights.push_back(new Light(light));
+	m_renderHandler->addLight(light);
+
+	// Point Light 2
+	light.position = XMFLOAT4(0.f, 10.f, 10.f, 1.f);
+	light.color = XMFLOAT4(0.f, 1.f, 0.f, 1.f);
+	light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
+	light.range = 40.f;
+	light.type = POINT_LIGHT;
+	light.enabled = true;
+	light.isCastingShadow = false;
+	m_lights.push_back(new Light(light));
+	m_renderHandler->addLight(light);
+
+	// Directional Light
+	light.direction = XMFLOAT4(-0.2f, -1.f, 0.5f, 0.0f);
+	light.color = XMFLOAT4(1.f, .95f, .95f, 1.f);
+	light.type = DIRECTIONAL_LIGHT;
+	light.enabled = true;
+	light.isCastingShadow = true;
+	m_lights.push_back(new Light(light));
+	m_renderHandler->addLight(light, light.isCastingShadow);
+
+	// Directional Light 2
+	light.direction = XMFLOAT4(-0.8f, -1.f, 0.5f, 0.0f);
+	light.color = XMFLOAT4(1.f, .46f, .0f, 1.f);
+	light.type = DIRECTIONAL_LIGHT;
+	light.enabled = true;
+	light.isCastingShadow = false;
+	m_lights.push_back(new Light(light));
+	m_renderHandler->addLight(light, light.isCastingShadow);
 
 	// - Nanosuit
 	/*m_gameObjects.push_back(new GameObject());
@@ -382,6 +453,18 @@ void GameState::update(float dt)
 	ImGui::SameLine(ImGui::GetWindowWidth() - 28);
 	if (ImGui::ImageButton(ResourceHandler::getInstance().getTexture(L"baseline_save_white_18dp.png"), ImVec2(20, 20)))
 		m_mapHandler.updateDataList(m_gameObjects);
+	
+	ImGui::SameLine(ImGui::GetWindowWidth() - 56);
+	if (ImGui::ImageButton(ResourceHandler::getInstance().getTexture(L"outline_refresh_white_18dp.png"), ImVec2(20, 20)))
+	{
+		size_t nrOf = m_gameObjects.size();
+		for (size_t i = 1; i < nrOf; i++) // Dont remove plane
+		{
+			delete m_gameObjects[m_gameObjects.size() - 1];
+			m_gameObjects.erase(m_gameObjects.end() - 1);
+		}
+		m_mapHandler.importGameObjects(m_gameObjects);
+	}
 	ImGui::PopStyleVar();
 	// Save to Map File End
 
@@ -414,9 +497,24 @@ void GameState::update(float dt)
 			}
 
 			// Model card Begin
+			// - Thumbnail
 			ImGui::BeginChildFrame(i + 1, ImVec2(110, 130));
-			ImGui::Image(ResourceHandler::getInstance().getTexture(L"circle_pattern.png"), ImVec2(100, 100));
-			ImGui::Text("%s", m_modelNames[i].c_str());
+			if (m_modelNames[i].second)
+			{
+				if (m_modelNames[i].first == "..")
+					ImGui::Image(ResourceHandler::getInstance().getTexture(L"previous_folder_icon.png"), ImVec2(100, 100));
+				else
+					ImGui::Image(ResourceHandler::getInstance().getTexture(L"folder_icon.png"), ImVec2(100, 100));
+			}
+			else
+				ImGui::Image(ResourceHandler::getInstance().getTexture(L"model_icon.png"), ImVec2(100, 100));
+
+			// - Name
+			if (m_modelNames[i].first == "..")
+				ImGui::Text("%s", "Back");
+			else
+				ImGui::Text("%s", m_modelNames[i].first.c_str());
+
 			ImGui::EndChildFrame();
 			// Model card End
 
@@ -427,10 +525,34 @@ void GameState::update(float dt)
 			// Mouse Behavior
 			if (ImGui::IsItemClicked())
 			{
-				TexturePaths terrainTextures;
-				m_gameObjects.push_back(new GameObject());
-				m_gameObjects.back()->initialize(m_modelNames[i], m_gameObjects.size());
-				//m_mapHandler.addGameObjectToFile(m_gameObjects.back());
+				if (!m_modelNames[i].second)
+				{
+					TexturePaths terrainTextures;
+
+					m_gameObjects.push_back(new GameObject());
+
+					size_t position = m_currentDirectoryPath.find_first_of("\\/") + 1;
+					std::string modelPath = m_currentDirectoryPath + m_modelNames[i].first;
+					modelPath.erase(0, position);
+					m_gameObjects.back()->initialize(modelPath, m_gameObjects.size(), ShaderStates::PBR);
+
+					//m_mapHandler.addGameObjectToFile(m_gameObjects.back());
+				}
+				else
+				{
+					if (m_modelNames[i].first == "..")
+					{
+						m_currentDirectoryPath.erase(m_currentDirectoryPath.length() - m_currentDirectoryName.length() - 1, m_currentDirectoryName.length() + 2);
+						size_t position = m_currentDirectoryPath.find_last_of("\\/");
+						m_currentDirectoryName = m_currentDirectoryPath.substr(0, position);
+					}
+					else
+					{
+						m_currentDirectoryName = m_modelNames[i].first;
+						m_currentDirectoryPath += m_currentDirectoryName + "\\";
+					}
+					loadModelList(m_currentDirectoryPath);
+				}
 			}
 			m_modelNameHoveringState[i] = ImGui::IsItemHovered();
 			// Mouse Behavior End
@@ -449,7 +571,7 @@ void GameState::update(float dt)
 		ImGui::Text(m_gameObjects[i]->getModelNameAndId().c_str());
 		ImGui::PushID("gameobject_update_" + i);
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
-		ImGui::SameLine(ImGui::GetWindowWidth() - 28);
+		ImGui::SameLine(ImGui::GetWindowWidth() - 48);
 		if (ImGui::ImageButton(ResourceHandler::getInstance().getTexture(L"baseline_delete_white_18dp.png"), ImVec2(20, 20)))
 		{
 			if (m_selectedIndex = i)
@@ -465,13 +587,56 @@ void GameState::update(float dt)
 		else
 		{
 			ImGui::PopStyleVar();
-			ImGui::SameLine(ImGui::GetWindowWidth() - 28 - 56);
+			ImGui::SameLine(ImGui::GetWindowWidth() - 48 - 56);
 			if (ImGui::Button("Select"))
 			{
 				m_selectedIndex = i;
 				m_renderHandler->updateSelectedObject(m_gameObjects[i]->getKey(), m_gameObjects[i]->getPositionF3());
 			}
 			m_gameObjects[i]->update(dt);
+		}
+		ImGui::PopID();
+	}
+	ImGui::End();
+
+	// Light Menu
+	ImGui::Begin("Light", NULL, windowFlags);
+	for (size_t i = 0; i < m_lights.size(); i++)
+	{
+		ImGui::Text(std::to_string(i).c_str());
+		ImGui::PushID("light" + i);
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
+		ImGui::SameLine(ImGui::GetWindowWidth() - 48);
+		if (ImGui::ImageButton(ResourceHandler::getInstance().getTexture(L"baseline_delete_white_18dp.png"), ImVec2(20, 20)))
+		{
+			if (m_lights[i]->isCastingShadow) // Disable Shadow Mapping if light is casting Shadows
+				m_renderHandler->changeShadowMappingLight(m_lights[i], true);
+
+			delete m_lights[i];
+			m_lights.erase(m_lights.begin() + i);
+			m_renderHandler->removeLight(i);
+			ImGui::PopStyleVar();
+		}
+		else
+		{
+			ImGui::PopStyleVar();
+			if (ImGui::ColorEdit4("Color##2f", &m_lights[i]->color.x, ImGuiColorEditFlags_Float))
+				m_renderHandler->updateLight(m_lights[i], i);
+
+			if (m_lights[i]->type != DIRECTIONAL_LIGHT)
+				if (ImGui::DragFloat3("Position", &m_lights[i]->position.x, 0.1f))
+					m_renderHandler->updateLight(m_lights[i], i);
+
+			if (m_lights[i]->type == DIRECTIONAL_LIGHT)
+				if (ImGui::Checkbox("Casts Shadow", (bool*)(&m_lights[i]->isCastingShadow)))
+				{
+					for (size_t j = 0; j < m_lights.size(); j++)
+					{
+						if (m_lights[j]->type == DIRECTIONAL_LIGHT && j != i) // Not Current Directional Light
+							m_lights[j]->isCastingShadow = false;
+					}
+					m_renderHandler->changeShadowMappingLight(m_lights[i], !m_lights[i]->isCastingShadow);
+				}
 		}
 		ImGui::PopID();
 	}

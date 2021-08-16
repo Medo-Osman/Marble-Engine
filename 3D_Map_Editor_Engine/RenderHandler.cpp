@@ -245,42 +245,26 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	// Lighting
 	m_lightManager.initialize(m_device.Get(), m_deviceContext.Get(), m_camera.getViewMatrixPtr(), m_camera.getProjectionMatrixPtr());
 
-	Light light;
-	// Point Light
-	light.position = XMFLOAT4(0.f, 10.f, -10.f, 1.f);
-	light.color = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-	light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
-	light.range = 30.f;
-	light.type = POINT_LIGHT;
-	light.enabled = true;
-	m_lightManager.addLight(light);
-
-	// Point Light 2
-	light.position = XMFLOAT4(0.f, 10.f, 10.f, 1.f);
-	light.color = XMFLOAT4(0.f, 1.f, 0.f, 1.f);
-	light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
-	light.range = 40.f;
-	light.type = POINT_LIGHT;
-	light.enabled = true;
-	m_lightManager.addLight(light);
-
-	// Directional Light
-	light.direction = XMFLOAT4(1.f, -1.f, 1.0f, 0.0f);
-	light.color = XMFLOAT4(1.f, .95f, .95f, 1.f);
-	light.type = DIRECTIONAL_LIGHT;
-	light.enabled = true;
-	m_lightManager.addLight(light);
-
-	m_lightManager.update();
-
 	m_shadowInstance.initialize(m_device.Get(), m_deviceContext.Get(), SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
-	m_shadowInstance.buildLightMatrix(light);
+	//m_shadowInstance.buildLightMatrix(light);
 
 	// Skybox
-	m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"Textures/Maskonaive2_skybox.dds");
+	m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"Textures/TableMountain1Cubemap.dds", L"Textures/TableMountain1Cubemap.dds");
 
 	// Timer
 	m_timer.restart();
+
+	// Shader States
+	m_shaderStates.resize(ShaderStates::NUM);
+	ShaderFiles shaderFiles;
+	// - Phong
+	shaderFiles.vs = L"GeneralVS.hlsl";
+	shaderFiles.ps = L"GeneralPS.hlsl";
+	m_shaderStates[ShaderStates::PHONG].initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS_NOR_TEX_TAN);
+	// - PBR
+	shaderFiles.vs = L"GeneralVS.hlsl";
+	shaderFiles.ps = L"PBR_PS.hlsl";
+	m_shaderStates[ShaderStates::PBR].initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS_NOR_TEX_TAN);
 
 	// Particles
 	m_particleSystem.Initialize(m_device.Get(), m_deviceContext.Get(), L"flare.dds", 10);
@@ -290,10 +274,9 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_modelSelectionHandler.initialize(m_device.Get(), m_deviceContext.Get(), m_camera.getViewMatrixPtr(), m_camera.getProjectionMatrixPtr());
 	
 	// - Shaders
-	ShaderFiles files;
-	files.vs = L"SelectionVS.hlsl";
-	files.ps = L"SelectionPS.hlsl";
-	m_selectionShaders.initialize(m_device.Get(), m_deviceContext.Get(), files, LayoutType::POS_NOR_TEX_TAN);
+	shaderFiles.vs = L"SelectionVS.hlsl";
+	shaderFiles.ps = L"SelectionPS.hlsl";
+	m_selectionShaders.initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS_NOR_TEX_TAN);
 	
 	// - Buffer
 	m_selectionAnimationData.colorOpacity = 0.f;
@@ -307,17 +290,32 @@ void RenderHandler::updateCamera(XMVECTOR position, XMVECTOR rotation)
 	m_skybox.updateVP(m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
 }
 
-RenderObjectKey RenderHandler::newRenderObject(std::string modelName)
+RenderObjectKey RenderHandler::newRenderObject(std::string modelName, ShaderStates shaderState)
 {
+	RenderObjectList* objects = nullptr;
+	switch (shaderState)
+	{
+	case PHONG:
+		objects = &m_renderObjects;
+		break;
+	case PBR:
+		objects = &m_renderObjectsPBR;
+		break;
+	default:
+		break;
+	}
+
 	RenderObjectKey key;
-	key.key = m_renderObjects.size();
+	key.key = objects->size();
 	key.valid = true;
-	m_renderObjects[key] = new RenderObject();
-	m_renderObjects[key]->initialize(m_device.Get(), m_deviceContext.Get(), m_renderObjects.size(), modelName);
+	key.objectType = shaderState;
+
+	(*objects)[key] = new RenderObject();
+	objects->at(key)->initialize(m_device.Get(), m_deviceContext.Get(), objects->size(), modelName);
 	if (m_camera.isInitialized())
 	{
 		XMMATRIX viewProjMatrix = m_camera.getViewMatrix() * m_camera.getProjectionMatrix();
-		m_renderObjects[key]->updateWCPBuffer(XMMatrixIdentity(), viewProjMatrix);
+		objects->at(key)->updateWCPBuffer(XMMatrixIdentity(), viewProjMatrix);
 	}
 
 	return key;
@@ -325,19 +323,146 @@ RenderObjectKey RenderHandler::newRenderObject(std::string modelName)
 
 void RenderHandler::setRenderObjectTextures(RenderObjectKey key, TexturePaths textures)
 {
-	m_renderObjects[key]->setTextures(textures);
+	switch (key.objectType)
+	{
+	case PHONG:
+		m_renderObjects[key]->setTextures(textures);
+		break;
+	default:
+		break;
+	}
+}
+
+void RenderHandler::setRenderObjectTextures(RenderObjectKey key, TexturePathsPBR textures)
+{
+	switch (key.objectType)
+	{
+	case PBR:
+		m_renderObjectsPBR[key]->setTextures(textures);
+		break;
+	default:
+		break;
+	}
 }
 
 void RenderHandler::updateRenderObjectWorld(RenderObjectKey key, XMMATRIX worldMatrix)
 {
 	XMMATRIX viewProjMatrix = m_camera.getViewMatrix() * m_camera.getProjectionMatrix();
-	m_renderObjects[key]->updateWCPBuffer(worldMatrix, viewProjMatrix);
+	switch (key.objectType)
+	{
+	case PHONG:
+		m_renderObjects[key]->updateWCPBuffer(worldMatrix, viewProjMatrix);
+		break;
+	case PBR:
+		m_renderObjectsPBR[key]->updateWCPBuffer(worldMatrix, viewProjMatrix);
+		break;
+	default:
+		break;
+	}
 }
 
 void RenderHandler::deleteRenderObject(RenderObjectKey key)
 {
-	m_renderObjects.erase(key);
+	switch (key.objectType)
+	{
+	case PHONG:
+		m_renderObjects.erase(key);
+		break;
+	case PBR:
+		m_renderObjectsPBR.erase(key);
+		break;
+	default:
+		break;
+	}
 	OutputDebugString(L"RenderObject Removed! \n");
+}
+
+RenderObjectKey RenderHandler::setShaderState(RenderObjectKey key, ShaderStates shaderState)
+{
+	switch (key.objectType)
+	{
+	case PHONG:
+		if (shaderState != key.objectType)
+		{
+			m_renderObjects[key]->setShaderState(shaderState);
+			RenderObjectKey newKey;
+			switch (shaderState)
+			{
+			case PBR:
+				newKey.key = m_renderObjectsPBR.size();
+				newKey.valid = true;
+				newKey.objectType = shaderState;
+				m_renderObjectsPBR[newKey] = m_renderObjects[key];
+
+				break;
+			default:
+				break;
+			}
+			m_renderObjects.erase(key);
+			return newKey;
+		}
+		break;
+	case PBR:
+		if (shaderState != key.objectType)
+		{
+			m_renderObjectsPBR[key]->setShaderState(shaderState);
+			RenderObjectKey newKey;
+			switch (shaderState)
+			{
+			case PHONG:
+				newKey.key = m_renderObjects.size();
+				newKey.valid = true;
+				newKey.objectType = shaderState;
+				m_renderObjects[newKey] = m_renderObjectsPBR[key];
+
+				break;
+			default:
+				break;
+			}
+			m_renderObjectsPBR.erase(key);
+			return newKey;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+int RenderHandler::addLight(Light newLight, bool usedForShadowMapping)
+{
+	if (m_lightManager.addLight(newLight))
+	{
+		m_lightManager.update();
+		if (usedForShadowMapping && newLight.type == DIRECTIONAL_LIGHT)
+			m_shadowInstance.buildLightMatrix(newLight);
+
+		return m_lightManager.getNrOfLights(); // Used as a ID
+	}
+	return -1;
+}
+
+void RenderHandler::removeLight(int id)
+{
+	m_lightManager.removeLight(id);
+}
+
+void RenderHandler::updateLight(Light* light, int id)
+{
+	m_lightManager.updateLight(light, id);
+}
+
+void RenderHandler::changeShadowMappingLight(Light* light, bool disableShadowCasting)
+{
+	if (disableShadowCasting)
+	{
+		m_shadowMappingEnabled = false;
+		m_shadowInstance.clearShadowMap();
+	}
+	else
+	{
+		m_shadowMappingEnabled = true;
+		m_shadowInstance.buildLightMatrix(*light);
+	}
 }
 
 bool* RenderHandler::getWireframeModePtr()
@@ -450,10 +575,15 @@ void RenderHandler::render()
 	m_deviceContext->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	// Render Shadow Map
-	m_shadowInstance.bindViewsAndRenderTarget();
+	if (m_shadowMappingEnabled)
+	{
+		m_shadowInstance.bindViewsAndRenderTarget();
 
-	for (auto& object : m_renderObjects)
-		object.second->render(true);
+		for (auto& object : m_renderObjects)
+			object.second->render(true);
+		for (auto& object : m_renderObjectsPBR)
+			object.second->render(true);
+	}
 	
 	// Set Render Target
 	m_deviceContext->OMSetRenderTargets(1, m_outputRTV.GetAddressOf(), m_depthStencilView.Get());
@@ -486,8 +616,19 @@ void RenderHandler::render()
 	m_deviceContext->PSSetConstantBuffers(3, 1, m_shadowInstance.getShadowMatrixConstantBuffer());
 
 	// Draw
+	// - PHONG
 	for (auto &object : m_renderObjects)
 		object.second->render();
+
+	// - PBR
+	m_deviceContext->PSSetShaderResources(6, 1, m_shadowInstance.getShadowMapSRV()); // 6th register slot in PBR Pixel Shader
+	m_shaderStates[ShaderStates::PBR].setShaders();
+	m_skybox.setSkyboxTextures(8, 7); // Specular radiance and Diffuse irradiance maps
+	for (auto& object : m_renderObjectsPBR)
+		object.second->render(true);
+	
+	ID3D11ShaderResourceView* shaderResourceNullptr = nullptr;
+	this->m_deviceContext->PSSetShaderResources(6, 1, &shaderResourceNullptr); // Remove ShadowMap from slot 6
 
 	// Skybox
 	m_skybox.render();
@@ -509,8 +650,19 @@ void RenderHandler::render()
 		float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		UINT sampleMask = 0xffffffff;
 		m_deviceContext->OMSetBlendState(m_blendStateNoBlend.Get(), blendFactor, sampleMask);
-
-		m_renderObjects[m_selectedObjectKey]->render(true); // Render Wireframe
+		
+		// Render Wireframe
+		switch (m_selectedObjectKey.objectType)
+		{
+		case ShaderStates::PHONG:
+			m_renderObjects[m_selectedObjectKey]->render(true);
+			break;
+		case ShaderStates::PBR:
+			m_renderObjectsPBR[m_selectedObjectKey]->render(true);
+			break;
+		default:
+			break;
+		}
 		
 		m_deviceContext->RSSetState(m_defaultRasterizerState.Get()); // Wireframe Off
 		// - Arrows

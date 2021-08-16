@@ -21,10 +21,11 @@ class RenderObjectKey
 private:
     int key;
     bool valid;
+    ShaderStates objectType;
     friend class RenderHandler;
     friend struct keyComp;
 public:
-    RenderObjectKey() { key = -1; valid = false; }
+    RenderObjectKey() { key = -1; valid = false; objectType = ShaderStates::PHONG; }
     bool isValid() { return valid; }
 };
 
@@ -75,13 +76,21 @@ private:
     // Shadow Mapping
     static const int SHADOW_MAP_SIZE = 3072; // 2048, 3072, 4096
     ShadowMapInstance m_shadowInstance;
+    bool m_shadowMappingEnabled = true;
 
     // Blend State
     ComPtr< ID3D11BlendState > m_blendStateNoBlend;
     ComPtr< ID3D11BlendState > m_blendStateBlend;
 
+    // Shader States
+    std::vector<Shaders> m_shaderStates;
+
     // Render Objects
-    std::map<RenderObjectKey, RenderObject*, keyComp> m_renderObjects;
+    using RenderObjectList = std::map<RenderObjectKey, RenderObject*, keyComp>;
+    RenderObjectList m_renderObjects;
+    RenderObjectList m_renderObjectsPBR;
+    
+    // Camera
     Camera m_camera;
     void initCamera();
     
@@ -128,11 +137,19 @@ public:
     void updateCamera(XMVECTOR position, XMVECTOR rotation);
 
     // Render Objects
-    RenderObjectKey newRenderObject(std::string modelName);
+    RenderObjectKey newRenderObject(std::string modelName, ShaderStates shaderState = ShaderStates::PHONG);
     void setRenderObjectTextures(RenderObjectKey key, TexturePaths textures);
+    void setRenderObjectTextures(RenderObjectKey key, TexturePathsPBR textures);
     void updateRenderObjectWorld(RenderObjectKey key, XMMATRIX worldMatrix);
     void deleteRenderObject(RenderObjectKey key);
+    RenderObjectKey setShaderState(RenderObjectKey key, ShaderStates shaderState);
 
+    // Lights
+    int addLight(Light newLight, bool usedForShadowMapping = false);
+    void removeLight(int id);
+    void updateLight(Light* light, int id);
+    void changeShadowMappingLight(Light* light, bool disableShadowCasting = false);
+    
     // Render Modes
     bool* getWireframeModePtr();
 

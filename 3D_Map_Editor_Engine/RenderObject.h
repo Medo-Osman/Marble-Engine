@@ -33,9 +33,13 @@ public:
 	float pick(XMVECTOR rayOrigin, XMVECTOR rayDirection, char dimension = 'n');
 
 	// Setters
+	void setShaderState(ShaderStates shaderState);
 	void setMaterial(PS_MATERIAL_BUFFER material);
+	void setMaterial(PS_MATERIAL_PBR_BUFFER material);
 	void setMaterialWithID(PS_MATERIAL_BUFFER material, int ID);
+	void setMaterialWithID(PS_MATERIAL_PBR_BUFFER material, int ID);
 	void setTextures(TexturePaths textures);
+	void setTextures(TexturePathsPBR textures);
 
 	// Update
 	void updateWCPBuffer(XMMATRIX worldMatrix, XMMATRIX viewProjMatrix);

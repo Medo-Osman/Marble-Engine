@@ -14,6 +14,9 @@ private:
 	// Game Objects
 	std::vector<GameObject*> m_gameObjects;
 
+	// Lights
+	std::vector<Light*> m_lights;
+
 	// Camera
 	CameraObject m_camera;
 
@@ -21,9 +24,12 @@ private:
 	bool m_windowMoveFlag;
 	bool m_windowResizeFlag;
 	ID3D11Resource* m_defaultModelThumbnail;
-	std::vector<std::string> m_modelNames;
+	std::vector<std::pair<std::string, bool>> m_modelNames; // string = Name, bool = is Directory
 	std::vector<bool> m_modelNameHoveringState;
-	void loadModelList();
+	std::string m_currentDirectoryPath;
+	std::string m_currentDirectoryName;
+	const std::string m_rootModelDirectory = "Models\\";
+	void loadModelList(std::string path = "Models\\");
 	void setImGuiStyles();
 
 	// Selection

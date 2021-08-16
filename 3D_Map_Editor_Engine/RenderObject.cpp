@@ -37,17 +37,37 @@ float RenderObject::pick(XMVECTOR rayOrigin, XMVECTOR rayDirection, char dimensi
 	return m_model->pick(rayOrigin, rayDirection, dimension);
 }
 
+void RenderObject::setShaderState(ShaderStates shaderState)
+{
+	m_model->setShaderState(shaderState);
+}
+
 void RenderObject::setMaterial(PS_MATERIAL_BUFFER material)
 {
 	m_model->setMaterial(material);
 }
 
-void RenderObject::setMaterialWithID(PS_MATERIAL_BUFFER material, int id)
+void RenderObject::setMaterial(PS_MATERIAL_PBR_BUFFER material)
 {
-	m_model->setMaterialWithID(material, id);
+	m_model->setMaterial(material);
+}
+
+void RenderObject::setMaterialWithID(PS_MATERIAL_BUFFER material, int ID)
+{
+	m_model->setMaterialWithID(material, ID);
+}
+
+void RenderObject::setMaterialWithID(PS_MATERIAL_PBR_BUFFER material, int ID)
+{
+	m_model->setMaterialWithID(material, ID);
 }
 
 void RenderObject::setTextures(TexturePaths textures)
+{
+	m_model->setTexture(textures);
+}
+
+void RenderObject::setTextures(TexturePathsPBR textures)
 {
 	m_model->setTexture(textures);
 }

@@ -14,6 +14,8 @@ private:
 	// Textures
 	std::map<const std::wstring, ID3D11ShaderResourceView*> m_textures;
 
+	const std::wstring rootTexturePath = L"Textures\\";
+
 	// Helper Functions
 	bool createTextureFromFile(ID3D11Device* device, const WCHAR* texturePath)
 	{
@@ -21,14 +23,22 @@ private:
 		bool couldLoad = true;
 		m_textures[texturePath] = nullptr;
 		std::wstring path = texturePath;
-		path = L"Textures\\" + path;
+		path = rootTexturePath + path;
 
 		size_t i = path.rfind('.', path.length());
 		std::wstring fileExtension = path.substr(i + 1, path.length() - i);
 		if (fileExtension == L"dds" || fileExtension == L"DDS")
 			hr = CreateDDSTextureFromFile(device, path.c_str(), nullptr, &m_textures[texturePath]);
+		else if (fileExtension == L"tga" || fileExtension == L"TGA")
+		{
+			DirectX::TexMetadata metadata;
+			DirectX::ScratchImage scratchImage;
+			LoadFromTGAFile(path.c_str(), &metadata, scratchImage);
+			hr = CreateShaderResourceView(device, scratchImage.GetImages(), scratchImage.GetImageCount(), metadata, &m_textures[texturePath]);
+		}
 		else
 			hr = CreateWICTextureFromFile(device, path.c_str(), nullptr, &m_textures[texturePath]);
+		
 
 		if (FAILED(hr))
 			couldLoad = false;
@@ -58,15 +68,19 @@ public:
 
 	ID3D11ShaderResourceView* getTexture(const WCHAR* texturePath)
 	{
-		if (!m_textures.count(texturePath))
+		std::wstring path(texturePath);
+		if (path.find(rootTexturePath) == 0)
+			path.erase(0, rootTexturePath.length());
+
+		if (!m_textures.count(path.c_str()))
 		{
 			if (m_device != nullptr)
-				createTextureFromFile(m_device, texturePath);
+				createTextureFromFile(m_device, path.c_str());
 
-			return m_textures[texturePath];
+			return m_textures[path.c_str()];
 		}
 		else
-			return m_textures[texturePath];
+			return m_textures[path.c_str()];
 	}
 
 	/*const uint8_t* getBytesFromImage(const WCHAR* texturePath)

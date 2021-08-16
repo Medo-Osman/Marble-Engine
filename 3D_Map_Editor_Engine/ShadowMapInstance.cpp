@@ -209,6 +209,11 @@ ID3D11Buffer* const* ShadowMapInstance::getShadowMatrixConstantBuffer() const
 	return m_shadowTextureMatrixCBuffer.GetAddressOf();
 }
 
+void ShadowMapInstance::clearShadowMap()
+{
+	m_deviceContext->ClearDepthStencilView(m_shadowMapDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.f);
+}
+
 void ShadowMapInstance::bindViewsAndRenderTarget()
 {
 	ID3D11ShaderResourceView* shaderResourceNullptr = nullptr;

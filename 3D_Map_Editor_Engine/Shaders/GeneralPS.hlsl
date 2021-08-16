@@ -41,7 +41,7 @@ struct Light
     float   range;
     int     type;
     bool    enabled;
-    float   pad; // Light Array needs correct byte offset
+    bool    isCastingShadow;
 };
 
 cbuffer lightBuffer : register(b1)

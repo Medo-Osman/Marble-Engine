@@ -52,6 +52,7 @@ public:
     // Getters
     ID3D11Buffer* Get() const { return m_lightBuffer.Get(); }
     ID3D11Buffer* const* GetAddressOf() const { return m_lightBuffer.GetAddressOf(); }
+    int const getNrOfLights() const { return m_lightData.nrOfLights; }
 
     // Update
     bool addLight(Light newLight)
@@ -73,10 +74,46 @@ public:
             material.ambient = newLight.color;
             material.diffuse = newLight.color;
             material.specular = newLight.color;
+            material.emissive = newLight.color;
             m_renderObjects.back().second->setMaterial(material);
         }
 
         return true;
+    }
+
+    void removeLight(int id)
+    {
+        std::vector<Light> lights;
+        for (size_t i = 0; i < m_lightData.nrOfLights; i++)
+            lights.push_back(m_lightData.lights[i]);
+        
+        m_lightData.nrOfLights--;
+        lights.erase(lights.begin() + id);
+        if (m_lightData.lights[id].type == POINT_LIGHT || m_lightData.lights[id].type == SPOT_LIGHT)
+        {
+            for (size_t j = 0; j < m_renderObjects.size(); j++)
+            {
+                if (m_renderObjects[j].first == id)
+                {
+                    delete m_renderObjects[j].second;
+                    m_renderObjects.erase(m_renderObjects.begin() + j);
+                    break;
+                }
+            }
+        }
+
+        for (size_t i = 0; i < m_lightData.nrOfLights; i++)
+        {
+            m_lightData.lights[i] = lights[i];
+        }
+        
+        update();
+    }
+
+    void updateLight(Light* light, int id)
+    {
+        m_lightData.lights[id] = *light;
+        update();
     }
 
     void enableLight(UINT index)
@@ -97,17 +134,43 @@ public:
     void renderLightIndicators()
     {
         XMMATRIX viewProjMatrix = *m_viewMatrix * *m_projectionMatrix;
-        for (size_t i = 0; i < m_renderObjects.size(); i++)
+        //for (size_t i = 0; i < m_renderObjects.size(); i++)
+        //{
+        //    //XMMATRIX worldMatrix = XMMatrixIdentity();
+        //    XMMATRIX worldMatrix = XMMatrixScalingFromVector(XMVectorSet(.01f, .01f, .01f, 0.f));
+        //    if (m_lightData.lights[m_renderObjects[i].first].type == SPOT_LIGHT)
+        //        worldMatrix *= XMMatrixRotationRollPitchYawFromVector(XMLoadFloat4(&m_lightData.lights[m_renderObjects[i].first].direction));
+
+        //    worldMatrix *= XMMATRIX(XMMatrixTranslationFromVector(XMLoadFloat4(&m_lightData.lights[m_renderObjects[i].first].position)));
+
+        //    m_renderObjects[i].second->updateWCPBuffer(worldMatrix, viewProjMatrix);
+        //    m_renderObjects[i].second->render();
+        //}
+        for (size_t i = 0; i < m_lightData.nrOfLights; i++)
         {
-            //XMMATRIX worldMatrix = XMMatrixIdentity();
-            XMMATRIX worldMatrix = XMMatrixScalingFromVector(XMVectorSet(.01f, .01f, .01f, 0.f));
-            if (m_lightData.lights[m_renderObjects[i].first].type == SPOT_LIGHT)
-                worldMatrix *= XMMatrixRotationRollPitchYawFromVector(XMLoadFloat4(&m_lightData.lights[m_renderObjects[i].first].direction));
+            if (m_lightData.lights[i].type == POINT_LIGHT || m_lightData.lights[i].type == SPOT_LIGHT)
+            {
+                TexturePaths textures;
+                textures.diffusePath = L"circle_pattern.png";
+                m_renderObjects.back().second->setTextures(textures);
+                PS_MATERIAL_BUFFER material;
+                XMFLOAT4 ligthColor = m_lightData.lights[i].color;
+                material.ambient = ligthColor;
+                material.diffuse = ligthColor;
+                material.specular = ligthColor;
+                material.emissive = ligthColor;
+                m_renderObjects.back().second->setMaterial(material);
 
-            worldMatrix *= XMMATRIX(XMMatrixTranslationFromVector(XMLoadFloat4(&m_lightData.lights[m_renderObjects[i].first].position)));
+                XMMATRIX worldMatrix = XMMatrixScalingFromVector(XMVectorSet(.01f, .01f, .01f, 0.f));
+                if (m_lightData.lights[i].type == SPOT_LIGHT)
+                    worldMatrix *= XMMatrixRotationRollPitchYawFromVector(XMLoadFloat4(&m_lightData.lights[i].direction));
 
-            m_renderObjects[i].second->updateWCPBuffer(worldMatrix, viewProjMatrix);
-            m_renderObjects[i].second->render();
+                worldMatrix *= XMMATRIX(XMMatrixTranslationFromVector(XMLoadFloat4(&m_lightData.lights[i].position)));
+
+
+                m_renderObjects.back().second->updateWCPBuffer(worldMatrix, viewProjMatrix);
+                m_renderObjects.back().second->render();
+            }
         }
     }
 };

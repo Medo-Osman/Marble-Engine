@@ -55,7 +55,7 @@
 #include "ConstantBufferStructs.h"
 #include "Buffer.h"
 
-// DirectX 11
+// DirectX
 #include <d3d11.h>
 #include <dxgi.h>
 #include <dxgi1_2.h>
@@ -63,6 +63,7 @@
 #include <SimpleMath.h>
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
+#include <DirectXTex.h>
 #include <DDSTextureLoader.h>
 #include <CommonStates.h>
 #include <SpriteBatch.h>

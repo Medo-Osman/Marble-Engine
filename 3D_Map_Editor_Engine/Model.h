@@ -78,29 +78,42 @@ private:
 
 		// Material Values
 		PS_MATERIAL_BUFFER material;
+		PS_MATERIAL_PBR_BUFFER materialPBR;
 		aiMaterial* aMaterial = scene->mMaterials[mesh->mMaterialIndex];
 		aiColor3D color(0.f, 0.f, 0.f);
+
 		aMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, color);
 		material.emissive = XMFLOAT4(color.r, color.g, color.b, 1.f);
+		XMVECTOR emVector = XMLoadFloat4(&material.emissive);
+		materialPBR.emissiveStrength = DirectX::XMVector3Length(emVector).m128_f32[0];
+
 		aMaterial->Get(AI_MATKEY_COLOR_AMBIENT, color);
 		material.ambient = XMFLOAT4(color.r, color.g, color.b, 1.f);
+
 		aMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, color);
 		material.diffuse = XMFLOAT4(color.r, color.g, color.b, 1.f);
+		materialPBR.albedo = XMFLOAT3(color.r, color.g, color.b);
+
 		if (material.ambient.x == material.diffuse.x && 
 			material.ambient.y == material.diffuse.y &&
 			material.ambient.z == material.diffuse.z)
 		{
-			material.ambient = XMFLOAT4(.1f, 0.f, 0.f, 1.f);
-			material.diffuse = XMFLOAT4(1.f, 0.f, 0.f, 1.f);
+			material.ambient = XMFLOAT4(.1f, .1f, .1f, 1.f);
+			material.diffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+			materialPBR.albedo = XMFLOAT3(1.f, 1.f, 1.f);
 		}
 		aMaterial->Get(AI_MATKEY_COLOR_SPECULAR, color);
 		material.specular = XMFLOAT4(color.r, color.g, color.b, 1.f);
-		aMaterial->Get(AI_MATKEY_SHININESS, material.shininess);
+		XMVECTOR specVector = XMLoadFloat4(&material.specular);
+		materialPBR.metallic = DirectX::XMVector3Length(specVector).m128_f32[0];
 
+		aMaterial->Get(AI_MATKEY_SHININESS, material.shininess);
 		if (material.shininess == 0.f)
 			material.shininess = 30.f;
 		else
 			material.shininess /= 4.f; // Assimps scales by * 4, this reverses it
+		materialPBR.roughness = std::pow(1 - material.shininess, 2.f);
+
 
 		// Material Textures
 		TexturePaths texturePaths;
@@ -264,6 +277,12 @@ public:
 	}
 
 	// Setters
+	void setShaderState(ShaderStates shaderState)
+	{
+		for (size_t i = 0; i < m_meshes.size(); i++)
+			m_meshes[i].setShaderState(shaderState);
+	}
+	// - PHONG
 	void setMaterial(PS_MATERIAL_BUFFER material)
 	{
 		for (size_t i = 0; i < m_meshes.size(); i++)
@@ -276,6 +295,23 @@ public:
 	}
 
 	void setTexture(TexturePaths textures)
+	{
+		for (size_t i = 0; i < m_meshes.size(); i++)
+			m_meshes[i].setTextures(textures);
+	}
+	// - PBR
+	void setMaterial(PS_MATERIAL_PBR_BUFFER material)
+	{
+		for (size_t i = 0; i < m_meshes.size(); i++)
+			m_meshes[i].setMaterial(material);
+	}
+
+	void setMaterialWithID(PS_MATERIAL_PBR_BUFFER material, int id)
+	{
+		m_meshes[id].setMaterial(material);
+	}
+
+	void setTexture(TexturePathsPBR textures)
 	{
 		for (size_t i = 0; i < m_meshes.size(); i++)
 			m_meshes[i].setTextures(textures);

@@ -19,7 +19,7 @@ GameObject::~GameObject()
 		m_renderHandler->deleteRenderObject(m_renderKey);
 }
 
-void GameObject::initialize(std::string modelName, UINT id)
+void GameObject::initialize(std::string modelName, UINT id, ShaderStates shaderState)
 {
 	m_id = id;
 	m_modelName = modelName;
@@ -29,7 +29,8 @@ void GameObject::initialize(std::string modelName, UINT id)
 	m_physicsComponent = std::make_unique<PhysicsComponent>();
 	m_physicsComponent->initialize(m_movementComponent.get(), 10.f, XMFLOAT3(.1f, .1f, .1f), XMFLOAT3(.99f, .99f, .99f));
 
-	m_renderKey = m_renderHandler->newRenderObject(modelName);
+	m_shaderType = shaderState;
+	m_renderKey = m_renderHandler->newRenderObject(modelName, shaderState);
 }
 
 void GameObject::setTextures(TexturePaths textures)
@@ -141,6 +142,21 @@ void GameObject::update(float dt)
 		ImGui::InputText("Name", m_audioFileName, 5);
 		//ImGui::SameLine();
 		ImGui::DragFloat("Volume", &m_volumeAudio, 0.1f);
+	}
+	if (ImGui::BeginCombo("Shader State", ShaderStatesNames[m_shaderType]))
+	{
+		for (int n = 0; n < (int)ShaderStates::NUM; n++)
+		{
+			bool is_selected = (ShaderStatesNames[m_shaderType] == ShaderStatesNames[n]);
+			if (ImGui::Selectable(ShaderStatesNames[n], is_selected))
+			{
+				m_shaderType = n;
+				m_renderKey = m_renderHandler->setShaderState(m_renderKey, (ShaderStates)m_shaderType);
+			}
+			if (is_selected)
+				ImGui::SetItemDefaultFocus();
+		}
+		ImGui::EndCombo();
 	}
 	ImGui::PopID();
 	ImGui::NewLine();

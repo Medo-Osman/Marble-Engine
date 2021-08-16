@@ -11,6 +11,7 @@ private:
 	// ID
 	UINT m_id;
 	std::string m_modelName;
+	int m_shaderType;
 
 	// Components
 	std::unique_ptr< MovementComponent > m_movementComponent;
@@ -32,7 +33,7 @@ public:
 	~GameObject();
 
 	// Initialization
-	void initialize(std::string modelName, UINT id);
+	void initialize(std::string modelName, UINT id, ShaderStates shaderState = ShaderStates::PHONG);
 	void setTextures(TexturePaths textures);
 
 	// Getters
