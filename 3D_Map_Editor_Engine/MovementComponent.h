@@ -1,7 +1,7 @@
+#include "pch.h"
 #ifndef MOVEMENTCOMPONENT_H
 #define MOVEMENTCOMPONENT_H
 
-#include "pch.h"
 
 enum class Direction { FORWARD, BACKWARD, LEFT, RIGHT, UP, DOWN };
 

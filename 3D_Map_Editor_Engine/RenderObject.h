@@ -32,6 +32,9 @@ public:
 	// Picking
 	float pick(XMVECTOR rayOrigin, XMVECTOR rayDirection, char dimension = 'n');
 
+	// Getters
+	void materialUIUpdate();
+
 	// Setters
 	void setShaderState(ShaderStates shaderState);
 	void setMaterial(PS_MATERIAL_BUFFER material);

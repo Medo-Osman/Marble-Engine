@@ -41,7 +41,12 @@ private:
 		
 
 		if (FAILED(hr))
+		{
+			OutputDebugString(L"Failed to load: ");
+			OutputDebugString(texturePath);
+			OutputDebugString(L"\n");
 			couldLoad = false;
+		}
 		assert(SUCCEEDED(hr) && "Error, failed to load texture file!");
 
 		return couldLoad;

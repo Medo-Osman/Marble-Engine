@@ -37,6 +37,11 @@ float RenderObject::pick(XMVECTOR rayOrigin, XMVECTOR rayDirection, char dimensi
 	return m_model->pick(rayOrigin, rayDirection, dimension);
 }
 
+void RenderObject::materialUIUpdate()
+{
+	m_model->updateUI();
+}
+
 void RenderObject::setShaderState(ShaderStates shaderState)
 {
 	m_model->setShaderState(shaderState);

@@ -158,6 +158,8 @@ void GameObject::update(float dt)
 		}
 		ImGui::EndCombo();
 	}
+	m_renderHandler->modelTextureUIUpdate(m_renderKey);
+
 	ImGui::PopID();
 	ImGui::NewLine();
 

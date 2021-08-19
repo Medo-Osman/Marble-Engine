@@ -428,6 +428,11 @@ RenderObjectKey RenderHandler::setShaderState(RenderObjectKey key, ShaderStates 
 	}
 }
 
+void RenderHandler::modelTextureUIUpdate(RenderObjectKey key)
+{
+	m_renderObjects[key]->materialUIUpdate();
+}
+
 int RenderHandler::addLight(Light newLight, bool usedForShadowMapping)
 {
 	if (m_lightManager.addLight(newLight))

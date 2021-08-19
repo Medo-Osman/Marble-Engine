@@ -13,6 +13,7 @@
 #include <memory>
 #include <wrl/client.h>
 #include <windows.applicationmodel.core.h>
+#include <shobjidl_core.h>
 #define NOMINMAX // std::min/std::max wont work without this
 #include <algorithm>
 #include <map>
@@ -47,6 +48,7 @@
 
 // ImGUI
 #include <imGUI/imgui.h>
+#include <imGUI/imfilebrowser.h>
 #include <imGUI/imgui_impl_win32.h>
 #include <imGUI/imgui_impl_dx11.h>
 

@@ -37,6 +37,8 @@ struct PS_MATERIAL_BUFFER
 	}
 };
 
+enum class PhongTexturesTypes {DIFFUSE, SPECULAR, NORMAL, DISPLACEMENT, NONE};
+
 class Material
 {
 private:
@@ -46,7 +48,10 @@ private:
 	// Name
 	std::string m_name;
 
-	// Testures
+	// Texture Picker
+	ImGui::FileBrowser m_fileDialog;
+
+	// Textures
 	ID3D11ShaderResourceView* m_diffuseTexture;
 	ID3D11ShaderResourceView* m_specularTexture;
 	ID3D11ShaderResourceView* m_normalTexture;
@@ -62,24 +67,28 @@ private:
 		if (texturePaths.diffusePath != L"")
 		{
 			m_diffuseTexture = ResourceHandler::getInstance().getTexture(texturePaths.diffusePath.c_str());
+			m_diffuseTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, texturePaths.diffusePath.c_str());
 			m_materialData.diffTextureExists = true;
 			m_diffTextureExists = true;
 		}
 		if (texturePaths.specularPath != L"")
 		{
 			m_specularTexture = ResourceHandler::getInstance().getTexture(texturePaths.specularPath.c_str());
+			m_specularTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, texturePaths.specularPath.c_str());
 			m_materialData.specTextureExists = true;
 			m_specTextureExists = true;
 		}
 		if (texturePaths.normalPath != L"")
 		{
 			m_normalTexture = ResourceHandler::getInstance().getTexture(texturePaths.normalPath.c_str());
+			m_normalTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, texturePaths.normalPath.c_str());
 			m_materialData.normTextureExists = true;
 			m_normTextureExists = true;
 		}
 		if (texturePaths.displacementPath != L"")
 		{
 			m_displacementTexture = ResourceHandler::getInstance().getTexture(texturePaths.displacementPath.c_str());
+			m_displacementTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, texturePaths.displacementPath.c_str());
 			m_displacementExists = true;
 		}
 	}
@@ -96,6 +105,9 @@ public:
 		m_specTextureExists		= false;
 		m_normTextureExists		= false;
 		m_displacementExists	= false;
+
+		m_fileDialog.SetTitle("Load Texture");
+		m_fileDialog.SetTypeFilters({ ".png", ".jpg", ".jpeg", ".tga", ".dds", ".DDS" });
 	}
 
 	bool m_diffTextureExists;
@@ -189,6 +201,103 @@ public:
 	void setName(std::string newName)
 	{
 		m_name = newName;
+	}
+
+	void updateUI()
+	{
+		float imageSize = 50;
+		float imageOffset = imageSize + 10;
+		UINT nameSize = 64;
+		WCHAR name[64];
+		PhongTexturesTypes texType = PhongTexturesTypes::NONE;
+		
+		if (ImGui::CollapsingHeader("Textures"))
+		{
+			if (m_diffTextureExists)
+			{
+				ImGui::Image(m_diffuseTexture, ImVec2(imageSize, imageSize));
+				m_diffuseTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
+				_bstr_t nameCStr(name);
+				ImGui::SameLine(imageOffset);
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					texType = PhongTexturesTypes::DIFFUSE;
+				}
+			}
+			if (m_normTextureExists)
+			{
+				ImGui::Image(m_normalTexture, ImVec2(imageSize, imageSize));
+				m_normalTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
+				_bstr_t nameCStr(name);
+				ImGui::SameLine(imageOffset);
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					texType = PhongTexturesTypes::NORMAL;
+				}
+			}
+			if (m_specTextureExists)
+			{
+				ImGui::Image(m_specularTexture, ImVec2(imageSize, imageSize));
+				m_specularTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
+				_bstr_t nameCStr(name);
+				ImGui::SameLine(imageOffset);
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					texType = PhongTexturesTypes::SPECULAR;
+				}
+			}
+			if (m_displacementExists)
+			{
+				ImGui::Image(m_displacementTexture, ImVec2(imageSize, imageSize));
+				m_displacementTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
+				_bstr_t nameCStr(name);
+				ImGui::SameLine(imageOffset);
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					texType = PhongTexturesTypes::DISPLACEMENT;
+				}
+			}
+
+		}
+		m_fileDialog.Display();
+
+		if (m_fileDialog.HasSelected())
+		{
+			std::wstring path = charToWchar(m_fileDialog.GetSelected().string());
+			size_t pos = path.find(L"Textures");
+			path.erase(0, pos);
+			switch (texType)
+			{
+			case PhongTexturesTypes::DIFFUSE:
+				m_diffuseTexture = ResourceHandler::getInstance().getTexture(path.c_str());
+				m_diffuseTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
+				break;
+			case PhongTexturesTypes::SPECULAR:
+				m_specularTexture = ResourceHandler::getInstance().getTexture(path.c_str());
+				m_specularTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
+				break;
+			case PhongTexturesTypes::NORMAL:
+				m_normalTexture = ResourceHandler::getInstance().getTexture(path.c_str());
+				m_normalTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
+				break;
+			case PhongTexturesTypes::DISPLACEMENT:
+				m_displacementTexture = ResourceHandler::getInstance().getTexture(path.c_str());
+				m_displacementTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
+				break;
+			default:
+				break;
+			}
+
+			m_fileDialog.ClearSelected();
+		}
 	}
 };
 

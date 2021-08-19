@@ -143,6 +143,7 @@ public:
     void updateRenderObjectWorld(RenderObjectKey key, XMMATRIX worldMatrix);
     void deleteRenderObject(RenderObjectKey key);
     RenderObjectKey setShaderState(RenderObjectKey key, ShaderStates shaderState);
+    void modelTextureUIUpdate(RenderObjectKey key);
 
     // Lights
     int addLight(Light newLight, bool usedForShadowMapping = false);

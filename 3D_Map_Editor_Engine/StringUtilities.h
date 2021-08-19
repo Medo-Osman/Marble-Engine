@@ -2,21 +2,30 @@
 #define STRINGUTILITIES_H
 
 #include <string>
-#include <codecvt>
-#include <locale>
+#include <stdlib.h>
 #include <DirectXMath.h>
 
-using convert_t = std::codecvt_utf8<wchar_t>;
-static std::wstring_convert<convert_t, wchar_t> strconverter;
+//using convert_t = std::codecvt_utf8<wchar_t>;
+//static std::wstring_convert<convert_t, wchar_t> strconverter;
+//
+//static std::string to_string(std::wstring wstr)
+//{
+//    return strconverter.to_bytes(wstr);
+//}
+//
+//static std::wstring to_wstring(std::string str)
+//{
+//    return strconverter.from_bytes(str);
+//}
 
-static std::string to_string(std::wstring wstr)
+static std::wstring charToWchar(std::string oldString)
 {
-    return strconverter.to_bytes(wstr);
-}
-
-static std::wstring to_wstring(std::string str)
-{
-    return strconverter.from_bytes(str);
+	size_t origsize = strlen(oldString.c_str()) + 1;
+	const size_t newsize = 100;
+	size_t convertedChars = 0;
+	wchar_t wcstring[newsize];
+	mbstowcs_s(&convertedChars, wcstring, origsize, oldString.c_str(), _TRUNCATE);
+	return wcstring;
 }
 
 static std::string f3ToString(DirectX::XMFLOAT3 f3, std::string delimiter = ", ")

@@ -73,7 +73,7 @@ void GameState::setImGuiStyles()
 
 	//style.Colors[ImGuiCol_Text] = ImVec4(0.80f, 0.80f, 0.83f, 1.00f);
 	//style.Colors[ImGuiCol_TextDisabled] = ImVec4(0.24f, 0.23f, 0.29f, 1.00f);
-	style.Colors[ImGuiCol_WindowBg] = ImVec4(0.f, 0.f, 0.1f, 0.2f);
+	style.Colors[ImGuiCol_WindowBg] = ImVec4(0.f, 0.f, 0.1f, 0.5f);
 	//style.Colors[ImGuiCol_ChildWindowBg] = ImVec4(0.07f, 0.07f, 0.09f, 1.00f);
 	//style.Colors[ImGuiCol_PopupBg] = ImVec4(0.07f, 0.07f, 0.09f, 1.00f);
 	style.Colors[ImGuiCol_Border] = ImVec4(0.1f, 0.15f, 0.2f, 1.f);
@@ -90,7 +90,7 @@ void GameState::setImGuiStyles()
 	//style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.80f, 0.80f, 0.83f, 0.31f);
 	//style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.56f, 0.56f, 0.58f, 1.00f);
 	//style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.06f, 0.05f, 0.07f, 1.00f);
-	style.Colors[ImGuiCol_ChildBg] = ImVec4(0.9f, 0.9f, 0.8f, 1.00f);
+	style.Colors[ImGuiCol_ChildBg] = ImVec4(0.f, 0.f, 0.1f, 0.7f);
 	style.Colors[ImGuiCol_CheckMark] = ImVec4(0.5f, 0.6f, 0.9f, 1.f);
 	style.Colors[ImGuiCol_SliderGrab] = ImVec4(0.80f, 0.80f, 0.83f, 0.31f);
 	style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(0.06f, 0.05f, 0.07f, 1.f);
@@ -100,7 +100,7 @@ void GameState::setImGuiStyles()
 	style.Colors[ImGuiCol_Header]			= ImVec4(0.10f, 0.15f, 0.20f, 1.00f);
 	style.Colors[ImGuiCol_HeaderHovered]	= ImVec4(0.15f, 0.225f, 0.30f, 1.00f);
 	style.Colors[ImGuiCol_HeaderActive]		= ImVec4(0.05f, 0.075f, 0.10f, 1.00f);
-	//style.Colors[ImGuiCol_Separator] = ImVec4(1.f, 0.f, 0.f, 0.00f); // ImGuiCol_Column
+	style.Colors[ImGuiCol_Separator] = ImVec4(.8f, .8f, .8f, 1.f); // ImGuiCol_Column
 	//style.Colors[ImGuiCol_ColumnHovered] = ImVec4(0.24f, 0.23f, 0.29f, 1.00f);
 	//style.Colors[ImGuiCol_ColumnActive] = ImVec4(0.56f, 0.56f, 0.58f, 1.00f);
 	//style.Colors[ImGuiCol_ResizeGrip] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);*/

@@ -21,8 +21,6 @@ private:
 	// Meshes
 	std::vector<Mesh<VertexPosNormTexTan>> m_meshes;
 
-	std::wstring_convert< std::codecvt_utf8<wchar_t>, wchar_t> strconverter;
-
 	// Helper Functions
 	Mesh<VertexPosNormTexTan> processMesh(aiMesh* mesh, const aiScene* scene)
 	{
@@ -125,15 +123,15 @@ private:
 		aiString texturePath;
 
 		if (aMaterial->GetTextureCount(aiTextureType_DIFFUSE) > 0 && aMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.diffusePath = strconverter.from_bytes(texturePath.C_Str()).c_str();
+			texturePaths.diffusePath = charToWchar(texturePath.C_Str()).c_str();
 
 		if (aMaterial->GetTextureCount(aiTextureType_HEIGHT) > 0 && aMaterial->GetTexture(aiTextureType_HEIGHT, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.normalPath = strconverter.from_bytes(texturePath.C_Str()).c_str();
+			texturePaths.normalPath = charToWchar(texturePath.C_Str()).c_str();
 
 		if (aMaterial->GetTextureCount(aiTextureType_SPECULAR) > 0 && aMaterial->GetTexture(aiTextureType_SPECULAR, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.specularPath = strconverter.from_bytes(texturePath.C_Str()).c_str();
+			texturePaths.specularPath = charToWchar(texturePath.C_Str()).c_str();
 		
-		return Mesh<VertexPosNormTexTan>(m_device, m_deviceContext, vertices, indices, material, texturePaths);
+		return Mesh<VertexPosNormTexTan>(m_device, m_deviceContext, vertices, indices, material, texturePaths, mesh->mName.C_Str());
 	}
 	void processNodes(aiNode* node, const aiScene* scene)
 	{
@@ -141,9 +139,11 @@ private:
 		{
 			aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
 			m_meshes.push_back(processMesh(mesh, scene));
+			OutputDebugStringA(m_meshes.back().getName().c_str());
+			OutputDebugStringA("\n");
 
-			std::string name = m_name + "_" + std::to_string(i);
-			m_meshes.back().setName(name);
+			/*std::string name = m_name + "_" + std::to_string(i);
+			m_meshes.back().setName(name);*/
 		}
 
 		for (UINT i = 0; i < node->mNumChildren; i++)
@@ -159,6 +159,10 @@ private:
 			return false;
 
 		processNodes(pScene->mRootNode, pScene);
+
+		OutputDebugStringA("Model loaded: ");
+		OutputDebugStringA(modelName.c_str());
+		OutputDebugStringA("\n");
 		return true;
 	}
 
@@ -222,7 +226,7 @@ public:
 			material.diffuse = XMFLOAT4(0.13f, .25f, 0.004f, 1.f); // Forest Green
 			material.specular = XMFLOAT4(.1f, .1f, 0.1f, 1.f);
 			material.shininess = 32.f;
-			m_meshes.push_back(Mesh<VertexPosNormTexTan>(m_device, m_deviceContext, vertices, indices, material, TexturePaths()));
+			m_meshes.push_back(Mesh<VertexPosNormTexTan>(m_device, m_deviceContext, vertices, indices, material, TexturePaths(), "Plane"));
 			m_meshes.back().setName(id + "_Default");
 		}
 		else
@@ -315,6 +319,17 @@ public:
 	{
 		for (size_t i = 0; i < m_meshes.size(); i++)
 			m_meshes[i].setTextures(textures);
+	}
+
+	// UI Update
+	void updateUI()
+	{
+		if (ImGui::CollapsingHeader("Mesh List"))
+		{
+			for (size_t i = 0; i < m_meshes.size(); i++)
+				m_meshes[i].updateUI();
+		}
+		ImGui::Separator();
 	}
 
 	// Render

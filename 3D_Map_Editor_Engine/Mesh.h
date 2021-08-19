@@ -27,10 +27,12 @@ private:
 	MaterialPBR m_materialPBR;
 
 public: 
-	Mesh(ID3D11Device* device, ID3D11DeviceContext* deviceContext, std::vector<T>& vertices, std::vector<UINT>& indices, PS_MATERIAL_BUFFER material, TexturePaths texturePaths)
+	Mesh(ID3D11Device* device, ID3D11DeviceContext* deviceContext, std::vector<T>& vertices, std::vector<UINT>& indices, PS_MATERIAL_BUFFER material, TexturePaths texturePaths, std::string name = "")
 	{
 		m_deviceContext = deviceContext;
 		
+		setName(name);
+
 		m_vertexBuffer = std::make_shared< Buffer<T> >();
 		m_vertexBuffer->initialize(device, deviceContext, vertices.data(), BufferType::VERTEX, vertices.size());
 		m_hasIndices = false;
@@ -59,7 +61,6 @@ public:
 		texturePathsPBR.normalPath = texturePaths.normalPath;
 		texturePathsPBR.displacementPath = texturePaths.displacementPath;
 		m_materialPBR.initialize(device, deviceContext, materialPBR, texturePathsPBR);
-
 	}
 	Mesh(ID3D11Device* device, ID3D11DeviceContext* deviceContext, std::vector<T>& vertices, std::vector<UINT>& indices, PS_MATERIAL_PBR_BUFFER material, TexturePathsPBR texturePaths)
 	{
@@ -103,8 +104,10 @@ public:
 		m_materialType = otherMesh.m_materialType;
 		m_material = otherMesh.m_material;
 		m_materialPBR = otherMesh.m_materialPBR;
+		m_name = otherMesh.m_name;
 	}
 
+	// Getters
 	Material& getMaterial()
 	{
 		switch (m_materialType)
@@ -120,7 +123,12 @@ public:
 		}
 		return m_material;
 	}
+	std::string getName() const
+	{
+		return m_name;
+	}
 
+	// Setters
 	void setName(std::string name)
 	{
 		m_name = name;
@@ -156,7 +164,29 @@ public:
 		m_materialType = ShaderStates::PBR;
 		m_materialPBR.setTextures(textures);
 	}
+	
+	// Update
+	void updateUI()
+	{
+		if (ImGui::CollapsingHeader(m_name.c_str()))
+		{
+			ImGui::PushID(m_name.c_str());
+			switch (m_materialType)
+			{
+			case PHONG:
+				m_material.updateUI();
+				break;
+			case PBR:
+				m_materialPBR.updateUI();
+				break;
+			default:
+				break;
+			}
+			ImGui::PopID();
+		}
+	}
 
+	// Render
 	void render()
 	{
 		// Vertex Buffer

@@ -180,6 +180,9 @@
     <ClInclude Include="MaterialPBR.h">
       <Filter>Header Files\Rendering\RenderObject</Filter>
     </ClInclude>
+    <ClInclude Include="Includes\imGUI\imfilebrowser.h">
+      <Filter>Header Files\Rendering\ImGUI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
