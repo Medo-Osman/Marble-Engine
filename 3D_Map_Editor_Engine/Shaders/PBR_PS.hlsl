@@ -37,7 +37,7 @@ struct Light
     float   range;
     int     type;
     bool    enabled;
-    float   pad; // Light Array needs correct byte offset
+    bool    isCastingShadow;
 };
 
 cbuffer lightBuffer : register(b1)
@@ -67,8 +67,8 @@ Texture2D AlbedoTexture : register(t0);
 Texture2D NormalTexture : register(t1);
 Texture2D MetallicTexture : register(t2);
 Texture2D RoughnessTexture : register(t3);
-Texture2D AmbientOcclusionTexture : register(t4);
-Texture2D EmissiveTexture : register(t5);
+Texture2D EmissiveTexture : register(t4);
+Texture2D AmbientOcclusionTexture : register(t5);
 
 Texture2D ShadowMap : register(t6);
 TextureCube IrradianceMap : register(t7);
@@ -153,7 +153,7 @@ float4 main(PS_IN input) : SV_TARGET
 
     float shadowDepth = input.shadowPosition.z / input.shadowPosition.w;
 
-    float shadowFactor = 0.f;
+    float shadowFactor = 0;
     [flatten]
     if (shadowDepth < 0.f || shadowDepth > 1.f) // if the pixels depth is beyond the shadow map, skip shadow sampling(Pixel is lit by light)
     {
@@ -208,11 +208,34 @@ float4 main(PS_IN input) : SV_TARGET
     float3 Lo = float3(0.0, 0.0, 0.0);
     for (i = 0; i < nrOfLights; ++i)
     {
-        ColorValues currentLightValues;
         switch (lights[i].type)
         {
             case DIRECTIONAL_LIGHT:
             {
+                float3 direction = normalize(lights[i].direction.xyz);
+                float intensity = max(dot(N, direction), 0);
+                float3 radiance = lights[i].color.xyz; /* * lights[i].Intensity * */;
+                
+                // cook-torrance brdf
+                float NDF = DistributionGGX(N, intensity, roughness);
+                float G = GeometrySmith(N, V, -direction, roughness);
+                float3 F = fresnelSchlick(max(dot(intensity, V), 0.0), F0);
+        
+                float3 kS = F;
+                float3 kD = float3(1.f, 1.f, 1.f) - kS;
+                kD *= 1.0 - metallic;
+        
+                float3 numerator = NDF * G * F;
+                float denominator = 4.0 * max(NDotV, 0.0) * max(dot(N, -direction), 0.0);
+                float3 specular = numerator / max(denominator, 0.001);
+                specular = float3(0, 0, 0);
+        
+                // add to outgoing radiance Lo
+                float NdotL = max(dot(N, -direction), 0.0);
+                float3 directionalLightContribution = (1 * albedo / PI + specular) * radiance * NdotL;
+                if (lights[i].isCastingShadow)
+                    directionalLightContribution *= shadowFactor;
+                Lo += directionalLightContribution;
             }
             break;
             case POINT_LIGHT:
@@ -222,24 +245,26 @@ float4 main(PS_IN input) : SV_TARGET
                 float3 H = normalize(V + L);
                 float distance = length(lights[i].position.xyz - WorldPos);
         
-                float attenuation = 1.0f / (1.0f + lights[i].attenuation * distance * distance);
-                //float attenuation = 1.0f - smoothstep(lights[i].Attenuation * 0.75f, lights[i].Attenuation, distance);
+                float attFactor = lights[i].range.x;
+                //float attenuation = 1.0f / (1.0f + attFactor * distance * distance);
+                float attenuation = 1.0f - smoothstep(attFactor * 0.75f, attFactor, distance);
         
-                float3 radiance = lights[i].color.xyz * /*lights[i].Intensity * */attenuation;
+                //attenuation = distanceFalloff;
+                float3 radiance = lights[i].color.xyz * 10 * attenuation;
         
                 // cook-torrance brdf
-                float NDF = DistributionGGX(N, H, roughness);
-                float G = GeometrySmith(N, V, L, roughness);
-                float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+                float NDF   = DistributionGGX(N, H, roughness);
+                float G     = GeometrySmith(N, V, L, roughness);
+                float3 F    = fresnelSchlick(max(dot(H, V), 0.0), F0);
         
                 float3 kS = F;
-                float3 kD = float3(1.0, 1.0, 1.0) - kS;
+                float3 kD = float3(1.f, 1.f, 1.f) - kS;
                 kD *= 1.0 - metallic;
         
                 float3 numerator = NDF * G * F;
                 float denominator = 4.0 * max(NDotV, 0.0) * max(dot(N, L), 0.0);
                 float3 specular = numerator / max(denominator, 0.001);
-        
+                
                 // add to outgoing radiance Lo
                 float NdotL = max(dot(N, L), 0.0);
                 Lo += (kD * albedo / PI + specular) * radiance * NdotL;
@@ -247,35 +272,35 @@ float4 main(PS_IN input) : SV_TARGET
             break;
             case SPOT_LIGHT:
             {
-                float3 L = normalize(lights[i].position.xyz - WorldPos);
-                float3 H = normalize(V + L);
-                float distance = length(lights[i].position.xyz - WorldPos);
+                //float3 L = normalize(lights[i].position.xyz - WorldPos);
+                //float3 H = normalize(V + L);
+                //float distance = length(lights[i].position.xyz - WorldPos);
         
-                float attenuation = 1.0f / (1.0f + lights[i].attenuation * distance * distance);
+                //float attenuation = 1.0f / (1.0f + lights[i].attenuation.x * distance * distance);
                 
-                float minCos = cos(lights[i].spotAngle);
-                float maxCos = (minCos + 1.0f) / 2.0f;
-                float cosAngle = dot(lights[i].direction.xyz, -L);
-                float spotIntensity = smoothstep(minCos, maxCos, cosAngle);
+                //float minCos = cos(lights[i].spotAngle);
+                //float maxCos = (minCos + 1.0f) / 2.0f;
+                //float cosAngle = dot(lights[i].direction.xyz, -L);
+                //float spotIntensity = smoothstep(minCos, maxCos, cosAngle);
         
-                float3 radiance = lights[i].color.xyz * /*lights[i].Intensity * */spotIntensity * attenuation; // * (coneFalloff * distanceFalloff);
+                //float3 radiance = lights[i].color.xyz * /*lights[i].Intensity * */spotIntensity * attenuation; // * (coneFalloff * distanceFalloff);
 
-                // cook-torrance brdf
-                float NDF = DistributionGGX(N, H, roughness);
-                float G = GeometrySmith(N, V, L, roughness);
-                float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+                //// cook-torrance brdf
+                //float NDF = DistributionGGX(N, H, roughness);
+                //float G = GeometrySmith(N, V, L, roughness);
+                //float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
         
-                float3 kS = F;
-                float3 kD = float3(1.0, 1.0, 1.0) - kS;
-                kD *= 1.0 - metallic;
+                //float3 kS = F;
+                //float3 kD = float3(1.0, 1.0, 1.0) - kS;
+                //kD *= 1.0 - metallic;
         
-                float3 numerator = NDF * G * F;
-                float denominator = 4.0 * max(NDotV, 0.0) * max(dot(N, L), 0.0);
-                float3 specular = numerator / max(denominator, 0.001);
+                //float3 numerator = NDF * G * F;
+                //float denominator = 4.0 * max(NDotV, 0.0) * max(dot(N, L), 0.0);
+                //float3 specular = numerator / max(denominator, 0.001);
         
-                // add to outgoing radiance Lo
-                float NdotL = max(dot(N, L), 0.0);
-                Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+                //// add to outgoing radiance Lo
+                //float NdotL = max(dot(N, L), 0.0);
+                //Lo += (kD * albedo / PI + specular) * radiance * NdotL;
             }
             break;
         }
@@ -290,11 +315,13 @@ float4 main(PS_IN input) : SV_TARGET
     const float MAX_REFLECTION_LOD = 6.0;
     float lod = roughness * MAX_REFLECTION_LOD;
     float3 irradiance = IrradianceMap.Sample(sampState, N).rgb;
+    //irradiance = float3(1,1,1);
     float3 diffuse = irradiance * albedo;
 
     // Specular IBL
     float3 prefilteredColor = SpecularIBLMap.SampleLevel(sampState, R, lod).rgb;
     prefilteredColor *= max(1 - roughness, 0.001);
+    //prefilteredColor = float3(0,0,0);
     float2 envBRDF; // = BRDFMap.Sample(LinearRepeatSampler, float2(max(NDotV, 0.0f), roughness)).rg;
     
     const float4 c0 = float4(-1, -0.0275, -0.572, 0.022);
@@ -307,5 +334,7 @@ float4 main(PS_IN input) : SV_TARGET
     float3 ambient = ((kD * diffuse) + specular) * ao;
     
     // Final Pixel Color
+    //return float4(albedo, 1.f);
+    //return float4(1, 0, 0, 1.f);
     return float4(ambient + Lo, 1.f);
 }

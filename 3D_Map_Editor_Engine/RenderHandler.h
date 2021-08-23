@@ -165,6 +165,7 @@ public:
 
     // Update
     void update(float dt);
+    void updateShaderState(ShaderStates shaderState);
 
     // Render
     void render();

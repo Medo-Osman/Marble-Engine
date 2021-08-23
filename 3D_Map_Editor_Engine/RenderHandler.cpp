@@ -312,6 +312,7 @@ RenderObjectKey RenderHandler::newRenderObject(std::string modelName, ShaderStat
 
 	(*objects)[key] = new RenderObject();
 	objects->at(key)->initialize(m_device.Get(), m_deviceContext.Get(), objects->size(), modelName);
+	objects->at(key)->setShaderState(shaderState);
 	if (m_camera.isInitialized())
 	{
 		XMMATRIX viewProjMatrix = m_camera.getViewMatrix() * m_camera.getProjectionMatrix();
@@ -430,7 +431,18 @@ RenderObjectKey RenderHandler::setShaderState(RenderObjectKey key, ShaderStates 
 
 void RenderHandler::modelTextureUIUpdate(RenderObjectKey key)
 {
-	m_renderObjects[key]->materialUIUpdate();
+
+	switch (key.objectType)
+	{
+	case PHONG:
+		m_renderObjects[key]->materialUIUpdate();
+		break;
+	case PBR:
+		m_renderObjectsPBR[key]->materialUIUpdate();
+		break;
+	default:
+		break;
+	}
 }
 
 int RenderHandler::addLight(Light newLight, bool usedForShadowMapping)
@@ -573,6 +585,11 @@ void RenderHandler::update(float dt)
 	}
 }
 
+void RenderHandler::updateShaderState(ShaderStates shaderState)
+{
+	m_shaderStates[shaderState].updateShaders();
+}
+
 void RenderHandler::render()
 {
 	// Clear Frame
@@ -611,7 +628,6 @@ void RenderHandler::render()
 
 	// Set Lights
 	m_deviceContext->PSSetConstantBuffers(1, 1, m_lightManager.GetAddressOf());
-	m_lightManager.renderLightIndicators();
 
 	// Set Camera Buffer
 	m_deviceContext->PSSetConstantBuffers(2, 1, m_camera.getConstantBuffer());
@@ -619,14 +635,20 @@ void RenderHandler::render()
 	// Set Shadow Map Texture and Constant Buffer
 	m_deviceContext->PSSetShaderResources(3, 1, m_shadowInstance.getShadowMapSRV());
 	m_deviceContext->PSSetConstantBuffers(3, 1, m_shadowInstance.getShadowMatrixConstantBuffer());
-
+	
 	// Draw
+	
+	// - Light Indicators
+	m_lightManager.renderLightIndicators();
+
 	// - PHONG
+	m_shaderStates[ShaderStates::PHONG].setShaders();
 	for (auto &object : m_renderObjects)
-		object.second->render();
+		object.second->render(true);
 
 	// - PBR
 	m_deviceContext->PSSetShaderResources(6, 1, m_shadowInstance.getShadowMapSRV()); // 6th register slot in PBR Pixel Shader
+	m_deviceContext->PSSetConstantBuffers(3, 1, m_shadowInstance.getShadowMatrixConstantBuffer());
 	m_shaderStates[ShaderStates::PBR].setShaders();
 	m_skybox.setSkyboxTextures(8, 7); // Specular radiance and Diffuse irradiance maps
 	for (auto& object : m_renderObjectsPBR)

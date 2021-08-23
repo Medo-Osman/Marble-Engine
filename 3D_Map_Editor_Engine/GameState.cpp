@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "GameState.h"
+#include "Application.h"
 
 void GameState::loadModelList(std::string path)
 {
@@ -155,6 +156,20 @@ void GameState::initialize(Settings settings)
 	m_gameObjects.back()->initialize("", m_gameObjects.size());
 	m_gameObjects.back()->setScale(XMVectorSet(1000.f, 1000.f, 1000.f, 1.f));
 
+	// PBR Test
+	m_gameObjects.push_back(new GameObject());
+	m_gameObjects.back()->initialize("Cerberus_by_Andrew_Maximov\\Cerberus_LP.FBX", m_gameObjects.size(), ShaderStates::PBR);
+	m_gameObjects.back()->setScale(XMVectorSet(0.1f, 0.1f, 0.1f, 1.f));
+	m_gameObjects.back()->setRotation(XMVectorSet(XM_PIDIV2, 0.f, 0.f, 1.f));
+	m_gameObjects.back()->setPosition(XMVectorSet(-3.1f, 5.9f, -53.8f, 1.f));
+	TexturePathsPBR pbrTextures;
+	pbrTextures.albedoPath = L"Cerberus_A.tga";
+	pbrTextures.normalPath = L"Cerberus_N.tga";
+	pbrTextures.metallicPath = L"Cerberus_M.tga";
+	pbrTextures.roughnessPath = L"Cerberus_R.tga";
+	pbrTextures.ambientOcclusionPath = L"Cerberus_AO.tga";
+	m_gameObjects.back()->setTextures(pbrTextures);
+
 	// Map Handler
 	m_mapHandler.initialize("map1.txt", m_gameObjects.size(), true);
 
@@ -280,7 +295,7 @@ void GameState::initialize(Settings settings)
 	m_camera.initialize(settings.mouseSensitivity);
 }
 
-void GameState::controlls(float dt)
+void GameState::controls(float dt)
 {
 	if (!InputHandler::getInstance().keyBufferIsEmpty())
 	{
@@ -295,6 +310,8 @@ void GameState::controlls(float dt)
 					// Hide Cursor
 					while (::ShowCursor(FALSE) >= 0);
 					ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
+					// Clip To Window
+					Application::getInstance().setClipCursor(true);
 
 					// Camera Rotation
 					m_camera.rotate(mouseEvent.point.x, mouseEvent.point.y);
@@ -303,6 +320,7 @@ void GameState::controlls(float dt)
 				{
 					while (::ShowCursor(TRUE) < 0);
 					ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+					Application::getInstance().setClipCursor(false);
 				}
 			}
 			else if (mouseEvent.type == MouseEventType::LPress)
@@ -425,6 +443,9 @@ void GameState::controlls(float dt)
 
 		if (InputHandler::getInstance().keyIsPressed(KeyCodes::LeftShift))
 			m_camera.addForce(Direction::DOWN, dt);
+
+		if (InputHandler::getInstance().keyIsPressed(KeyCodes::R)) // Update PBR Shaders
+			m_renderHandler->updateShaderState(ShaderStates::PBR);
 	}
 }
 
@@ -600,7 +621,7 @@ void GameState::update(float dt)
 	ImGui::End();
 
 	// Light Menu
-	ImGui::Begin("Light", NULL, windowFlags);
+	ImGui::Begin("Lights", NULL, windowFlags);
 	for (size_t i = 0; i < m_lights.size(); i++)
 	{
 		ImGui::Text(std::to_string(i).c_str());
@@ -646,8 +667,8 @@ void GameState::update(float dt)
 	// Render ImGui(Runs at the end of RenderHandler render funtion!)
 	ImGui::Render();
 
-	// Controlls
-	controlls(dt);
+	// Controls
+	controls(dt);
 
 	// Camera
 	m_camera.update(dt);

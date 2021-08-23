@@ -47,6 +47,12 @@ private:
 			OutputDebugString(L"\n");
 			couldLoad = false;
 		}
+		else
+		{
+			OutputDebugString(L"Texture loaded: ");
+			OutputDebugString(texturePath);
+			OutputDebugString(L"\n");
+		}
 		assert(SUCCEEDED(hr) && "Error, failed to load texture file!");
 
 		return couldLoad;

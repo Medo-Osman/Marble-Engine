@@ -26,6 +26,22 @@ struct PS_MATERIAL_PBR_BUFFER
 	int pad = 0;
 };
 
+/*
+struct PS_MATERIAL_PBR_BUFFER
+{
+	DirectX::XMFLOAT3 albedo = DirectX::XMFLOAT3(1.f, 1.f, 1.f);
+	float metallic = 0.f;
+	float roughness = 0.f;
+	float emissiveStrength = 0.f;
+	BOOL albedoTexture = true;
+	BOOL normalTexture = true;
+	BOOL metallicTexture = true;
+	BOOL roughnessTexture = true;
+	XMFLOAT2 pad = XMFLOAT2();
+};
+
+*/
+
 enum class PBRTexturesTypes { ALBEDO, NORMAL, METALLIC, ROUGHNESS, EMISSIVE, AMBIENT_OCCLUSION, DISPLACEMENT, NONE };
 
 class MaterialPBR
@@ -39,6 +55,7 @@ private:
 
 	// Texture Picker
 	ImGui::FileBrowser m_fileDialog;
+	PBRTexturesTypes m_texTypeToLoad;
 
 	// Testures
 	ID3D11ShaderResourceView* m_albedoTexture;
@@ -125,8 +142,8 @@ private:
 		}
 		else
 		{
-			m_ambientOcclusionTexture = ResourceHandler::getInstance().getTexture(L"DefaultBlack.bmp");
-			m_ambientOcclusionTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, L"DefaultBlack.bmp");
+			m_ambientOcclusionTexture = ResourceHandler::getInstance().getTexture(L"DefaultWhite.bmp");
+			m_ambientOcclusionTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, L"DefaultWhite.bmp");
 		}
 
 		if (texturePaths.displacementPath != L"")
@@ -135,11 +152,20 @@ private:
 			m_displacementTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, texturePaths.displacementPath.c_str());
 		}
 	}
+	void UIUseTextureCheckbox(BOOL& textureExistsBool)
+	{
+		if (ImGui::Checkbox(" ", (bool*)&textureExistsBool))
+		{
+			PS_MATERIAL_PBR_BUFFER* materialData = new PS_MATERIAL_PBR_BUFFER(m_materialData);
+			m_materialCBuffer.update(&materialData);
+		}
+	}
 
 public:
 	MaterialPBR()
 	{
 		m_deviceContext				= nullptr;
+		m_albedoTexture				= nullptr;
 		m_normalTexture				= nullptr;
 		m_metallicTexture			= nullptr;
 		m_roughnessTexture			= nullptr;
@@ -150,6 +176,7 @@ public:
 
 		m_fileDialog.SetTitle("Load Texture");
 		m_fileDialog.SetTypeFilters({ ".png", ".jpg", ".jpeg", ".tga", ".dds", ".DDS" });
+		m_texTypeToLoad = PBRTexturesTypes::NONE;
 	}
 
 	void initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, PS_MATERIAL_PBR_BUFFER material, TexturePathsPBR texturePaths)
@@ -213,99 +240,223 @@ public:
 	void updateUI()
 	{
 		float imageSize = 50;
-		float imageOffset = imageSize + 10;
+		float imageOffset = ImGui::GetWindowSize().x - ImGui::GetContentRegionMax().x + imageSize + 35;
 		UINT nameSize = 64;
 		WCHAR name[64];
 		PBRTexturesTypes texType = PBRTexturesTypes::NONE;
 
-		if (ImGui::CollapsingHeader("Textures"))
+		if (ImGui::TreeNodeEx("Material", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			ImGui::Image(m_albedoTexture, ImVec2(imageSize, imageSize));
-			m_albedoTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
 			_bstr_t nameCStr(name);
-			ImGui::SameLine(imageOffset);
-			if (ImGui::Button((const char*)nameCStr))
+			// Albedo
+			if (ImGui::TreeNodeEx((void*)"Albedo", ImGuiTreeNodeFlags_DefaultOpen, "Albedo"))
 			{
-				m_fileDialog.Open();
-				m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
-				texType = PBRTexturesTypes::ALBEDO;
+				if (m_albedoTexture)
+				{
+					ImGui::Image(m_albedoTexture, ImVec2(imageSize, imageSize));
+					m_albedoTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
+					nameCStr = name;
+				}
+				else
+				{
+					ImGui::Image(ResourceHandler::getInstance().getTexture(L"Empty_Texture.jpg"), ImVec2(imageSize, imageSize));
+					nameCStr = "Add Texture";
+				}
+				ImGui::SameLine(imageOffset);
+				ImGui::BeginGroup();
+				UIUseTextureCheckbox(m_materialData.materialTextured);
+				ImGui::SameLine(30);
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					m_texTypeToLoad = PBRTexturesTypes::ALBEDO;
+				}
+				if (ImGui::ColorEdit3("Color##2f", &m_materialData.albedo.x, ImGuiColorEditFlags_Float))
+				{
+					PS_MATERIAL_PBR_BUFFER* materialData = new PS_MATERIAL_PBR_BUFFER(m_materialData);
+					m_materialCBuffer.update(&materialData);
+				}
+				ImGui::EndGroup();
+				ImGui::TreePop();
 			}
 
-			ImGui::Image(m_normalTexture, ImVec2(imageSize, imageSize));
-			m_normalTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
-			nameCStr = name;
-			ImGui::SameLine(imageOffset);
-			if (ImGui::Button((const char*)nameCStr))
+			// Normal
+			if (ImGui::TreeNodeEx((void*)"Normal", ImGuiTreeNodeFlags_DefaultOpen, "Normal"))
 			{
-				m_fileDialog.Open();
-				m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
-				texType = PBRTexturesTypes::NORMAL;
+				if (m_normalTexture)
+				{
+					ImGui::Image(m_normalTexture, ImVec2(imageSize, imageSize));
+					m_normalTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
+					nameCStr = name;
+				}
+				else
+				{
+					ImGui::Image(ResourceHandler::getInstance().getTexture(L"Empty_Texture.jpg"), ImVec2(imageSize, imageSize));
+					nameCStr = "Add Texture";
+				}
+				ImGui::SameLine(imageOffset);
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					m_texTypeToLoad = PBRTexturesTypes::NORMAL;
+				}
+				ImGui::TreePop();
 			}
 
-			ImGui::Image(m_metallicTexture, ImVec2(imageSize, imageSize));
-			m_metallicTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
-			nameCStr = name;
-			ImGui::SameLine(imageOffset);
-			if (ImGui::Button((const char*)nameCStr))
+			// Metallic
+			if (ImGui::TreeNodeEx((void*)"Metallic", ImGuiTreeNodeFlags_DefaultOpen, "Metallic"))
 			{
-				m_fileDialog.Open();
-				m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
-				texType = PBRTexturesTypes::METALLIC;
+				if (m_metallicTexture)
+				{
+					ImGui::Image(m_metallicTexture, ImVec2(imageSize, imageSize));
+					m_metallicTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
+					nameCStr = name;
+				}
+				else
+				{
+					ImGui::Image(ResourceHandler::getInstance().getTexture(L"Empty_Texture.jpg"), ImVec2(imageSize, imageSize));
+					nameCStr = "Add Texture";
+				}
+				ImGui::SameLine(imageOffset);
+				ImGui::BeginGroup();
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					m_texTypeToLoad = PBRTexturesTypes::METALLIC;
+				}
+				if (ImGui::DragFloat("Value", &m_materialData.metallic, 0.1f))
+				{
+					PS_MATERIAL_PBR_BUFFER* materialData = new PS_MATERIAL_PBR_BUFFER(m_materialData);
+					m_materialCBuffer.update(&materialData);
+				}
+				ImGui::EndGroup();
+				ImGui::TreePop();
 			}
 
-			ImGui::Image(m_roughnessTexture, ImVec2(imageSize, imageSize));
-			m_roughnessTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
-			nameCStr = name;
-			ImGui::SameLine(imageOffset);
-			if (ImGui::Button((const char*)nameCStr))
+			// Rougness
+			if (ImGui::TreeNodeEx((void*)"Rougness", ImGuiTreeNodeFlags_DefaultOpen, "Rougness"))
 			{
-				m_fileDialog.Open();
-				m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
-				texType = PBRTexturesTypes::ROUGHNESS;
+				if (m_roughnessTexture)
+				{
+					ImGui::Image(m_roughnessTexture, ImVec2(imageSize, imageSize));
+					m_roughnessTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
+					nameCStr = name;
+				}
+				else
+				{
+					ImGui::Image(ResourceHandler::getInstance().getTexture(L"Empty_Texture.jpg"), ImVec2(imageSize, imageSize));
+					nameCStr = "Add Texture";
+				}
+				ImGui::SameLine(imageOffset);
+				ImGui::BeginGroup();
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					m_texTypeToLoad = PBRTexturesTypes::ROUGHNESS;
+				}
+				if (ImGui::DragFloat("Value", &m_materialData.roughness, 0.1f))
+				{
+					PS_MATERIAL_PBR_BUFFER* materialData = new PS_MATERIAL_PBR_BUFFER(m_materialData);
+					m_materialCBuffer.update(&materialData);
+				}
+				ImGui::EndGroup();
+				ImGui::TreePop();
 			}
 
-			ImGui::Image(m_emissiveTexture, ImVec2(imageSize, imageSize));
-			m_emissiveTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
-			nameCStr = name;
-			ImGui::SameLine(imageOffset);
-			if (ImGui::Button((const char*)nameCStr))
+			// Emissive
+			if (ImGui::TreeNodeEx((void*)"Emissive", ImGuiTreeNodeFlags_DefaultOpen, "Emissive"))
 			{
-				m_fileDialog.Open();
-				m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
-				texType = PBRTexturesTypes::EMISSIVE;
+				if (m_emissiveTexture)
+				{
+					ImGui::Image(m_emissiveTexture, ImVec2(imageSize, imageSize));
+					m_emissiveTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
+					nameCStr = name;
+				}
+				else
+				{
+					ImGui::Image(ResourceHandler::getInstance().getTexture(L"Empty_Texture.jpg"), ImVec2(imageSize, imageSize));
+					nameCStr = "Add Texture";
+				}
+				ImGui::SameLine(imageOffset);
+				ImGui::BeginGroup();
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					m_texTypeToLoad = PBRTexturesTypes::EMISSIVE;
+				}
+				if (ImGui::DragFloat("Strength", &m_materialData.emissiveStrength, 0.1f))
+				{
+					PS_MATERIAL_PBR_BUFFER* materialData = new PS_MATERIAL_PBR_BUFFER(m_materialData);
+					m_materialCBuffer.update(&materialData);
+				}
+				ImGui::EndGroup();
+				ImGui::TreePop();
 			}
 
-			ImGui::Image(m_ambientOcclusionTexture, ImVec2(imageSize, imageSize));
-			m_ambientOcclusionTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
-			nameCStr = name;
-			ImGui::SameLine(imageOffset);
-			if (ImGui::Button((const char*)nameCStr))
+			// Ambient Occlusion
+			if (ImGui::TreeNodeEx((void*)"Ambient Occlusion", ImGuiTreeNodeFlags_DefaultOpen, "Ambient Occlusion"))
 			{
-				m_fileDialog.Open();
-				m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
-				texType = PBRTexturesTypes::AMBIENT_OCCLUSION;
+				if (m_ambientOcclusionTexture)
+				{
+					ImGui::Image(m_ambientOcclusionTexture, ImVec2(imageSize, imageSize));
+					m_ambientOcclusionTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
+					nameCStr = name;
+				}
+				else
+				{
+					ImGui::Image(ResourceHandler::getInstance().getTexture(L"Empty_Texture.jpg"), ImVec2(imageSize, imageSize));
+					nameCStr = "Add Texture";
+				}
+				ImGui::SameLine(imageOffset);
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					m_texTypeToLoad = PBRTexturesTypes::AMBIENT_OCCLUSION;
+				}
+				ImGui::TreePop();
 			}
 
-			ImGui::Image(m_displacementTexture, ImVec2(imageSize, imageSize));
-			m_displacementTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
-			nameCStr = name;
-			ImGui::SameLine(imageOffset);
-			if (ImGui::Button((const char*)nameCStr))
+			// Displacement
+			if (ImGui::TreeNodeEx((void*)"Displacement", ImGuiTreeNodeFlags_DefaultOpen, "Displacement"))
 			{
-				m_fileDialog.Open();
-				m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
-				texType = PBRTexturesTypes::DISPLACEMENT;
+				if (m_displacementTexture)
+				{
+					ImGui::Image(m_displacementTexture, ImVec2(imageSize, imageSize));
+					m_displacementTexture->GetPrivateData(WKPDID_D3DDebugObjectNameW, &nameSize, (void*)name);
+					nameCStr = name;
+				}
+				else
+				{
+					ImGui::Image(ResourceHandler::getInstance().getTexture(L"Empty_Texture.jpg"), ImVec2(imageSize, imageSize));
+					nameCStr = "Add Texture";
+				}
+				ImGui::SameLine(imageOffset);
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					m_texTypeToLoad = PBRTexturesTypes::DISPLACEMENT;
+				}
+				ImGui::TreePop();
 			}
-
+			ImGui::TreePop();
 		}
 		m_fileDialog.Display();
 
 		if (m_fileDialog.HasSelected())
 		{
-			std::wstring path = charToWchar(m_fileDialog.GetSelected().string());
-			size_t pos = path.find(L"Textures");
-			path.erase(0, pos);
-			switch (texType)
+			std::string strPath = m_fileDialog.GetSelected().string();
+			size_t pos = strPath.find("Textures");
+			strPath.erase(0, pos);
+			std::wstring path = charToWchar(strPath);
+
+			switch (m_texTypeToLoad)
 			{
 			case PBRTexturesTypes::ALBEDO:
 				m_albedoTexture = ResourceHandler::getInstance().getTexture(path.c_str());

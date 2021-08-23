@@ -35,10 +35,13 @@ public:
 	// Initialization
 	void initialize(std::string modelName, UINT id, ShaderStates shaderState = ShaderStates::PHONG);
 	void setTextures(TexturePaths textures);
+	void setTextures(TexturePathsPBR textures);
 
 	// Getters
 	std::string getModelName() const;
 	std::string getModelNameAndId() const;
+
+	ShaderStates getShaderType() const;
 
 	XMVECTOR getScale() const;
 	XMFLOAT3 getScaleF3() const;

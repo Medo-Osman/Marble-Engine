@@ -170,7 +170,6 @@ public:
 	{
 		if (ImGui::CollapsingHeader(m_name.c_str()))
 		{
-			ImGui::PushID(m_name.c_str());
 			switch (m_materialType)
 			{
 			case PHONG:
@@ -182,7 +181,6 @@ public:
 			default:
 				break;
 			}
-			ImGui::PopID();
 		}
 	}
 

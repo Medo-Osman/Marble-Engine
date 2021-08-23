@@ -21,6 +21,12 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 	// Topology
 	m_topology = topology;
 
+	// Layout Type
+	m_layoutType = layoutType;
+
+	// Files
+	m_files = names;
+
 	// Error Blob
 	ID3DBlob* errorBlob = nullptr;
 	
@@ -372,6 +378,29 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 		assert(SUCCEEDED(hr) && "Error, Compute shaders could not be created!");
 		csBlob->Release();
 	}
+}
+
+void Shaders::updateShaders()
+{
+	if (m_vertexShader.Get())
+		m_vertexShader.ReleaseAndGetAddressOf();
+
+	if (m_hullShader.Get())
+		m_hullShader.ReleaseAndGetAddressOf();
+
+	if (m_domainShader.Get())
+		m_domainShader.ReleaseAndGetAddressOf();
+	
+	if (m_geometryShader.Get())
+		m_geometryShader.ReleaseAndGetAddressOf();
+
+	if (m_pixelShader.Get())
+		m_pixelShader.ReleaseAndGetAddressOf();
+
+	if (m_computeShader.Get())
+		m_computeShader.ReleaseAndGetAddressOf();
+
+	initialize(m_device, m_deviceContext, m_files, m_layoutType);
 }
 
 void Shaders::setShaders()

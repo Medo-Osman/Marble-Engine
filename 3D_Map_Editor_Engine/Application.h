@@ -15,6 +15,7 @@ private:
 	HWND m_window;
 	std::wstring m_name;
 	bool m_shouldQuit;
+	bool m_clipCursor;
 
 	// Settings
 	Settings m_settings;
@@ -49,6 +50,9 @@ public:
 
 	// Getters
 	HWND getWindow() const;
+
+	// Setters
+	void setClipCursor(bool clipCursor);
 
 	// Applicaiton Loop
 	void applicationLoop();

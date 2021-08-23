@@ -29,9 +29,11 @@ private:
 	ComPtr< ID3D11GeometryShader > m_geometryShader;
 	ComPtr< ID3D11PixelShader > m_pixelShader;
 	ComPtr< ID3D11ComputeShader > m_computeShader;
+	ShaderFiles m_files;
 
 	// Layout
 	ComPtr< ID3D11InputLayout > m_layout;
+	LayoutType m_layoutType;
 
 	// Topology
 	D3D_PRIMITIVE_TOPOLOGY m_topology;
@@ -41,6 +43,8 @@ public:
 	~Shaders();
 
 	void initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, ShaderFiles names, LayoutType layoutType = LayoutType::POS_NOR_TEX, D3D_PRIMITIVE_TOPOLOGY topology = D3D_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, bool streamOutput = false);
+
+	void updateShaders();
 
 	void setShaders();
 	void unbindShaders();

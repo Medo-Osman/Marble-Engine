@@ -5,10 +5,17 @@
 struct GameObjectData
 {
 	std::string modelFile = "";
+	ShaderStates shaderType = ShaderStates::PHONG;
 	XMFLOAT3 scale				= { 1.f,1.f,1.f };
 	XMFLOAT3 rotation			= { 0.f,0.f,0.f };
 	XMFLOAT3 position			= { 0.f,0.f,0.f };
 };
+
+const std::string MODEL_FILE_PREFIX = "mf";
+const std::string SHADER_TYPE_PREFIX = "st";
+const std::string TRANSFORM_SCALE_PREFIX = "ts";
+const std::string TRANSFORM_ROTATION_PREFIX = "tr";
+const std::string TRANSFORM_POSITION_PREFIX = "tp";
 
 class MapHandler
 {
@@ -27,13 +34,14 @@ private:
 		{
 			for (size_t i = 0; i < m_gameObjectData.size(); i++)
 			{
-				m_file << "m " << m_gameObjectData[i].modelFile << "\n";
+				m_file << MODEL_FILE_PREFIX << " " << m_gameObjectData[i].modelFile << "\n";
+				m_file << SHADER_TYPE_PREFIX << " " << m_gameObjectData[i].shaderType << "\n";
 				tempStr = f3ToString(m_gameObjectData[i].scale, " ");
-				m_file << "s " << tempStr << "\n";
+				m_file << TRANSFORM_SCALE_PREFIX << " " << tempStr << "\n";
 				tempStr = f3ToString(m_gameObjectData[i].rotation, " ");
-				m_file << "r " << tempStr << "\n";
+				m_file << TRANSFORM_ROTATION_PREFIX << " " << tempStr << "\n";
 				tempStr = f3ToString(m_gameObjectData[i].position, " ");
-				m_file << "p " << tempStr;
+				m_file << TRANSFORM_POSITION_PREFIX << " " << tempStr;
 				m_file << "\n";
 			}
 
@@ -77,6 +85,7 @@ public:
 			std::string line = "";
 			std::string prefix = "";
 			std::string tempStr;
+			int tempShaderType;
 			XMFLOAT3 tempF3;
 			UINT tempUINT;
 
@@ -86,40 +95,30 @@ public:
 				sStream.str(line);
 				sStream >> prefix;
 
-				if (prefix == "m")
+				if (prefix == MODEL_FILE_PREFIX)
 				{
 					sStream >> tempStr;
-					/*OutputDebugStringA("Model: ");
-					OutputDebugStringA(tempStr.c_str());
-					OutputDebugStringA("\n");*/
 					m_gameObjectData.emplace_back();
 					m_gameObjectData.back().modelFile = tempStr;
 				}
-				else if (prefix == "s")
+				if (prefix == SHADER_TYPE_PREFIX)
+				{
+					sStream >> tempShaderType;
+					m_gameObjectData.back().shaderType = (ShaderStates)tempShaderType;
+				}
+				else if (prefix == TRANSFORM_SCALE_PREFIX)
 				{
 					sStream >> tempF3.x >> tempF3.y >> tempF3.z;
-					/*tempStr = f3ToString(tempF3);
-					OutputDebugStringA(" - Scale: ");
-					OutputDebugStringA(tempStr.c_str());
-					OutputDebugStringA("\n");*/
 					m_gameObjectData.back().scale = tempF3;
 				}
-				else if (prefix == "r")
+				else if (prefix == TRANSFORM_ROTATION_PREFIX)
 				{
 					sStream >> tempF3.x >> tempF3.y >> tempF3.z;
-					/*tempStr = f3ToString(tempF3);
-					OutputDebugStringA(" - Rotation: ");
-					OutputDebugStringA(tempStr.c_str());
-					OutputDebugStringA("\n");*/
 					m_gameObjectData.back().rotation = tempF3;
 				}
-				else if (prefix == "p")
+				else if (prefix == TRANSFORM_POSITION_PREFIX)
 				{
 					sStream >> tempF3.x >> tempF3.y >> tempF3.z;
-					/*tempStr = f3ToString(tempF3);
-					OutputDebugStringA(" - Position: ");
-					OutputDebugStringA(tempStr.c_str());
-					OutputDebugStringA("\n");*/
 					m_gameObjectData.back().position = tempF3;
 				}
 				else
@@ -168,7 +167,7 @@ public:
 		for (size_t i = sizeBefore; i < sizeAfter; i++)
 		{
 			gameObjects[i] = new GameObject();
-			gameObjects[i]->initialize(		m_gameObjectData[i - sizeBefore].modelFile, i + 1);
+			gameObjects[i]->initialize(		m_gameObjectData[i - sizeBefore].modelFile, i + 1, m_gameObjectData[i - sizeBefore].shaderType);
 			gameObjects[i]->setScale(		m_gameObjectData[i - sizeBefore].scale);
 			gameObjects[i]->setRotation(	m_gameObjectData[i - sizeBefore].rotation);
 			gameObjects[i]->setPosition(	m_gameObjectData[i - sizeBefore].position);
@@ -179,6 +178,7 @@ public:
 	{
 		GameObjectData data;
 		data.modelFile	= gameObject->getModelName();
+		data.shaderType	= gameObject->getShaderType();
 		data.scale		= gameObject->getScaleF3();
 		data.rotation	= gameObject->getRotationF3();
 		data.position	= gameObject->getPositionF3();
@@ -190,13 +190,14 @@ public:
 		if (m_file.is_open()) // Found
 		{
 			m_file << "\n";
-			m_file << "m " << data.modelFile << "\n";
+			m_file << MODEL_FILE_PREFIX << " " << data.modelFile << "\n";
+			m_file << SHADER_TYPE_PREFIX << " " << data.shaderType << "\n";
 			tempStr = f3ToString(data.scale, " ");
-			m_file << "s " << tempStr << "\n";
+			m_file << TRANSFORM_SCALE_PREFIX << " " << tempStr << "\n";
 			tempStr = f3ToString(data.rotation, " ");
-			m_file << "r " << tempStr << "\n";
+			m_file << TRANSFORM_ROTATION_PREFIX << " " << tempStr << "\n";
 			tempStr = f3ToString(data.position, " ");
-			m_file << "p " << tempStr;
+			m_file << TRANSFORM_POSITION_PREFIX << " " << tempStr;
 
 			m_file.close();
 
@@ -228,6 +229,7 @@ public:
 		for (size_t i = m_nrOfDifference; i <= m_gameObjectData.size(); i++)
 		{
 			m_gameObjectData[i - m_nrOfDifference].modelFile	= gameObjects[i]->getModelName();
+			m_gameObjectData[i - m_nrOfDifference].shaderType	= gameObjects[i]->getShaderType();
 			m_gameObjectData[i - m_nrOfDifference].scale		= gameObjects[i]->getScaleF3();
 			m_gameObjectData[i - m_nrOfDifference].rotation		= gameObjects[i]->getRotationF3();
 			m_gameObjectData[i - m_nrOfDifference].position		= gameObjects[i]->getPositionF3();

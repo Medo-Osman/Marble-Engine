@@ -139,11 +139,6 @@ private:
 		{
 			aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
 			m_meshes.push_back(processMesh(mesh, scene));
-			OutputDebugStringA(m_meshes.back().getName().c_str());
-			OutputDebugStringA("\n");
-
-			/*std::string name = m_name + "_" + std::to_string(i);
-			m_meshes.back().setName(name);*/
 		}
 
 		for (UINT i = 0; i < node->mNumChildren; i++)
@@ -327,7 +322,11 @@ public:
 		if (ImGui::CollapsingHeader("Mesh List"))
 		{
 			for (size_t i = 0; i < m_meshes.size(); i++)
+			{
+				ImGui::PushID(std::string(std::to_string(i) + m_name).c_str());
 				m_meshes[i].updateUI();
+				ImGui::PopID();
+			}
 		}
 		ImGui::Separator();
 	}

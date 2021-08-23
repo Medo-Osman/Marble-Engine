@@ -152,6 +152,7 @@ float4 main(PS_IN input) : SV_TARGET
     }
     
     // Shadow Mapping
+    //float shadowFactor = ShadowMapPCSS(shadowMap, sampState, input.shadowPosition.xyz, 3072.f, 1.f, 10.f);
     float2 shadowUV = input.shadowPosition.xy / input.shadowPosition.w * 0.5f + 0.5f;
     shadowUV.y = 1.0f - shadowUV.y;
 

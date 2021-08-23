@@ -38,6 +38,11 @@ void GameObject::setTextures(TexturePaths textures)
 	m_renderHandler->setRenderObjectTextures(m_renderKey, textures);
 }
 
+void GameObject::setTextures(TexturePathsPBR textures)
+{
+	m_renderHandler->setRenderObjectTextures(m_renderKey, textures);
+}
+
 std::string GameObject::getModelName() const
 {
 	return m_modelName;
@@ -49,6 +54,11 @@ std::string GameObject::getModelNameAndId() const
 	if (m_modelName.empty())
 		label = std::to_string(m_id);
 	return label;
+}
+
+ShaderStates GameObject::getShaderType() const
+{
+	return (ShaderStates)m_shaderType;
 }
 
 XMVECTOR GameObject::getScale() const

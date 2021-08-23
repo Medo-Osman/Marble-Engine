@@ -137,7 +137,7 @@ void ShadowMapInstance::initialize(ID3D11Device* device, ID3D11DeviceContext* de
 
 	// World Bounding Sphere
 	m_worldBoundingSphere.Center = { 0.f, 0.f, 0.f };
-	m_worldBoundingSphere.Radius = 150.f;
+	m_worldBoundingSphere.Radius = 100.f;
 
 	// Constant Buffers
 	m_lightMatrixCBuffer.initialize(device, deviceContext, nullptr, BufferType::CONSTANT);

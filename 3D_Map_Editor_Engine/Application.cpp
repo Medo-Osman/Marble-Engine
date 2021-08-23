@@ -8,12 +8,13 @@ extern Application* app;
 Application::Application()
 {
 	m_name = L"3D Map Editor Engine";
-	m_settings.width = 1280;
-	m_settings.height = 720;
+	m_settings.width = 1440;
+	m_settings.height = 810;
 	m_settings.fov = 70;
 	m_settings.mouseSensitivity = 0.005f;
 	m_deltaTime = 0.f;
 	m_shouldQuit = false;
+	m_clipCursor = false;
 }
 
 bool Application::initRawMouseDevice()
@@ -91,13 +92,20 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		{
 			if (wParam & WA_ACTIVE || wParam & WA_CLICKACTIVE)
 			{
-				RECT winRect;
-				GetClientRect(hwnd, &winRect);
-				MapWindowPoints(hwnd, nullptr, reinterpret_cast<POINT*>(&winRect), 2);
-				ClipCursor(&winRect);
+				/*if (CLIP_CURSOR)
+				{
+					RECT winRect;
+					GetClientRect(hwnd, &winRect);
+					MapWindowPoints(hwnd, nullptr, reinterpret_cast<POINT*>(&winRect), 2);
+					ClipCursor(&winRect);
+				}
+				else
+				{
+					ClipCursor(nullptr);
+				}*/
 			}
-			else
-				ClipCursor(nullptr);
+			//else
+				//ClipCursor(nullptr);
 
 			break;
 		}
@@ -263,6 +271,21 @@ void Application::createWin32Window(HINSTANCE hInstance, const wchar_t* windowTi
 HWND Application::getWindow() const
 {
 	return m_window;
+}
+
+void Application::setClipCursor(bool clipCursor)
+{
+	if (clipCursor)
+	{
+		RECT winRect;
+		GetClientRect(m_window, &winRect);
+		MapWindowPoints(m_window, nullptr, reinterpret_cast<POINT*>(&winRect), 2);
+		ClipCursor(&winRect);
+	}
+	else
+	{
+		ClipCursor(nullptr);
+	}
 }
 
 void Application::applicationLoop()

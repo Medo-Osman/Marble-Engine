@@ -49,7 +49,7 @@ public:
 	void initialize(Settings settings);
 
 	// Update
-	void controlls(float dt);
+	void controls(float dt);
 	void update(float dt);
 };
 
