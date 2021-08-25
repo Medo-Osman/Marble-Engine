@@ -20,27 +20,26 @@ struct PS_OUT
 // Constant Buffers
 cbuffer materialBuffer : register(b0)
 {
-    float4  matEmissive;
-    float4  matAmbient;
-    float4  matDiffuse;
-    float4  matSpecular;
-    float   matShininess;
-    
-    bool    diffTextureExist;
-    bool    specTextureExist;
-    bool    normTextureExist;
+    float3 matAlbedo;
+    float matMetallic;
+    float matRoughness;
+    float matEmissiveStrength;
+    int materialTextured;
 };
 
 // Textures
-Texture2D DiffuseTexture    : TEXTURE : register(t0);
-Texture2D SpecularTexture   : TEXTURE : register(t1);
-Texture2D NormalTexture     : TEXTURE : register(t2);
+Texture2D AlbedoTexture             : register(t0);
+Texture2D NormalTexture             : register(t1);
+Texture2D MetallicTexture           : register(t2);
+Texture2D RoughnessTexture          : register(t3);
+Texture2D EmissiveTexture           : register(t4);
+Texture2D AmbientOcclusionTexture   : register(t5);
 
-Texture2D ShadowMapTexture  : TEXTURE : register(t3);
+Texture2D ShadowMapTexture          : register(t6);
 
 // Samplers
-SamplerState            sampState       : SAMPLER : register(s0);
-SamplerComparisonState  shadowSampler   : SAMPLER : register(s1);
+SamplerState            sampState       : register(s0);
+SamplerComparisonState  shadowSampler   : register(s1);
 
 // Functions
 float3 computeNormal(PS_IN input)
@@ -57,7 +56,6 @@ float3 computeNormal(PS_IN input)
 
 float computeShadowFactor(PS_IN input)
 {
-    
     float2 shadowUV = input.shadowPosition.xy / input.shadowPosition.w * 0.5f + 0.5f;
     shadowUV.y = 1.0f - shadowUV.y;
 
@@ -88,37 +86,32 @@ float computeShadowFactor(PS_IN input)
 }
 
 // PS Main
-PS_OUT main(PS_IN input) : SV_TARGET
+PS_OUT main(PS_IN input)
 {
     // Albedo
-    float3 albedo = matDiffuse.rgb;
-    if (diffTextureExist)
-        albedo *= DiffuseTexture.Sample(sampState, input.texCoord);
-    
+    float3 albedo = matAlbedo;
 	// Normal
     float3 normal = normalize(input.normal.xyz);
-    
-    // Get Specular Value
-    float3 specularColor = matSpecular.xyz;
-    if (specTextureExist)
-        specularColor *= SpecularTexture.Sample(sampState, input.texCoord);
-    
     //Metallic
-    float metallic = length(specularColor); // Phong to PBR Approximations, not correct at all
-    
+    float metallic = matMetallic;
 	//Rough
-    float roughness = 1 / pow(pow(matShininess, 0.2), metallic); // Phong to PBR Approximations, not correct at all
-    
-    // Ambient Occlusionffreses
+    float roughness = matRoughness;
+    // Ambient Occlusion
     float ambientOcclusion = 1.0;
-    
     // Emissive
-    float3 emissive = matEmissive.rgb;
+    float3 emissive = albedo * matEmissiveStrength;
     
     // Normal Map Calculation
     [flatten]
-    if (normTextureExist)
+    if (materialTextured)
+    {
+        albedo *= AlbedoTexture.Sample(sampState, input.texCoord).rgb;
         normal = computeNormal(input);
+        roughness = RoughnessTexture.Sample(sampState, input.texCoord).r;
+        metallic = MetallicTexture.Sample(sampState, input.texCoord).r;
+        ambientOcclusion = AmbientOcclusionTexture.Sample(sampState, input.texCoord).r;
+        emissive = EmissiveTexture.Sample(sampState, input.texCoord).rgb * matEmissiveStrength;
+    }
     
     // Shadow Mask
     float shadowFactor = computeShadowFactor(input);

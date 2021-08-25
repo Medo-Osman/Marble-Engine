@@ -204,6 +204,11 @@ ID3D11ShaderResourceView* const* ShadowMapInstance::getShadowMapSRV()
 	return m_shadowMapSRV.GetAddressOf();
 }
 
+ID3D11ShaderResourceView* ShadowMapInstance::getShadowMapSRVNoneConst()
+{
+	return m_shadowMapSRV.Get();
+}
+
 ID3D11Buffer* const* ShadowMapInstance::getShadowMatrixConstantBuffer() const
 {
 	return m_shadowTextureMatrixCBuffer.GetAddressOf();
@@ -211,7 +216,7 @@ ID3D11Buffer* const* ShadowMapInstance::getShadowMatrixConstantBuffer() const
 
 void ShadowMapInstance::clearShadowMap()
 {
-	m_deviceContext->ClearDepthStencilView(m_shadowMapDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.f);
+	m_deviceContext->ClearDepthStencilView(m_shadowMapDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 }
 
 void ShadowMapInstance::bindViewsAndRenderTarget()
@@ -220,7 +225,7 @@ void ShadowMapInstance::bindViewsAndRenderTarget()
 	this->m_deviceContext->PSSetShaderResources(3, 1, &shaderResourceNullptr);
 
 	m_deviceContext->OMSetRenderTargets(1, m_rendertarget, m_shadowMapDSV.Get());
-	m_deviceContext->ClearDepthStencilView(m_shadowMapDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0.f);
+	m_deviceContext->ClearDepthStencilView(m_shadowMapDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	m_deviceContext->RSSetState(m_rasterizerState.Get());
 	m_deviceContext->RSSetViewports(1, &m_viewport);

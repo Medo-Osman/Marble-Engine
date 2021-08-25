@@ -66,16 +66,73 @@ void RenderHandler::initDeviceAndSwapChain()
 		&m_deviceContext
 	);
 	assert(SUCCEEDED(hr) && "Error, failed to create device and swapchain!");
+}
 
-	// Back Buffer Texture
+void RenderHandler::initRenderTarget(RenderTarget& rtv, UINT width, UINT height)
+{
+	// Texture
+	D3D11_TEXTURE2D_DESC textureDesc;
+	ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
+	textureDesc.Width = width;
+	textureDesc.Height = height;
+	textureDesc.MipLevels = 1;
+	textureDesc.ArraySize = 1;
+	textureDesc.Format = rtv.format;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.Usage = D3D11_USAGE_DEFAULT;
+	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+	textureDesc.CPUAccessFlags = 0;
+	textureDesc.MiscFlags = 0;
+
+	HRESULT hr = this->m_device->CreateTexture2D(&textureDesc, NULL, &rtv.rtt);
+	assert(SUCCEEDED(hr) && "Error, render target texture could not be created!");
+
+	// Render Rarget View
+	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
+	ZeroMemory(&renderTargetViewDesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
+	renderTargetViewDesc.Format = textureDesc.Format;
+	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	renderTargetViewDesc.Texture2D.MipSlice = 0;
+
+	hr = this->m_device->CreateRenderTargetView(rtv.rtt, &renderTargetViewDesc, &rtv.rtv);
+	assert(SUCCEEDED(hr) && "Error, render target view could not be created!");
+
+	// Shader Resource View
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	ZeroMemory(&srvDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+	srvDesc.Format = textureDesc.Format;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	hr = this->m_device->CreateShaderResourceView(rtv.rtt, &srvDesc, &rtv.srv);
+	assert(SUCCEEDED(hr) && "Error, shader resource view could not be created!");
+}
+
+void RenderHandler::initRenderTargets()
+{
+	RECT winRect;
+	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
+
+	// GBuffer
+	// - Albedo Metallic
+	initRenderTarget(m_gBuffer.renderTargets[GBufferType::ALBEDO_METALLIC], winRect.right, winRect.bottom);
+	// - Normal Roughness
+	m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	initRenderTarget(m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS], winRect.right, winRect.bottom);
+	// - Emissive Ambient Occlusion
+	initRenderTarget(m_gBuffer.renderTargets[GBufferType::EMISSIVE_AMBIENTOCCLUSION], winRect.right, winRect.bottom);
+	// - Shadow Mask
+	initRenderTarget(m_gBuffer.renderTargets[GBufferType::SHADOW_MASK], winRect.right, winRect.bottom);
+
+	// Output Render Target
+	// - Get Back Buffer Texture for Output RenderTarget
 	ID3D11Texture2D* backBuffer = nullptr;
-	hr = m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
-	assert(SUCCEEDED(hr) && "Error, failed to set backbuffer!");
-
-	// Render Targets
+	HRESULT hr = m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
+	assert(SUCCEEDED(hr) && "Error, failed to get backbuffer texture!");
+	// - Create Render Target View from Back Buffer Tetxure
 	hr = m_device->CreateRenderTargetView(backBuffer, NULL, &m_outputRTV);
 	assert(SUCCEEDED(hr) && "Error, failed to create ouput render target view!");
-
 	backBuffer->Release();
 }
 
@@ -86,8 +143,8 @@ void RenderHandler::initViewPort()
 
 	m_viewport.TopLeftX = (FLOAT)winRect.left;
 	m_viewport.TopLeftY = (FLOAT)winRect.top;
-	m_viewport.Width = (FLOAT)m_settings->width;
-	m_viewport.Height = (FLOAT)m_settings->height;
+	m_viewport.Width = (FLOAT)winRect.right;
+	m_viewport.Height = (FLOAT)winRect.bottom;
 	m_viewport.MinDepth = 0.f;
 	m_viewport.MaxDepth = 1.f;
 }
@@ -124,6 +181,17 @@ void RenderHandler::initDepthStencilBuffer()
 	hr = m_device->CreateDepthStencilView(m_depthStencilBuffer.Get(), &dsViewDesc, &m_depthStencilView);
 	assert(SUCCEEDED(hr) && "Error, failed to create depth stencil view!");
 
+	// Create Depth Stencil Shader Resource View, Pointer Saved in G-Buffer array
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	ZeroMemory(&srvDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+	srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	hr = m_device->CreateShaderResourceView(m_depthStencilBuffer.Get(), &srvDesc, &m_gBuffer.renderTargets[GBufferType::DEPTH].srv);
+	assert(SUCCEEDED(hr) && "Error, failed to create depth stencil shader resource view!");
+
 	// Create Depth Stencil State
 	D3D11_DEPTH_STENCIL_DESC dsDesc;
 	ZeroMemory(&dsDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
@@ -148,9 +216,11 @@ void RenderHandler::initDepthStencilBuffer()
 	dsDesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
 	dsDesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
 
+	// Create Depth Stencil State
 	hr = m_device->CreateDepthStencilState(&dsDesc, &m_depthStencilState);
 	assert(SUCCEEDED(hr) && "Error, failed to create depth stencil state!");
 
+	// Create Disabled Depth Stencil State
 	dsDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
 	hr = m_device->CreateDepthStencilState(&dsDesc, &m_disabledDepthStencilState);
 	assert(SUCCEEDED(hr) && "Error, failed to create disabled depth stencil state!");
@@ -224,9 +294,50 @@ void RenderHandler::initRenderStates()
 	m_device->CreateBlendState(&blendStateDesc, m_blendStateBlend.GetAddressOf());
 }
 
+void RenderHandler::lightPass()
+{
+	// Set Output Render Target
+	m_deviceContext->OMSetRenderTargets(1, m_outputRTV.GetAddressOf(), nullptr);
+
+	// Set Camera Buffer
+	m_deviceContext->PSSetConstantBuffers(0, 1, m_camera.getConstantBuffer());
+
+	// Set Lights
+	m_deviceContext->PSSetConstantBuffers(1, 1, m_lightManager.GetAddressOf());
+
+	// Set G-Buffer Shader Resource views
+	ID3D11ShaderResourceView* gBufferSRVs[] =
+	{
+		m_gBuffer.renderTargets[GBufferType::ALBEDO_METALLIC].srv,
+		m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].srv,
+		m_gBuffer.renderTargets[GBufferType::EMISSIVE_AMBIENTOCCLUSION].srv,
+		m_gBuffer.renderTargets[GBufferType::SHADOW_MASK].srv,
+		m_gBuffer.renderTargets[GBufferType::DEPTH].srv
+	};
+	m_deviceContext->PSSetShaderResources(0, GBufferType::GB_NUM, gBufferSRVs);
+	UINT srvIndex = GBufferType::GB_NUM; // 4
+
+	// Set Specular radiance and Diffuse irradiance maps
+	m_skybox.setSkyboxTextures(srvIndex, srvIndex + 1);
+
+	// Set Light Pass Shaders
+	m_lightPassShaders.setShaders();
+
+	// Draw Fullscreen Quad
+	m_deviceContext->Draw(4, 0);
+
+	// Unbind Render Target and Shader Resource Views
+	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, nullptr);
+	m_deviceContext->PSSetShaderResources(0, 4, m_shaderResourcesNullptr);
+	m_deviceContext->PSSetShaderResources(4, 1, m_shaderResourcesNullptr);
+}
+
 void RenderHandler::initCamera()
 {
-	m_camera.initialize(m_device.Get(), m_deviceContext.Get(), m_settings->fov, (float)m_settings->width / (float)m_settings->height, 0.1f, 1000.f);
+	RECT winRect;
+	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
+
+	m_camera.initialize(m_device.Get(), m_deviceContext.Get(), m_settings->fov, (float)winRect.right / (float)winRect.bottom, 0.1f, 1000.f);
 }
 
 void RenderHandler::initialize(HWND* window, Settings* settings)
@@ -235,6 +346,7 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_settings = settings;
 
 	initDeviceAndSwapChain();
+	initRenderTargets();
 	initViewPort();
 	initDepthStencilBuffer();
 	initRenderStates();
@@ -259,12 +371,19 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	ShaderFiles shaderFiles;
 	// - Phong
 	shaderFiles.vs = L"GeneralVS.hlsl";
-	shaderFiles.ps = L"GeneralPS.hlsl";
+	shaderFiles.ps = L"GBufferPS.hlsl";
+	//shaderFiles.ps = L"GeneralPS.hlsl";
 	m_shaderStates[ShaderStates::PHONG].initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS_NOR_TEX_TAN);
 	// - PBR
 	shaderFiles.vs = L"GeneralVS.hlsl";
-	shaderFiles.ps = L"PBR_PS.hlsl";
+	shaderFiles.ps = L"GBufferPBR_PS.hlsl";
+	//shaderFiles.ps = L"PBR_PS.hlsl";
 	m_shaderStates[ShaderStates::PBR].initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS_NOR_TEX_TAN);
+
+	// - Light pass Shaders
+	shaderFiles.vs = L"FullscreenQuadVS.hlsl";
+	shaderFiles.ps = L"LightPassPS.hlsl";
+	m_lightPassShaders.initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS_NOR_TEX_TAN);
 
 	// Particles
 	m_particleSystem.Initialize(m_device.Get(), m_deviceContext.Get(), L"flare.dds", 10);
@@ -340,6 +459,30 @@ void RenderHandler::setRenderObjectTextures(RenderObjectKey key, TexturePathsPBR
 	{
 	case PBR:
 		m_renderObjectsPBR[key]->setTextures(textures);
+		break;
+	default:
+		break;
+	}
+}
+
+void RenderHandler::setRenderObjectMaterial(RenderObjectKey key, PS_MATERIAL_BUFFER material)
+{
+	switch (key.objectType)
+	{
+	case ShaderStates::PHONG:
+		m_renderObjects[key]->setMaterial(material);
+		break;
+	default:
+		break;
+	}
+}
+
+void RenderHandler::setRenderObjectMaterialPBR(RenderObjectKey key, PS_MATERIAL_PBR_BUFFER material)
+{
+	switch (key.objectType)
+	{
+	case ShaderStates::PBR:
+		m_renderObjectsPBR[key]->setMaterial(material);
 		break;
 	default:
 		break;
@@ -427,6 +570,7 @@ RenderObjectKey RenderHandler::setShaderState(RenderObjectKey key, ShaderStates 
 	default:
 		break;
 	}
+	return RenderObjectKey();
 }
 
 void RenderHandler::modelTextureUIUpdate(RenderObjectKey key)
@@ -478,6 +622,9 @@ void RenderHandler::changeShadowMappingLight(Light* light, bool disableShadowCas
 	else
 	{
 		m_shadowMappingEnabled = true;
+		XMVECTOR normDirection = XMLoadFloat4(&light->direction);
+		XMVector4Normalize(normDirection);
+		XMStoreFloat4(&light->direction, normDirection);
 		m_shadowInstance.buildLightMatrix(*light);
 	}
 }
@@ -501,16 +648,19 @@ void RenderHandler::deselectObject()
 
 XMFLOAT3 RenderHandler::getRayWorldDirection(UINT pointX, UINT pointY)
 {
+	RECT winRect;
+	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
+
 	XMMATRIX view = m_camera.getViewMatrix();
 	XMMATRIX proj = m_camera.getProjectionMatrix();
 	float fov = m_camera.getFov();
-	float aspectRatio = (float)m_settings->width / (float)m_settings->height;
+	float aspectRatio = (float)winRect.right / (float)winRect.bottom;
 
 	// Projection conversion
 	float projectionX = 1 / (aspectRatio * tan(fov / 2));
 	float projectionY = 1 / tan(fov / 2);
-	float viewX = (2.f * pointX / m_settings->width - 1.f) / projectionX;
-	float viewY = (-2.f * pointY / m_settings->height + 1.f) / projectionY;
+	float viewX = (2.f * pointX / winRect.right - 1.f) / projectionX;
+	float viewY = (-2.f * pointY / winRect.bottom + 1.f) / projectionY;
 	float viewZ = 1.f;
 
 	XMVECTOR rayDirection = XMVectorSet(viewX, viewY, viewZ, 1.f);
@@ -527,16 +677,19 @@ XMFLOAT3 RenderHandler::getRayWorldDirection(UINT pointX, UINT pointY)
 
 float RenderHandler::selectionArrowPicking(UINT pointX, UINT pointY, char dimension)
 {
+	RECT winRect;
+	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
+
 	XMMATRIX view = m_camera.getViewMatrix();
 	XMMATRIX proj = m_camera.getProjectionMatrix();
 	float fov = m_camera.getFov();
-	float aspectRatio = (float)m_settings->width / (float)m_settings->height;
+	float aspectRatio = (float)winRect.right / (float)winRect.bottom;
 	
 	// Projection conversion
 	float projectionX = 1 / (aspectRatio * tan(fov / 2));
 	float projectionY = 1 / tan(fov / 2);
-	float viewX = (2.f * pointX / m_settings->width - 1.f) / projectionX;
-	float viewY = (-2.f * pointY / m_settings->height + 1.f) / projectionY;
+	float viewX = (2.f * pointX / winRect.right - 1.f) / projectionX;
+	float viewY = (-2.f * pointY / winRect.bottom + 1.f) / projectionY;
 	float viewZ = 1.f;
 
 	XMVECTOR rayOrigin = XMVectorSet(0.f, 0.f, 0.f, 1.f);
@@ -590,16 +743,39 @@ void RenderHandler::updateShaderState(ShaderStates shaderState)
 	m_shaderStates[shaderState].updateShaders();
 }
 
+void RenderHandler::updatePassShaders()
+{
+	m_lightPassShaders.updateShaders();
+}
+
+void RenderHandler::UIRenderShadowMap()
+{
+	ImGui::Begin("Shadow Map");
+	ImGui::Image(m_shadowInstance.getShadowMapSRVNoneConst(), ImVec2(400.f, 400.f));
+	ImGui::End();
+}
+
 void RenderHandler::render()
 {
 	// Clear Frame
 	m_deviceContext->ClearRenderTargetView(m_outputRTV.Get(), clearColor);
 	m_deviceContext->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
+	ID3D11RenderTargetView* renderTargets[] = {
+		m_gBuffer.renderTargets[GBufferType::ALBEDO_METALLIC].rtv,
+		m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].rtv,
+		m_gBuffer.renderTargets[GBufferType::EMISSIVE_AMBIENTOCCLUSION].rtv,
+		m_gBuffer.renderTargets[GBufferType::SHADOW_MASK].rtv
+	};
+
+	for (int i = 0; i < GBufferType::GB_NUM - 2; i++)
+		m_deviceContext->ClearRenderTargetView(renderTargets[i], clearColorBlack);
+	m_deviceContext->ClearRenderTargetView(renderTargets[GBufferType::GB_NUM - 2], clearColorWhite); // Clear Shadow Mask
+
 	// Render Shadow Map
 	if (m_shadowMappingEnabled)
 	{
-		m_shadowInstance.bindViewsAndRenderTarget();
+		m_shadowInstance.bindViewsAndRenderTarget(); // Also sets Shadow Comparison Sampler
 
 		for (auto& object : m_renderObjects)
 			object.second->render(true);
@@ -625,37 +801,32 @@ void RenderHandler::render()
 		m_deviceContext->RSSetState(m_wireframeRasterizerState.Get());
 	else
 		m_deviceContext->RSSetState(m_defaultRasterizerState.Get());
-
-	// Set Lights
-	m_deviceContext->PSSetConstantBuffers(1, 1, m_lightManager.GetAddressOf());
-
-	// Set Camera Buffer
-	m_deviceContext->PSSetConstantBuffers(2, 1, m_camera.getConstantBuffer());
-
-	// Set Shadow Map Texture and Constant Buffer
-	m_deviceContext->PSSetShaderResources(3, 1, m_shadowInstance.getShadowMapSRV());
-	m_deviceContext->PSSetConstantBuffers(3, 1, m_shadowInstance.getShadowMatrixConstantBuffer());
+	
+	// Set G-Buffer Render Targets
+	m_deviceContext->OMSetRenderTargets(GBufferType::GB_NUM - 1, renderTargets, m_depthStencilView.Get());
 	
 	// Draw
 	
-	// - Light Indicators
-	m_lightManager.renderLightIndicators();
-
 	// - PHONG
+	m_deviceContext->PSSetShaderResources(3, 1, m_shadowInstance.getShadowMapSRV()); // 6th register slot in PBR Pixel Shader
 	m_shaderStates[ShaderStates::PHONG].setShaders();
 	for (auto &object : m_renderObjects)
 		object.second->render(true);
 
+	// - Light Indicators
+	m_lightManager.renderLightIndicators();
+	
 	// - PBR
 	m_deviceContext->PSSetShaderResources(6, 1, m_shadowInstance.getShadowMapSRV()); // 6th register slot in PBR Pixel Shader
-	m_deviceContext->PSSetConstantBuffers(3, 1, m_shadowInstance.getShadowMatrixConstantBuffer());
 	m_shaderStates[ShaderStates::PBR].setShaders();
-	m_skybox.setSkyboxTextures(8, 7); // Specular radiance and Diffuse irradiance maps
 	for (auto& object : m_renderObjectsPBR)
 		object.second->render(true);
 	
-	ID3D11ShaderResourceView* shaderResourceNullptr = nullptr;
-	this->m_deviceContext->PSSetShaderResources(6, 1, &shaderResourceNullptr); // Remove ShadowMap from slot 6
+	// Light Pass
+	lightPass();
+
+	// Re-Set Render Target
+	m_deviceContext->OMSetRenderTargets(1, m_outputRTV.GetAddressOf(), m_depthStencilView.Get());
 
 	// Skybox
 	m_skybox.render();

@@ -34,8 +34,6 @@ public:
 
 	// Initialization
 	void initialize(std::string modelName, UINT id, ShaderStates shaderState = ShaderStates::PHONG);
-	void setTextures(TexturePaths textures);
-	void setTextures(TexturePathsPBR textures);
 
 	// Getters
 	std::string getModelName() const;
@@ -54,7 +52,15 @@ public:
 
 	RenderObjectKey getKey() const;
 
-	// Movement
+	// Setters
+	// - Material
+	void setTextures(TexturePaths textures);
+	void setTextures(TexturePathsPBR textures);
+
+	void setMaterial(PS_MATERIAL_BUFFER material);
+	void setMaterial(PS_MATERIAL_PBR_BUFFER material);
+
+	// - Movement
 	void setScale(XMVECTOR newScale);
 	void setScale(XMFLOAT3 newScale);
 

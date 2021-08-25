@@ -80,7 +80,7 @@ void ParticleSystem::Initialize(ID3D11Device* device, ID3D11DeviceContext* devic
     // Vertex Buffers
     VertexParticle particle;
     particle.age = 0.f;
-    particle.type = 0.f;
+    particle.type = 0;
 
     std::vector<VertexParticle> particles(m_maxParticles, particle);
 

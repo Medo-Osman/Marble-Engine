@@ -43,6 +43,16 @@ void GameObject::setTextures(TexturePathsPBR textures)
 	m_renderHandler->setRenderObjectTextures(m_renderKey, textures);
 }
 
+void GameObject::setMaterial(PS_MATERIAL_BUFFER material)
+{
+	m_renderHandler->setRenderObjectMaterial(m_renderKey, material);
+}
+
+void GameObject::setMaterial(PS_MATERIAL_PBR_BUFFER material)
+{
+	m_renderHandler->setRenderObjectMaterialPBR(m_renderKey, material);
+}
+
 std::string GameObject::getModelName() const
 {
 	return m_modelName;

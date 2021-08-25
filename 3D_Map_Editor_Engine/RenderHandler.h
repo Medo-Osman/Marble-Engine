@@ -7,6 +7,7 @@
 #include "ShadowMapInstance.h"
 #include "ParticleSystem.h"
 #include "ModelSelectionHandler.h"
+#include "GBuffer.h"
 
 struct Settings
 {
@@ -53,10 +54,13 @@ private:
     // Settings
     Settings* m_settings;
 
-    // Render Target
+    // Render Targets
     ComPtr< IDXGISwapChain > m_swapChain;
+    GBuffer m_gBuffer;
     ComPtr< ID3D11RenderTargetView > m_outputRTV;
     float clearColor[4] = { 0.1f, 0.11f, 0.13f, 1.f };
+    float clearColorBlack[4] = { 0.f, 0.f, 0.f, 1.f };
+    float clearColorWhite[4] = { 1.f, 1.f, 1.f, 1.f };
 
     // Viewport
     D3D11_VIEWPORT m_viewport;
@@ -84,12 +88,19 @@ private:
 
     // Shader States
     std::vector<Shaders> m_shaderStates;
+    Shaders m_lightPassShaders;
 
     // Render Objects
     using RenderObjectList = std::map<RenderObjectKey, RenderObject*, keyComp>;
     RenderObjectList m_renderObjects;
     RenderObjectList m_renderObjectsPBR;
-    
+
+    // Null Pointer Views
+    ID3D11RenderTargetView* m_renderTargetNullptr = nullptr;
+    ID3D11ShaderResourceView* m_shaderResourceNullptr = nullptr;
+    ID3D11UnorderedAccessView* m_unorderedAccessNullptr = nullptr;
+    ID3D11ShaderResourceView* m_shaderResourcesNullptr[4] = { m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr };
+
     // Camera
     Camera m_camera;
     void initCamera();
@@ -116,9 +127,14 @@ private:
 
     // Initialization Functions
     void initDeviceAndSwapChain();
+    void initRenderTarget(RenderTarget& rtv, UINT width, UINT height);
+    void initRenderTargets();
     void initViewPort();
     void initDepthStencilBuffer();
     void initRenderStates();
+
+    // Pass Functions
+    void lightPass();
 
 public:
     RenderHandler(RenderHandler const&) = delete;
@@ -140,6 +156,8 @@ public:
     RenderObjectKey newRenderObject(std::string modelName, ShaderStates shaderState = ShaderStates::PHONG);
     void setRenderObjectTextures(RenderObjectKey key, TexturePaths textures);
     void setRenderObjectTextures(RenderObjectKey key, TexturePathsPBR textures);
+    void setRenderObjectMaterial(RenderObjectKey key, PS_MATERIAL_BUFFER material);
+    void setRenderObjectMaterialPBR(RenderObjectKey key, PS_MATERIAL_PBR_BUFFER material);
     void updateRenderObjectWorld(RenderObjectKey key, XMMATRIX worldMatrix);
     void deleteRenderObject(RenderObjectKey key);
     RenderObjectKey setShaderState(RenderObjectKey key, ShaderStates shaderState);
@@ -166,8 +184,10 @@ public:
     // Update
     void update(float dt);
     void updateShaderState(ShaderStates shaderState);
+    void updatePassShaders();
 
     // Render
+    void UIRenderShadowMap();
     void render();
 };
 

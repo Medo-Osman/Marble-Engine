@@ -70,13 +70,14 @@ Texture2D RoughnessTexture : register(t3);
 Texture2D EmissiveTexture : register(t4);
 Texture2D AmbientOcclusionTexture : register(t5);
 
-Texture2D ShadowMap : register(t6);
+Texture2D ShadowMap : TEXTURE : register(t6);
 TextureCube IrradianceMap : register(t7);
 TextureCube SpecularIBLMap : register(t8);
 
+
 // Samplers
-SamplerState sampState                  : SAMPLER : register(s0);
-SamplerComparisonState shadowSampler    : SAMPLER : register(s1);
+SamplerState            sampState       : SAMPLER : register(s0);
+SamplerComparisonState  shadowSampler   : SAMPLER : register(s1);
 
 // Const Variables
 static const float PI = 3.14159265359;
@@ -184,6 +185,8 @@ float4 main(PS_IN input) : SV_TARGET
     float roughness = matRoughness;
     // Ambient Occlusion
     float ao = 1.0;
+    // Emissive
+    float3 emissive = albedo * matEmissiveStrength;
     
     if (materialTextured)
     {
@@ -191,6 +194,7 @@ float4 main(PS_IN input) : SV_TARGET
         Normal = computeNormal(input);
         roughness = RoughnessTexture.Sample(sampState, input.texCoord).r;
         metallic = MetallicTexture.Sample(sampState, input.texCoord).r;
+        emissive = albedo * matEmissiveStrength;
         ao = AmbientOcclusionTexture.Sample(sampState, input.texCoord).r;
     }
     

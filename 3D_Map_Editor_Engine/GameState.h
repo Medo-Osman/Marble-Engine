@@ -23,6 +23,8 @@ private:
 	// IMGUI
 	bool m_windowMoveFlag;
 	bool m_windowResizeFlag;
+	float m_gameObjectSectionHeight = 500.f;
+	float m_lightSectionHeight = 195.f;
 	ID3D11Resource* m_defaultModelThumbnail;
 	std::vector<std::pair<std::string, bool>> m_modelNames; // string = Name, bool = is Directory
 	std::vector<bool> m_modelNameHoveringState;

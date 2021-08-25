@@ -18,13 +18,14 @@ private:
 	struct PS_CAMERA_BUFFER
 	{
 		XMVECTOR cameraPosition;
+		XMMATRIX viewInverseMatrix;
+		XMMATRIX projInverseMatrix;
 	};
 	PS_CAMERA_BUFFER m_cameraData;
 	Buffer<PS_CAMERA_BUFFER> m_cameraCBuffer;
 
-	void updateConstantBuffer(XMVECTOR position)
+	void updateConstantBuffer()
 	{
-		m_cameraData.cameraPosition = position;
 		PS_CAMERA_BUFFER* cameraData = new PS_CAMERA_BUFFER(m_cameraData);
 		m_cameraCBuffer.update(&cameraData);
 	}
@@ -38,6 +39,8 @@ public:
 		m_fov = 0.f;
 
 		m_cameraData.cameraPosition = XMVectorSet(0.f, 0.f, -1.f, 1.f);
+		m_cameraData.projInverseMatrix = XMMatrixIdentity();
+		m_cameraData.viewInverseMatrix = XMMatrixIdentity();
 	}
 	~Camera()
 	{
@@ -50,9 +53,12 @@ public:
 	{
 		m_fov = (fovAngle / 360.f) * XM_2PI;
 		m_projectionMatrix = new XMMATRIX(XMMatrixPerspectiveFovLH(m_fov, aspectRatio, nearZ, farZ));
+		m_cameraData.projInverseMatrix = XMMatrixInverse(nullptr, *m_projectionMatrix);
+
 		m_viewMatrix = new XMMATRIX(XMMatrixIdentity());
 		m_cameraCBuffer.initialize(device, deviceContext, &m_cameraData, BufferType::CONSTANT);
 		updateViewMatrix(XMVectorSet(0.f, 0.f, -1.f, 1.f), XMVectorSet(0.f, 0.f, 0.f, 0.f));
+
 		m_isInitialized = true;
 	}
 
@@ -78,7 +84,9 @@ public:
 
 		// Update View Matrix with new Rotation
 		*m_viewMatrix = XMMatrixLookAtLH(position, lookAt, up);
-		updateConstantBuffer(position);
+		m_cameraData.viewInverseMatrix = XMMatrixInverse(nullptr, *m_viewMatrix);
+		m_cameraData.cameraPosition = position;
+		updateConstantBuffer();
 	}
 
 	ID3D11Buffer* const* getConstantBuffer()

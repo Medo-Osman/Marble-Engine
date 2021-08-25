@@ -327,7 +327,7 @@ public:
 					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
 					m_texTypeToLoad = PBRTexturesTypes::METALLIC;
 				}
-				if (ImGui::DragFloat("Value", &m_materialData.metallic, 0.1f))
+				if (ImGui::DragFloat("Value", &m_materialData.metallic, 0.01f))
 				{
 					PS_MATERIAL_PBR_BUFFER* materialData = new PS_MATERIAL_PBR_BUFFER(m_materialData);
 					m_materialCBuffer.update(&materialData);
@@ -358,7 +358,7 @@ public:
 					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
 					m_texTypeToLoad = PBRTexturesTypes::ROUGHNESS;
 				}
-				if (ImGui::DragFloat("Value", &m_materialData.roughness, 0.1f))
+				if (ImGui::DragFloat("Value", &m_materialData.roughness, 0.01f))
 				{
 					PS_MATERIAL_PBR_BUFFER* materialData = new PS_MATERIAL_PBR_BUFFER(m_materialData);
 					m_materialCBuffer.update(&materialData);

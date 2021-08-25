@@ -169,7 +169,7 @@ public:
 
 
                 m_renderObjects.back().second->updateWCPBuffer(worldMatrix, viewProjMatrix);
-                m_renderObjects.back().second->render();
+                m_renderObjects.back().second->render(true);
             }
         }
     }

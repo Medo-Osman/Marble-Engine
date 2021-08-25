@@ -45,7 +45,7 @@ public:
 		{
 			if (m_remember)
 			{
-				addTime(m_resumeValue);
+				addTime((int)m_resumeValue);
 			}
 			m_startTime = std::chrono::high_resolution_clock::now();
 			m_isRunning = true;
@@ -61,7 +61,7 @@ public:
 			if (m_remember)
 			{
 				auto time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - m_startTime);
-				m_resumeValue = time.count();
+				m_resumeValue = (double)time.count();
 			}
 			m_stopTime = std::chrono::high_resolution_clock::now();
 			m_isRunning = false;

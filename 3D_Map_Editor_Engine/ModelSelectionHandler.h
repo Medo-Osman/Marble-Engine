@@ -110,6 +110,7 @@ public:
             assert(!"Error, invalid selection arrow dimension!");
             break;
         }
+        return -1.f;
     }
 
     // Getters
@@ -130,6 +131,7 @@ public:
             assert(!"Error, invalid selection arrow dimension!");
             break;
         }
+        return XMMatrixIdentity();
     }
 
     // Selection

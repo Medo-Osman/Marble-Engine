@@ -86,8 +86,7 @@ public:
 			std::string prefix = "";
 			std::string tempStr;
 			int tempShaderType;
-			XMFLOAT3 tempF3;
-			UINT tempUINT;
+			XMFLOAT3 tempF3 = XMFLOAT3(0.f, 0.f, 0.f);
 
 			while (getline(m_file, line))
 			{
