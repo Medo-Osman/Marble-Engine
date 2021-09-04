@@ -133,7 +133,8 @@ public:
 
     void renderLightIndicators()
     {
-        XMMATRIX viewProjMatrix = *m_viewMatrix * *m_projectionMatrix;
+        XMMATRIX viewMatrix = *m_viewMatrix;
+        XMMATRIX projMatrix = *m_projectionMatrix;
         //for (size_t i = 0; i < m_renderObjects.size(); i++)
         //{
         //    //XMMATRIX worldMatrix = XMMatrixIdentity();
@@ -168,7 +169,7 @@ public:
                 worldMatrix *= XMMATRIX(XMMatrixTranslationFromVector(XMLoadFloat4(&m_lightData.lights[i].position)));
 
 
-                m_renderObjects.back().second->updateWCPBuffer(worldMatrix, viewProjMatrix);
+                m_renderObjects.back().second->updateWCPBuffer(worldMatrix, viewMatrix, projMatrix);
                 m_renderObjects.back().second->render(true);
             }
         }

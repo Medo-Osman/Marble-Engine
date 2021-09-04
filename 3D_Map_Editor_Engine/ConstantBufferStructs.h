@@ -6,10 +6,12 @@ struct VS_WVP_CBUFFER
 {
     XMMATRIX wvp;
     XMMATRIX worldMatrix;
+    XMMATRIX normalMatrix;
     VS_WVP_CBUFFER()
     {
         wvp = XMMatrixIdentity();
         worldMatrix = XMMatrixIdentity();
+        normalMatrix = XMMatrixIdentity();
     }
 };
 

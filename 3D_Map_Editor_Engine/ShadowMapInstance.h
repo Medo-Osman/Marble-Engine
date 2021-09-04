@@ -39,6 +39,9 @@ private:
 	// Shaders
 	Shaders m_shadowMapShaders;
 
+	// Light
+	Light m_directionalLight;
+
 	// World Bounding Sphere
 	BoundingSphere m_worldBoundingSphere;
 
@@ -54,7 +57,8 @@ public:
 	void initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, UINT width, UINT height);
 
 	// Update
-	void buildLightMatrix(Light directionalLight);
+	void buildLightMatrix(Light directionalLight, XMFLOAT3 centerPosition = XMFLOAT3(0.f, 0.f, 0.f));
+	void buildLightMatrix(XMFLOAT3 centerPosition = XMFLOAT3(0.f, 0.f, 0.f));
 
 	// Render
 	ID3D11ShaderResourceView* const* getShadowMapSRV();

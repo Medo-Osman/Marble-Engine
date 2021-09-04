@@ -94,8 +94,8 @@ private:
 		}
 		else
 		{
-			m_normalTexture = ResourceHandler::getInstance().getTexture(L"DefaultBlack.bmp");
-			m_normalTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, L"DefaultBlack.bmp");
+			m_normalTexture = ResourceHandler::getInstance().getTexture(L"DefaultNormal.dds");
+			m_normalTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, L"DefaultNormal.dds");
 		}
 
 		if (texturePaths.metallicPath != L"")
@@ -175,7 +175,7 @@ public:
 		m_displacementExists		= false;
 
 		m_fileDialog.SetTitle("Load Texture");
-		m_fileDialog.SetTypeFilters({ ".png", ".jpg", ".jpeg", ".tga", ".dds", ".DDS" });
+		m_fileDialog.SetTypeFilters({ ".png", ".jpg", ".jpeg", ".tga", ".dds", ".DDS", ".bmp" });
 		m_texTypeToLoad = PBRTexturesTypes::NONE;
 	}
 
@@ -240,7 +240,7 @@ public:
 	void updateUI()
 	{
 		float imageSize = 50;
-		float imageOffset = ImGui::GetWindowSize().x - ImGui::GetContentRegionMax().x + imageSize + 35;
+		float imageOffset = ImGui::GetWindowSize().x - ImGui::GetContentRegionMax().x + imageSize + 60;
 		UINT nameSize = 64;
 		WCHAR name[64];
 		PBRTexturesTypes texType = PBRTexturesTypes::NONE;

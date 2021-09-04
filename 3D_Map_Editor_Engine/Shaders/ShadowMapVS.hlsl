@@ -32,9 +32,9 @@ VS_OUT main(VS_IN input)
     //output.position = mul(lightWVPMatrix, float4(input.position, 1.0f));
     //output.position = mul(wvpMatrix, float4(input.position, 1.f));
     
-    output.position = mul(worldMatrix, float4(input.position, 1.f));
-    output.position = mul(lightViewMatrix, output.position);
-    output.position = mul(lightProjectionMatrix, output.position);
+    output.position = mul(float4(input.position, 1.f), worldMatrix);
+    output.position = mul(output.position, lightViewMatrix);
+    output.position = mul(output.position, lightProjectionMatrix);
     
     //output.position = mul(float4(input.position, 1.0f), worldMatrix * lightViewMatrix * lightProjectionMatrix);
     

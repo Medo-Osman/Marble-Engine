@@ -22,7 +22,7 @@ VS_OUT main(VS_IN input)
 {
     VS_OUT output;
     
-    output.position = mul(wvpMatrix, float4(input.position, 1.f));
+    output.position = mul(float4(input.position, 1.f), wvpMatrix);
     
     return output;
 }

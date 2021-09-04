@@ -168,7 +168,7 @@ public:
 	// Update
 	void updateUI()
 	{
-		if (ImGui::CollapsingHeader(m_name.c_str()))
+		if (ImGui::TreeNodeEx(m_name.c_str()))
 		{
 			switch (m_materialType)
 			{
@@ -181,6 +181,7 @@ public:
 			default:
 				break;
 			}
+			ImGui::TreePop();
 		}
 	}
 

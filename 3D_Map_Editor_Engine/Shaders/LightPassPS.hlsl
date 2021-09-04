@@ -41,8 +41,8 @@ cbuffer lightBuffer : register(b1)
 // Textures
 Texture2D AlbedoMetallicTexture : register(t0);
 Texture2D NormalRoughnessTexture : register(t1);
-Texture2D EmissiveAmbientOcclusionTexture : register(t2);
-Texture2D ShadowMaskTexture : register(t3);
+Texture2D EmissiveShadowMaskTexture : register(t2);
+Texture2D AmbientOcclusionTexture : register(t3);
 Texture2D DepthTexture : register(t4);
 
 TextureCube IrradianceMap : register(t5);
@@ -110,16 +110,16 @@ float4 main(PS_IN input) : SV_TARGET
     // G-Buffer Textures
     float4 albedoMetallic = AlbedoMetallicTexture.Sample(sampState, input.TexCoord);
     float4 normalRoughness = NormalRoughnessTexture.Sample(sampState, input.TexCoord);
-    float4 emissiveAmbientOcclusion = EmissiveAmbientOcclusionTexture.Sample(sampState, input.TexCoord);
+    float4 emissiveShadowMask = EmissiveShadowMaskTexture.Sample(sampState, input.TexCoord);
 	
     // Position
     float z = DepthTexture.Sample(sampState, input.TexCoord).r;
     float x = input.TexCoord.x * 2 - 1;
     float y = (1 - input.TexCoord.y) * 2 - 1;
     float4 ndcPosition = float4(x, y, z, 1.f);
-    float4 viewPosition = mul(projInverseMatrix, ndcPosition);
+    float4 viewPosition = mul(ndcPosition, projInverseMatrix);
     viewPosition /= viewPosition.w;
-    float3 WorldPos = mul(viewInverseMatrix, viewPosition).xyz;
+    float3 WorldPos = mul(viewPosition, viewInverseMatrix).xyz;
     
     // Albedo
     float3 albedo = albedoMetallic.rgb;
@@ -131,9 +131,9 @@ float4 main(PS_IN input) : SV_TARGET
     float roughness = normalRoughness.a;
     //roughness = 1;
     // Emissive
-    float3 emissive = emissiveAmbientOcclusion.rgb;
+    float3 emissive = emissiveShadowMask.rgb;
     // Ambient Occlusion
-    float ambientOcclusion = emissiveAmbientOcclusion.a;
+    float ambientOcclusion = AmbientOcclusionTexture.Sample(sampState, input.TexCoord).r;
     
     float3 finalColor;
     
@@ -143,9 +143,6 @@ float4 main(PS_IN input) : SV_TARGET
         float3 V = normalize(cameraPosition.xyz - WorldPos);
         float3 R = reflect(-V, N);
         float NDotV = dot(N, V);
-        
-        // Shadow Factor
-        //float shadowFactor = ShadowMap.Sample(sampState, input.TexCoord);
 
         // Light
         float3 F0 = float3(0.04, 0.04, 0.04);
@@ -181,7 +178,7 @@ float4 main(PS_IN input) : SV_TARGET
                     float NdotL = max(dot(N, -direction), 0.0);
                     float3 directionalLightContribution = (1 * albedo / PI + specular) * radiance * NdotL;
                     if (lights[i].isCastingShadow)
-                        directionalLightContribution *= ShadowMaskTexture.Sample(sampState, input.TexCoord);
+                            directionalLightContribution *= emissiveShadowMask.a;
                     
                     Lo += directionalLightContribution;
                 }
@@ -291,5 +288,5 @@ float4 main(PS_IN input) : SV_TARGET
     //finalColor = WorldPos;
     //finalColor = ShadowMaskTexture.Sample(sampState, input.TexCoord).rgb;
    
-    return float4(finalColor, 1.0);
+    return float4(finalColor, 1.f);
 }

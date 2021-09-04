@@ -17,7 +17,7 @@ cbuffer constantBuffer : register(b0)
 VertexShaderOutput main(VertexShaderInput input)
 {
     VertexShaderOutput output;
-    output.pos = mul(vpMatrix, float4(input.pos, 0.f)).xyww;
+    output.pos = mul(float4(input.pos, 0.f), vpMatrix).xyww;
     output.localPos = input.pos;
 
     return output;

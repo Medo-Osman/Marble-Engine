@@ -19,7 +19,7 @@ void GameState::loadModelList(std::string path)
 			name = entry->d_name;
 			if (entry->d_type == DT_DIR && name != "." &&
 				((path == m_rootModelDirectory && name != "..") ||
-				(path != m_rootModelDirectory && name == "..")))
+				(path != m_rootModelDirectory)))
 			{
 				std::pair<std::string, bool> directory(name, true);
 				m_modelNames.push_back(directory);
@@ -31,7 +31,7 @@ void GameState::loadModelList(std::string path)
 				if (i != std::string::npos) 
 				{
 					fileExtension = name.substr(i + 1, name.length() - i);
-					if (fileExtension == "obj" || fileExtension == "FBX" || fileExtension == "fbx")
+					if (fileExtension == "obj" || fileExtension == "FBX" || fileExtension == "fbx" || fileExtension == "glb")
 					{
 						modelNames.push_back(name);
 					}
@@ -196,7 +196,7 @@ void GameState::initialize(Settings settings)
 	m_gameObjects.back()->setMaterial(groundMat);
 
 	// PBR Test
-	m_gameObjects.push_back(new GameObject());
+	/*m_gameObjects.push_back(new GameObject());
 	m_gameObjects.back()->initialize("Cerberus_by_Andrew_Maximov\\Cerberus_LP.FBX", m_gameObjects.size(), ShaderStates::PBR);
 	m_gameObjects.back()->setScale(XMVectorSet(0.1f, 0.1f, 0.1f, 1.f));
 	m_gameObjects.back()->setRotation(XMVectorSet(XM_PIDIV2, 0.f, 0.f, 1.f));
@@ -207,7 +207,7 @@ void GameState::initialize(Settings settings)
 	pbrTextures.metallicPath = L"Cerberus_M.tga";
 	pbrTextures.roughnessPath = L"Cerberus_R.tga";
 	pbrTextures.ambientOcclusionPath = L"Cerberus_AO.tga";
-	m_gameObjects.back()->setTextures(pbrTextures);
+	m_gameObjects.back()->setTextures(pbrTextures);*/
 
 	// Map Handler
 	m_mapHandler.initialize("map1.txt", m_gameObjects.size(), true);
@@ -216,39 +216,39 @@ void GameState::initialize(Settings settings)
 	m_mapHandler.importGameObjects(m_gameObjects);
 
 	// Lights
-	// Point Light 0
 	Light light;
-	light.position = XMFLOAT4(-10.f, 5.f, 0.f, 1.f);
-	light.color = XMFLOAT4(1.f, 0.f, 0.f, 0.f);
-	light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
-	light.range = 30.f;
-	light.type = POINT_LIGHT;
-	light.enabled = true;
-	light.isCastingShadow = false;
-	m_lights.push_back(new Light(light));
-	m_renderHandler->addLight(light);
+	//// Point Light 0
+	//light.position = XMFLOAT4(-10.f, 5.f, 0.f, 1.f);
+	//light.color = XMFLOAT4(1.f, 0.f, 0.f, 0.f);
+	//light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
+	//light.range = 30.f;
+	//light.type = POINT_LIGHT;
+	//light.enabled = true;
+	//light.isCastingShadow = false;
+	//m_lights.push_back(new Light(light));
+	//m_renderHandler->addLight(light);
 
-	// Point Light 1
-	light.position = XMFLOAT4(0.f, 10.f, -10.f, 1.f);
-	light.color = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-	light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
-	light.range = 30.f;
-	light.type = POINT_LIGHT;
-	light.enabled = true;
-	light.isCastingShadow = false;
-	m_lights.push_back(new Light(light));
-	m_renderHandler->addLight(light);
+	//// Point Light 1
+	//light.position = XMFLOAT4(0.f, 10.f, -10.f, 1.f);
+	//light.color = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	//light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
+	//light.range = 30.f;
+	//light.type = POINT_LIGHT;
+	//light.enabled = true;
+	//light.isCastingShadow = false;
+	//m_lights.push_back(new Light(light));
+	//m_renderHandler->addLight(light);
 
-	// Point Light 2
-	light.position = XMFLOAT4(0.f, 10.f, 10.f, 1.f);
-	light.color = XMFLOAT4(0.f, 1.f, 0.f, 1.f);
-	light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
-	light.range = 40.f;
-	light.type = POINT_LIGHT;
-	light.enabled = true;
-	light.isCastingShadow = false;
-	m_lights.push_back(new Light(light));
-	m_renderHandler->addLight(light);
+	//// Point Light 2
+	//light.position = XMFLOAT4(0.f, 10.f, 10.f, 1.f);
+	//light.color = XMFLOAT4(0.f, 1.f, 0.f, 1.f);
+	//light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
+	//light.range = 40.f;
+	//light.type = POINT_LIGHT;
+	//light.enabled = true;
+	//light.isCastingShadow = false;
+	//m_lights.push_back(new Light(light));
+	//m_renderHandler->addLight(light);
 
 	// Directional Light
 	light.direction = XMFLOAT4(-0.2f, -0.2f, 0.5f, 0.0f);
@@ -475,7 +475,10 @@ void GameState::controls(float dt)
 			m_camera.addForce(Direction::DOWN, dt);
 
 		if (InputHandler::getInstance().keyIsPressed(KeyCodes::R)) // Update PBR Shaders
+		{
 			m_renderHandler->updateShaderState(ShaderStates::PHONG);
+			m_renderHandler->updateShaderState(ShaderStates::PBR);
+		}
 			//m_renderHandler->updatePassShaders();
 		if (InputHandler::getInstance().keyIsPressed(KeyCodes::T)) // Update light Shaders
 			m_renderHandler->updatePassShaders();
@@ -526,6 +529,7 @@ void GameState::update(float dt)
 	if (ImGui::CollapsingHeader("Settings"))
 	{
 		ImGui::Checkbox(" Wireframe Mode", RenderHandler::getInstance()->getWireframeModePtr());
+		ImGui::Checkbox(" SSAO", RenderHandler::getInstance()->getSsaoModePtr());
 		ImGui::Checkbox(" Window Resize", &m_windowResizeFlag);
 		ImGui::Checkbox(" Window Move", &m_windowMoveFlag);
 	}
@@ -607,6 +611,7 @@ void GameState::update(float dt)
 						m_currentDirectoryPath += m_currentDirectoryName + "\\";
 					}
 					loadModelList(m_currentDirectoryPath);
+					break;
 				}
 			}
 			m_modelNameHoveringState[i] = ImGui::IsItemHovered();
@@ -715,8 +720,9 @@ void GameState::update(float dt)
 	
 	ImGui::End();
 
-	// Shadow Map Window
+	// Render Texture Window, for Debug
 	//m_renderHandler->UIRenderShadowMap();
+	m_renderHandler->UIRenderAmbientOcclusionWindow();
 
 	ImGui::ShowDemoWindow(); // For debugging
 	ImGui::Render(); // Render ImGui(Runs at the end of RenderHandler render funtion!)

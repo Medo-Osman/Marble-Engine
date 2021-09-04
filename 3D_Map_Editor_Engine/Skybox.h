@@ -154,7 +154,7 @@ public:
 		VS_SKYBOX_MATRIX_CBUFFER* vpData = new VS_SKYBOX_MATRIX_CBUFFER();
 
 		XMMATRIX worldMatrix = XMMatrixRotationRollPitchYawFromVector(m_rotation); // Rotation only
-		vpData->vpMatrix = worldMatrix * viewMatrix * projectionMatrix;
+		vpData->vpMatrix = XMMatrixTranspose(worldMatrix * viewMatrix * projectionMatrix);
 		m_vpCBuffer.update(&vpData);
 	}
 

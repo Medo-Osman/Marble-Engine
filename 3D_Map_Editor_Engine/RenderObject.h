@@ -45,7 +45,7 @@ public:
 	void setTextures(TexturePathsPBR textures);
 
 	// Update
-	void updateWCPBuffer(XMMATRIX worldMatrix, XMMATRIX viewProjMatrix);
+	void updateWCPBuffer(XMMATRIX worldMatrix, XMMATRIX viewMatrix, XMMATRIX ProjMatrix);
 
 	// Render
 	void render(bool disableModelShaders = false);

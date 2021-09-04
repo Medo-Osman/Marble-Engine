@@ -22,6 +22,7 @@ cbuffer constantBuffer : register(b0)
 {
     matrix wvpMatrix;
     matrix worldMatrix;
+    matrix normalMatrix;
 };
 
 cbuffer lightSpaceMatrices : register(b1)
@@ -34,16 +35,16 @@ VS_OUT main(VS_IN input)
 {
     VS_OUT output;
     
-    output.position = mul(wvpMatrix, float4(input.position, 1.f));
-    output.wPosition = mul(worldMatrix, float4(input.position, 1.f));
+    output.position = mul(float4(input.position, 1.f), wvpMatrix);
+    output.wPosition = mul(float4(input.position, 1.f), worldMatrix);
     
-    output.shadowPosition = mul(worldMatrix, float4(input.position, 1.f));
-    output.shadowPosition = mul(lightViewMatrix, output.shadowPosition);
-    output.shadowPosition = mul(lightProjectionMatrix, output.shadowPosition);
+    output.shadowPosition = mul(float4(input.position, 1.f), worldMatrix);
+    output.shadowPosition = mul(output.shadowPosition, lightViewMatrix);
+    output.shadowPosition = mul(output.shadowPosition, lightProjectionMatrix);
     
-    output.normal = normalize(mul(worldMatrix, float4(input.normal, 0.f)).xyz);
-    output.tangent = normalize(mul(worldMatrix, float4(input.tangent, 0.f)).xyz);
-    output.biTangent = normalize(mul(worldMatrix, float4(input.biTangent, 0.f)).xyz);
+    output.normal = normalize(mul(input.normal, (float3x3) normalMatrix).xyz);
+    output.tangent = normalize(mul(input.tangent, (float3x3) normalMatrix).xyz);
+    output.biTangent = normalize(mul(input.biTangent, (float3x3) normalMatrix).xyz);
     output.texCoord = input.texCoord;
     
     return output;

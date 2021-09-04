@@ -25,6 +25,8 @@ void RenderHandler::initDeviceAndSwapChain()
 
 	RECT winRect;
 	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
+	m_clientWidth = winRect.right;
+	m_clientHeight = winRect.bottom;
 
 	// Create Device and Swap Chain
 	swapChainDesc.BufferDesc.RefreshRate.Numerator = 0;
@@ -121,9 +123,9 @@ void RenderHandler::initRenderTargets()
 	m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	initRenderTarget(m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS], winRect.right, winRect.bottom);
 	// - Emissive Ambient Occlusion
-	initRenderTarget(m_gBuffer.renderTargets[GBufferType::EMISSIVE_AMBIENTOCCLUSION], winRect.right, winRect.bottom);
+	initRenderTarget(m_gBuffer.renderTargets[GBufferType::EMISSIVE_SHADOWMASK], winRect.right, winRect.bottom);
 	// - Shadow Mask
-	initRenderTarget(m_gBuffer.renderTargets[GBufferType::SHADOW_MASK], winRect.right, winRect.bottom);
+	initRenderTarget(m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION], winRect.right, winRect.bottom);
 
 	// Output Render Target
 	// - Get Back Buffer Texture for Output RenderTarget
@@ -310,8 +312,8 @@ void RenderHandler::lightPass()
 	{
 		m_gBuffer.renderTargets[GBufferType::ALBEDO_METALLIC].srv,
 		m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].srv,
-		m_gBuffer.renderTargets[GBufferType::EMISSIVE_AMBIENTOCCLUSION].srv,
-		m_gBuffer.renderTargets[GBufferType::SHADOW_MASK].srv,
+		m_gBuffer.renderTargets[GBufferType::EMISSIVE_SHADOWMASK].srv,
+		m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].srv,
 		m_gBuffer.renderTargets[GBufferType::DEPTH].srv
 	};
 	m_deviceContext->PSSetShaderResources(0, GBufferType::GB_NUM, gBufferSRVs);
@@ -328,8 +330,7 @@ void RenderHandler::lightPass()
 
 	// Unbind Render Target and Shader Resource Views
 	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, nullptr);
-	m_deviceContext->PSSetShaderResources(0, 4, m_shaderResourcesNullptr);
-	m_deviceContext->PSSetShaderResources(4, 1, m_shaderResourcesNullptr);
+	m_deviceContext->PSSetShaderResources(0, 5, m_shaderResourcesNullptr);
 }
 
 void RenderHandler::initCamera()
@@ -345,6 +346,9 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_window = window;
 	m_settings = settings;
 
+	RECT winRect;
+	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
+
 	initDeviceAndSwapChain();
 	initRenderTargets();
 	initViewPort();
@@ -356,10 +360,8 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 
 	// Lighting
 	m_lightManager.initialize(m_device.Get(), m_deviceContext.Get(), m_camera.getViewMatrixPtr(), m_camera.getProjectionMatrixPtr());
-
 	m_shadowInstance.initialize(m_device.Get(), m_deviceContext.Get(), SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
-	//m_shadowInstance.buildLightMatrix(light);
-
+	
 	// Skybox
 	m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"Textures/TableMountain1Cubemap.dds", L"Textures/TableMountain1Cubemap.dds");
 
@@ -383,7 +385,11 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	// - Light pass Shaders
 	shaderFiles.vs = L"FullscreenQuadVS.hlsl";
 	shaderFiles.ps = L"LightPassPS.hlsl";
-	m_lightPassShaders.initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS_NOR_TEX_TAN);
+	m_lightPassShaders.initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS);
+
+	// SSAO
+	m_HBAOInstance.initialize(m_device.Get(), m_deviceContext.Get(), winRect.right, winRect.bottom, m_camera.getFarZ(), m_camera.getFov(), m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
+	m_SSAOInstance.initialize(m_device.Get(), m_deviceContext.Get(), winRect.right, winRect.bottom, m_camera.getFarZ(), m_camera.getFov(), m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
 
 	// Particles
 	m_particleSystem.Initialize(m_device.Get(), m_deviceContext.Get(), L"flare.dds", 10);
@@ -407,6 +413,9 @@ void RenderHandler::updateCamera(XMVECTOR position, XMVECTOR rotation)
 {
 	m_camera.updateViewMatrix(position, rotation);
 	m_skybox.updateVP(m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
+	//m_HBAOInstance.updateViewMatrix(m_camera.getViewMatrix());
+	m_SSAOInstance.updateViewMatrix(m_camera.getViewMatrix());
+	m_shadowInstance.buildLightMatrix(m_camera.getCameraPositionF3());
 }
 
 RenderObjectKey RenderHandler::newRenderObject(std::string modelName, ShaderStates shaderState)
@@ -434,8 +443,9 @@ RenderObjectKey RenderHandler::newRenderObject(std::string modelName, ShaderStat
 	objects->at(key)->setShaderState(shaderState);
 	if (m_camera.isInitialized())
 	{
-		XMMATRIX viewProjMatrix = m_camera.getViewMatrix() * m_camera.getProjectionMatrix();
-		objects->at(key)->updateWCPBuffer(XMMatrixIdentity(), viewProjMatrix);
+		XMMATRIX viewMatrix = m_camera.getViewMatrix();
+		XMMATRIX projMatrix = m_camera.getProjectionMatrix();
+		objects->at(key)->updateWCPBuffer(XMMatrixIdentity(), viewMatrix, projMatrix);
 	}
 
 	return key;
@@ -491,14 +501,15 @@ void RenderHandler::setRenderObjectMaterialPBR(RenderObjectKey key, PS_MATERIAL_
 
 void RenderHandler::updateRenderObjectWorld(RenderObjectKey key, XMMATRIX worldMatrix)
 {
-	XMMATRIX viewProjMatrix = m_camera.getViewMatrix() * m_camera.getProjectionMatrix();
+	XMMATRIX viewMatrix = m_camera.getViewMatrix();
+	XMMATRIX projMatrix = m_camera.getProjectionMatrix();
 	switch (key.objectType)
 	{
 	case PHONG:
-		m_renderObjects[key]->updateWCPBuffer(worldMatrix, viewProjMatrix);
+		m_renderObjects[key]->updateWCPBuffer(worldMatrix, viewMatrix, projMatrix);
 		break;
 	case PBR:
-		m_renderObjectsPBR[key]->updateWCPBuffer(worldMatrix, viewProjMatrix);
+		m_renderObjectsPBR[key]->updateWCPBuffer(worldMatrix, viewMatrix, projMatrix);
 		break;
 	default:
 		break;
@@ -595,7 +606,7 @@ int RenderHandler::addLight(Light newLight, bool usedForShadowMapping)
 	{
 		m_lightManager.update();
 		if (usedForShadowMapping && newLight.type == DIRECTIONAL_LIGHT)
-			m_shadowInstance.buildLightMatrix(newLight);
+			m_shadowInstance.buildLightMatrix(newLight, m_camera.getCameraPositionF3());
 
 		return m_lightManager.getNrOfLights(); // Used as a ID
 	}
@@ -625,13 +636,18 @@ void RenderHandler::changeShadowMappingLight(Light* light, bool disableShadowCas
 		XMVECTOR normDirection = XMLoadFloat4(&light->direction);
 		XMVector4Normalize(normDirection);
 		XMStoreFloat4(&light->direction, normDirection);
-		m_shadowInstance.buildLightMatrix(*light);
+		m_shadowInstance.buildLightMatrix(*light, m_camera.getCameraPositionF3());
 	}
 }
 
 bool* RenderHandler::getWireframeModePtr()
 {
 	return &m_wireframeMode;
+}
+
+bool* RenderHandler::getSsaoModePtr()
+{
+	return &m_ssaoToggle;
 }
 
 void RenderHandler::updateSelectedObject(RenderObjectKey key, XMFLOAT3 newPosition)
@@ -746,6 +762,8 @@ void RenderHandler::updateShaderState(ShaderStates shaderState)
 void RenderHandler::updatePassShaders()
 {
 	m_lightPassShaders.updateShaders();
+	//m_HBAOInstance.updateShaders();
+	m_SSAOInstance.updateShaders();
 }
 
 void RenderHandler::UIRenderShadowMap()
@@ -753,6 +771,20 @@ void RenderHandler::UIRenderShadowMap()
 	ImGui::Begin("Shadow Map");
 	ImGui::Image(m_shadowInstance.getShadowMapSRVNoneConst(), ImVec2(400.f, 400.f));
 	ImGui::End();
+}
+
+void RenderHandler::UIRenderAmbientOcclusionWindow()
+{
+	ImGui::Begin("Horizon Based Ambient Occlusion Texture");
+	static ImVec4 color_multipler(1, 1, 1, 100);
+	ImGui::Image(m_gBuffer.renderTargets[GBufferType::ALBEDO_METALLIC].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	ImGui::Image(m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	ImGui::Image(m_gBuffer.renderTargets[GBufferType::EMISSIVE_SHADOWMASK].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	//ImGui::Image(m_gBuffer.renderTargets[GBufferType::DEPTH].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	//ImGui::Image(m_shadowInstance.getShadowMapSRVNoneConst(), ImVec2((float)m_clientWidth / 4.f, (float)m_clientWidth / 4.f));
+	ImGui::Image(m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	ImGui::End();
+	//m_HBAOInstance.UIRenderDitherTextureWindow();
 }
 
 void RenderHandler::render()
@@ -764,8 +796,8 @@ void RenderHandler::render()
 	ID3D11RenderTargetView* renderTargets[] = {
 		m_gBuffer.renderTargets[GBufferType::ALBEDO_METALLIC].rtv,
 		m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].rtv,
-		m_gBuffer.renderTargets[GBufferType::EMISSIVE_AMBIENTOCCLUSION].rtv,
-		m_gBuffer.renderTargets[GBufferType::SHADOW_MASK].rtv
+		m_gBuffer.renderTargets[GBufferType::EMISSIVE_SHADOWMASK].rtv,
+		m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].rtv
 	};
 
 	for (int i = 0; i < GBufferType::GB_NUM - 2; i++)
@@ -821,6 +853,16 @@ void RenderHandler::render()
 	m_shaderStates[ShaderStates::PBR].setShaders();
 	for (auto& object : m_renderObjectsPBR)
 		object.second->render(true);
+
+	// HBAO
+	if (m_ssaoToggle)
+	{
+		m_deviceContext->OMSetRenderTargets(1, &renderTargets[GBufferType::AMBIENT_OCCLUSION], nullptr);
+		m_deviceContext->PSSetShaderResources(0, 1, &m_gBuffer.renderTargets[GBufferType::DEPTH].srv);
+		m_deviceContext->PSSetShaderResources(1, 1, &m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].srv);
+		//m_HBAOInstance.render();
+		m_SSAOInstance.render();
+	}
 	
 	// Light Pass
 	lightPass();
@@ -867,6 +909,8 @@ void RenderHandler::render()
 		m_modelSelectionHandler.renderArrows();
 	}
 	m_deviceContext->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
+	m_deviceContext->OMSetRenderTargets(1, m_outputRTV.GetAddressOf(), nullptr);
+	m_deviceContext->PSSetShaderResources(0, 5, m_shaderResourcesNullptr);
 
 	// ImGUI
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());

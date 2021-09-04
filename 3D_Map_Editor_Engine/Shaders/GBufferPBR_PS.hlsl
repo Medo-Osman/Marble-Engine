@@ -13,8 +13,8 @@ struct PS_OUT
 {
     float4 albedoMetallicRT : SV_Target0;
     float4 normalRoughnessRT : SV_Target1;
-    float4 emissiveAmbientOcclusionRT : SV_Target2;
-    float4 shadowMaskRT : SV_Target3;
+    float4 emissiveShadowMaskRT : SV_Target2;
+    float4 ambientOcclusionRT : SV_Target3;
 };
 
 // Constant Buffers
@@ -47,7 +47,7 @@ float3 computeNormal(PS_IN input)
     float3 normalTex = normalize(NormalTexture.Sample(sampState, input.texCoord).xyz * 2 - 1);
     
     float3 normal = input.normal;
-    float3 tangent = normalize(input.tangent);
+    float3 tangent = normalize(input.tangent - dot(input.tangent, normal) * normal);
     float3 bitangent = normalize(input.biTangent);
     float3x3 TBNMatrix = float3x3(tangent, bitangent, normal);
     
@@ -125,10 +125,10 @@ PS_OUT main(PS_IN input)
     output.normalRoughnessRT = float4(normal, roughness);
     
     // Emissive, Ambient Occlusion
-    output.emissiveAmbientOcclusionRT = float4(emissive, ambientOcclusion);
+    output.emissiveShadowMaskRT = float4(emissive, shadowFactor);
     
     // Shadow Mask
-    output.shadowMaskRT = float4(shadowFactor, shadowFactor, shadowFactor, 1.f);
+    output.ambientOcclusionRT = float4(ambientOcclusion, ambientOcclusion, ambientOcclusion, 1.f);
     
     return output;
 }

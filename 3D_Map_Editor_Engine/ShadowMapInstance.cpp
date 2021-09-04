@@ -144,17 +144,21 @@ void ShadowMapInstance::initialize(ID3D11Device* device, ID3D11DeviceContext* de
 	m_shadowTextureMatrixCBuffer.initialize(device, deviceContext, nullptr, BufferType::CONSTANT);
 }
 
-void ShadowMapInstance::buildLightMatrix(Light directionalLight)
+void ShadowMapInstance::buildLightMatrix(Light directionalLight, XMFLOAT3 centerPosition)
 {
 	VS_SHADOW_C_BUFFER* lightMatrices = new VS_SHADOW_C_BUFFER();
+	m_directionalLight = directionalLight;
+	m_worldBoundingSphere.Center = centerPosition;
+	m_worldBoundingSphere.Center.z += m_worldBoundingSphere.Radius;
+	m_worldBoundingSphere.Center.y = 0;
 
 	// Light View Matrix
 	XMVECTOR lightDirection = XMLoadFloat4(&directionalLight.direction);
-	XMVECTOR lightPosition = -2.0f * m_worldBoundingSphere.Radius * lightDirection;
+	XMVECTOR lightPosition = (-2.f * m_worldBoundingSphere.Radius * lightDirection) + XMLoadFloat3(&m_worldBoundingSphere.Center);
 	XMVECTOR lookAt = XMLoadFloat3(&m_worldBoundingSphere.Center);
 	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
 
-	lightMatrices->lightViewMatrix = XMMatrixLookAtLH(lightPosition, lookAt, up);
+	lightMatrices->lightViewMatrix = XMMatrixTranspose(XMMatrixLookAtLH(lightPosition, lookAt, up));
 
 	// Transform World Bounding Sphere to Light Local View Space
 	XMFLOAT3 worldSphereCenterLightSpace;
@@ -169,7 +173,7 @@ void ShadowMapInstance::buildLightMatrix(Light directionalLight)
 	float f = worldSphereCenterLightSpace.z + m_worldBoundingSphere.Radius;
 
 	// Local Projection Matrix
-	lightMatrices->lightProjectionMatrix = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+	lightMatrices->lightProjectionMatrix = XMMatrixTranspose(XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f));
 
 	// Shadow Texture Space Transformation
 	XMMATRIX textureSpaceMatrix
@@ -179,7 +183,7 @@ void ShadowMapInstance::buildLightMatrix(Light directionalLight)
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.5f, 0.5f, 0.0f, 1.0f
 	);
-	XMMATRIX* textureTransformMatrix = new XMMATRIX(lightMatrices->lightViewMatrix * lightMatrices->lightProjectionMatrix * textureSpaceMatrix);
+	XMMATRIX* textureTransformMatrix = new XMMATRIX(lightMatrices->lightViewMatrix * lightMatrices->lightProjectionMatrix * XMMatrixTranspose(textureSpaceMatrix));
 
 
 	//lightMatrices->lightProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1.0f, 0.1f, 100.f);
@@ -197,6 +201,39 @@ void ShadowMapInstance::buildLightMatrix(Light directionalLight)
 	// Update data
 	m_lightMatrixCBuffer.update(&lightMatrices);
 	m_shadowTextureMatrixCBuffer.update(&textureTransformMatrix);
+}
+
+void ShadowMapInstance::buildLightMatrix(XMFLOAT3 centerPosition)
+{
+	m_worldBoundingSphere.Center = centerPosition;
+	m_worldBoundingSphere.Center.z += m_worldBoundingSphere.Radius;
+	m_worldBoundingSphere.Center.y = 0;
+	VS_SHADOW_C_BUFFER* lightMatrices = new VS_SHADOW_C_BUFFER();
+	// Light View Matrix
+	XMVECTOR lightDirection = XMLoadFloat4(&m_directionalLight.direction);
+	XMVECTOR lightPosition = (-2.0f * m_worldBoundingSphere.Radius * lightDirection) + XMLoadFloat3(&m_worldBoundingSphere.Center);
+	XMVECTOR lookAt = XMLoadFloat3(&m_worldBoundingSphere.Center);
+	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+
+	lightMatrices->lightViewMatrix = XMMatrixTranspose(XMMatrixLookAtLH(lightPosition, lookAt, up));
+
+	// Transform World Bounding Sphere to Light Local View Space
+	XMFLOAT3 worldSphereCenterLightSpace;
+	XMStoreFloat3(&worldSphereCenterLightSpace, XMVector3TransformCoord(lookAt, lightMatrices->lightViewMatrix));
+
+	// Construct Orthographic Frustum in Light View Space
+	float l = worldSphereCenterLightSpace.x - m_worldBoundingSphere.Radius;
+	float b = worldSphereCenterLightSpace.y - m_worldBoundingSphere.Radius;
+	float n = worldSphereCenterLightSpace.z - m_worldBoundingSphere.Radius;
+	float r = worldSphereCenterLightSpace.x + m_worldBoundingSphere.Radius;
+	float t = worldSphereCenterLightSpace.y + m_worldBoundingSphere.Radius;
+	float f = worldSphereCenterLightSpace.z + m_worldBoundingSphere.Radius;
+
+	// Local Projection Matrix
+	lightMatrices->lightProjectionMatrix = XMMatrixTranspose(XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f));
+	
+	// Update data
+	m_lightMatrixCBuffer.update(&lightMatrices);
 }
 
 ID3D11ShaderResourceView* const* ShadowMapInstance::getShadowMapSRV()

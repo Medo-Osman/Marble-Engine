@@ -147,20 +147,21 @@ public:
     {
         if (m_objectSelected)
         {
-            XMMATRIX viewProjMatrix = *m_viewMatrix * *m_projectionMatrix;
+            XMMATRIX viewMatrix = *m_viewMatrix;
+            XMMATRIX projMatrix = *m_projectionMatrix;
             m_arrowMatrixX = XMMatrixScaling(0.5f, 0.5f, 0.5f) *
                 XMMatrixRotationRollPitchYaw(XM_PIDIV2, XM_PIDIV2, 0.f) *
                 XMMatrixTranslation(m_selectedModelPos.x + 1.f, m_selectedModelPos.y, m_selectedModelPos.z);
-            m_arrowModelX.updateWCPBuffer(m_arrowMatrixX, viewProjMatrix);
+            m_arrowModelX.updateWCPBuffer(m_arrowMatrixX, viewMatrix, projMatrix);
         
             m_arrowMatrixY = XMMatrixScaling(0.5f, 0.5f, 0.5f) *
                 XMMatrixTranslation(m_selectedModelPos.x, m_selectedModelPos.y + 1.f, m_selectedModelPos.z);
-            m_arrowModelY.updateWCPBuffer(m_arrowMatrixY, viewProjMatrix);
+            m_arrowModelY.updateWCPBuffer(m_arrowMatrixY, viewMatrix, projMatrix);
 
             m_arrowMatrixZ = XMMatrixScaling(0.5f, 0.5f, 0.5f) *
                 XMMatrixRotationRollPitchYaw(XM_PIDIV2, 0.f, 0.f) *
                 XMMatrixTranslation(m_selectedModelPos.x, m_selectedModelPos.y, m_selectedModelPos.z + 1.f);
-            m_arrowModelZ.updateWCPBuffer(m_arrowMatrixZ, viewProjMatrix);
+            m_arrowModelZ.updateWCPBuffer(m_arrowMatrixZ, viewMatrix, projMatrix);
 
             m_arrowModelX.render();
             m_arrowModelY.render();

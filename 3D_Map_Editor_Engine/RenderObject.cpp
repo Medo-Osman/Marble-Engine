@@ -77,11 +77,14 @@ void RenderObject::setTextures(TexturePathsPBR textures)
 	m_model->setTexture(textures);
 }
 
-void RenderObject::updateWCPBuffer(XMMATRIX worldMatrix, XMMATRIX viewProjMatrix)
+void RenderObject::updateWCPBuffer(XMMATRIX worldMatrix, XMMATRIX viewMatrix, XMMATRIX ProjMatrix)
 {
 	VS_WVP_CBUFFER* wvpData = new VS_WVP_CBUFFER();
-	wvpData->wvp = worldMatrix * viewProjMatrix;
-	wvpData->worldMatrix = worldMatrix;
+	wvpData->wvp = XMMatrixTranspose(worldMatrix * viewMatrix * ProjMatrix);
+	wvpData->worldMatrix = XMMatrixTranspose(worldMatrix);
+	wvpData->normalMatrix = DirectX::XMMatrixInverse(nullptr, worldMatrix);
+	wvpData->normalMatrix = wvpData->normalMatrix;
+	wvpData->normalMatrix = XMMatrixTranspose(wvpData->normalMatrix/* * viewMatrix*/);
 
 	m_wvpCBuffer.update(&wvpData);
 }

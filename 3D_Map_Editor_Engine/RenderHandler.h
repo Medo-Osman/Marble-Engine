@@ -8,6 +8,8 @@
 #include "ParticleSystem.h"
 #include "ModelSelectionHandler.h"
 #include "GBuffer.h"
+#include "HBAOInstance.h"
+#include "SSAOInstance.h"
 
 struct Settings
 {
@@ -50,6 +52,8 @@ private:
     
     // Window
     HWND* m_window;
+    UINT m_clientWidth;
+    UINT m_clientHeight;
 
     // Settings
     Settings* m_settings;
@@ -82,6 +86,11 @@ private:
     ShadowMapInstance m_shadowInstance;
     bool m_shadowMappingEnabled = true;
 
+    // Ambient Occlusion
+    bool m_ssaoToggle = true;
+    HBAOInstance m_HBAOInstance;
+    SSAOInstance m_SSAOInstance;
+
     // Blend State
     ComPtr< ID3D11BlendState > m_blendStateNoBlend;
     ComPtr< ID3D11BlendState > m_blendStateBlend;
@@ -99,7 +108,7 @@ private:
     ID3D11RenderTargetView* m_renderTargetNullptr = nullptr;
     ID3D11ShaderResourceView* m_shaderResourceNullptr = nullptr;
     ID3D11UnorderedAccessView* m_unorderedAccessNullptr = nullptr;
-    ID3D11ShaderResourceView* m_shaderResourcesNullptr[4] = { m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr };
+    ID3D11ShaderResourceView* m_shaderResourcesNullptr[5] = { m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr };
 
     // Camera
     Camera m_camera;
@@ -171,6 +180,7 @@ public:
     
     // Render Modes
     bool* getWireframeModePtr();
+    bool* getSsaoModePtr();
 
     // Lighting
     //void newLight(Light newLight);
@@ -188,6 +198,7 @@ public:
 
     // Render
     void UIRenderShadowMap();
+    void UIRenderAmbientOcclusionWindow();
     void render();
 };
 

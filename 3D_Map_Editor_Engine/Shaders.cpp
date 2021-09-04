@@ -90,11 +90,20 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 				&m_layout
 			);
 		}
+		else if (layoutType == LayoutType::POS_TEX_FINDEX) {
+			hr = device->CreateInputLayout(
+				VertexPosTexFrustumIndexDesc,
+				VertexPosTexFrustumIndexElementCount,
+				vsBlob->GetBufferPointer(),
+				vsBlob->GetBufferSize(),
+				&m_layout
+			);
+		}
 		else if (layoutType == LayoutType::POS_TEX)
 		{
 			hr = device->CreateInputLayout(
-				VertexPositionTexture::InputElements,
-				VertexPositionTexture::InputElementCount,
+				VertexPosTexDesc,
+				VertexPosTexElementCount,
 				vsBlob->GetBufferPointer(),
 				vsBlob->GetBufferSize(),
 				&m_layout

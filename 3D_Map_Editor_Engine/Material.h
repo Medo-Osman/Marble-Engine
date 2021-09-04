@@ -120,7 +120,7 @@ public:
 		m_emissiveColor = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
 
 		m_fileDialog.SetTitle("Load Texture");
-		m_fileDialog.SetTypeFilters({ ".png", ".jpg", ".jpeg", ".tga", ".dds", ".DDS" });
+		m_fileDialog.SetTypeFilters({ ".png", ".jpg", ".jpeg", ".tga", ".dds", ".DDS", ".bmp" });
 		m_texTypeToLoad = PhongTexturesTypes::NONE;
 	}
 

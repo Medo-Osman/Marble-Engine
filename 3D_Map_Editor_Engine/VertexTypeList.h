@@ -5,7 +5,7 @@
 #include <DirectXMath.h>
 using namespace DirectX;
 
-enum class LayoutType { POS_NOR_TEX_TAN, POS_NOR_TEX, POS_TEX, POS_COL, POS, PARTICLE };
+enum class LayoutType { POS_NOR_TEX_TAN, POS_NOR_TEX, POS_TEX_FINDEX, POS_TEX, POS_COL, POS, PARTICLE, NONE };
 
 
 struct VertexPos
@@ -17,6 +17,21 @@ static const unsigned int VertexPosElementCount = 1;
 const D3D11_INPUT_ELEMENT_DESC VertexPosDesc[] =
 {
 	{ "POSITION",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D11_INPUT_PER_VERTEX_DATA, 0 }
+};
+
+struct VertexPosTexFrustumIndex
+{
+	XMFLOAT3 position;
+	XMFLOAT2 texCoord;
+	UINT frustumIndex;
+};
+static const unsigned int VertexPosTexFrustumIndexElementCount = 3;
+
+const D3D11_INPUT_ELEMENT_DESC VertexPosTexFrustumIndexDesc[] =
+{
+	{ "POSITION",		0, DXGI_FORMAT_R32G32B32_FLOAT,		0,	0,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	{ "TEXCOORD",		0, DXGI_FORMAT_R32G32_FLOAT,		0,	12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	{ "FRUSTUM_INDEX",  0, DXGI_FORMAT_R32_UINT,			0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 };
 
 
@@ -31,6 +46,20 @@ const D3D11_INPUT_ELEMENT_DESC VertexPosColDesc[] =
 {
 	{ "POSITION",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	{ "COLOR",      0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+};
+
+
+struct VertexPosTex
+{
+	XMFLOAT3 position;
+	XMFLOAT2 texCoord;
+};
+static const unsigned int VertexPosTexElementCount = 2;
+
+const D3D11_INPUT_ELEMENT_DESC VertexPosTexDesc[] =
+{
+	{ "POSITION",   0, DXGI_FORMAT_R32G32B32_FLOAT,		0, 0,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	{ "TEXCOORD",	0, DXGI_FORMAT_R32G32_FLOAT,		0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 };
 
 
