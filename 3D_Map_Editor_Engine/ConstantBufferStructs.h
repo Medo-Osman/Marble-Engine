@@ -62,3 +62,10 @@ struct GS_PARTICLE_CBUFFER
     XMFLOAT3 emitDirection;
     float pad;
 };
+
+struct CS_BLUR_CBUFFER
+{
+    XMMATRIX projectionMatrix;
+    BOOL direction;
+    XMFLOAT3 pad;
+};

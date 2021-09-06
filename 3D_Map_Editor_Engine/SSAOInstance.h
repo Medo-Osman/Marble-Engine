@@ -48,61 +48,87 @@ private:
     void initRandomTexture(ID3D11Device* device)
     {
         // Dither Texture
-        int ditherWidth = 4;
-        int ditherHeight = 4;
+        //int ditherWidth = 4;
+        //int ditherHeight = 4;
 
+        //D3D11_TEXTURE2D_DESC texDesc;
+        //texDesc.Width = ditherWidth;
+        //texDesc.Height = ditherHeight;
+        //texDesc.MipLevels = 1;
+        //texDesc.ArraySize = 1;
+        //texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        //texDesc.SampleDesc.Count = 1;
+        //texDesc.SampleDesc.Quality = 0;
+        //texDesc.Usage = D3D11_USAGE_DEFAULT;
+        //texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        //texDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        //texDesc.MiscFlags = 0;
+
+        //int len = ditherWidth * ditherHeight;
+        //std::vector<float> data(len);
+        //std::vector<float> offsets1;
+        //std::vector<float> offsets2;
+
+        //for (size_t i = 0; i < len; ++i)
+        //{
+        //    offsets1.push_back((float)i / len);
+        //    offsets2.push_back((float)i / len);
+        //}
+
+        //unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+        //std::shuffle(offsets1.begin(), offsets1.end(), std::default_random_engine(seed));
+        //seed = std::chrono::system_clock::now().time_since_epoch().count();
+        //std::shuffle(offsets2.begin(), offsets2.end(), std::default_random_engine(seed));
+
+        //int i = 0;
+        //int j = 0;
+        //for (int y = 0; y < ditherHeight; ++y)
+        //{
+        //    for (int x = 0; x < ditherWidth; ++x)
+        //    {
+        //        float r = offsets1[i];
+        //        float g = offsets2[i];
+        //        ++i;
+
+        //        data[j] = std::round(r * 0xff);
+        //        data[j + 1] = std::round(g * 0xff);
+        //        data[j + 2] = 0;
+        //        data[j + 3] = 1;
+        //    }
+        //}
+
+        //D3D11_SUBRESOURCE_DATA subData;
+        //subData.pSysMem = data.data();
+        //subData.SysMemPitch = texDesc.Width * sizeof(float) * 4;
+        ////subData.SysMemSlicePitch = texDesc.Width * texDesc.Height * sizeof(float) * 4;
+
+        HRESULT hr;
+        int dimensions = 256;
         D3D11_TEXTURE2D_DESC texDesc;
-        texDesc.Width = ditherWidth;
-        texDesc.Height = ditherHeight;
+        texDesc.Width = dimensions;
+        texDesc.Height = dimensions;
         texDesc.MipLevels = 1;
         texDesc.ArraySize = 1;
         texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         texDesc.SampleDesc.Count = 1;
         texDesc.SampleDesc.Quality = 0;
-        texDesc.Usage = D3D11_USAGE_DEFAULT;
+        texDesc.Usage = D3D11_USAGE_DYNAMIC;
         texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
         texDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         texDesc.MiscFlags = 0;
 
-        int len = ditherWidth * ditherHeight;
-        std::vector<float> data(len);
-        std::vector<float> offsets1;
-        std::vector<float> offsets2;
-
-        for (size_t i = 0; i < len; ++i)
+        XMVECTOR* randomColors = new XMVECTOR[dimensions * dimensions];
+        for (int i = 0; i < dimensions; i++)
         {
-            offsets1.push_back((float)i / len);
-            offsets2.push_back((float)i / len);
-        }
-
-        unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-        std::shuffle(offsets1.begin(), offsets1.end(), std::default_random_engine(seed));
-        seed = std::chrono::system_clock::now().time_since_epoch().count();
-        std::shuffle(offsets2.begin(), offsets2.end(), std::default_random_engine(seed));
-
-        int i = 0;
-        int j = 0;
-        for (int y = 0; y < ditherHeight; ++y)
-        {
-            for (int x = 0; x < ditherWidth; ++x)
-            {
-                float r = offsets1[i];
-                float g = offsets2[i];
-                ++i;
-
-                data[j] = std::round(r * 0xff);
-                data[j + 1] = std::round(g * 0xff);
-                data[j + 2] = 0;
-                data[j + 3] = 1;
-            }
+            for (int j = 0; j < dimensions; j++)
+                randomColors[i * dimensions + j] = XMVectorSet(((float)(rand()) / (float)RAND_MAX), ((float)(rand()) / (float)RAND_MAX), ((float)(rand()) / (float)RAND_MAX), ((float)(rand()) / (float)RAND_MAX));
         }
 
         D3D11_SUBRESOURCE_DATA subData;
-        subData.pSysMem = data.data();
-        subData.SysMemPitch = texDesc.Width * sizeof(float) * 4;
-        //subData.SysMemSlicePitch = texDesc.Width * texDesc.Height * sizeof(float) * 4;
+        subData.pSysMem = randomColors;
+        subData.SysMemPitch = texDesc.Width * sizeof(XMVECTOR);
 
-        HRESULT hr = device->CreateTexture2D(&texDesc, &subData, m_ditherTexture.GetAddressOf());
+        hr = device->CreateTexture2D(&texDesc, &subData, m_ditherTexture.GetAddressOf());
         assert(SUCCEEDED(hr) && "Error, failed to create dither texture!");
 
         D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};

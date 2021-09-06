@@ -358,7 +358,7 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			path,
 			nullptr,
 			D3D_COMPILE_STANDARD_FILE_INCLUDE,
-			"CS_main",
+			"main",
 			"cs_5_0",
 			flags,
 			0,

@@ -321,5 +321,8 @@
     <FxCompile Include="Shaders\SSAO_VS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\EdgePreservingBlurCS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

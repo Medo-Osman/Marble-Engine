@@ -91,6 +91,13 @@ private:
     HBAOInstance m_HBAOInstance;
     SSAOInstance m_SSAOInstance;
 
+    // Blur
+    Shaders m_edgePreservingBlurCS;
+    ComPtr< ID3D11ShaderResourceView > m_blurPingPongSRV;
+    ComPtr< ID3D11UnorderedAccessView > m_blurPingPongUAV;
+    Buffer< CS_BLUR_CBUFFER > m_blurDirectionBuffer;
+    CS_BLUR_CBUFFER* m_blurConstantData = new CS_BLUR_CBUFFER();
+
     // Blend State
     ComPtr< ID3D11BlendState > m_blendStateNoBlend;
     ComPtr< ID3D11BlendState > m_blendStateBlend;
@@ -141,9 +148,11 @@ private:
     void initViewPort();
     void initDepthStencilBuffer();
     void initRenderStates();
+    void initBlurPass(UINT width, UINT height, DXGI_FORMAT format);
 
     // Pass Functions
     void lightPass();
+    void blurSSAOPass();
 
 public:
     RenderHandler(RenderHandler const&) = delete;

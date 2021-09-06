@@ -152,6 +152,17 @@ public:
 
 		m_deviceContext->Unmap(m_buffer.Get(), 0);
 	}
+	void update(T* data)
+	{
+		T* newData = new T(*data);
+		m_data.reset(newData);
+		D3D11_MAPPED_SUBRESOURCE mapSubresource;
+		HRESULT hr = m_deviceContext->Map(m_buffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapSubresource);
+		assert(SUCCEEDED(hr) && "Error, failed to map constant buffer!");
+		CopyMemory(mapSubresource.pData, m_data.get(), sizeof(T));
+
+		m_deviceContext->Unmap(m_buffer.Get(), 0);
+	}
 };
 
 #endif // !BUFFER_H

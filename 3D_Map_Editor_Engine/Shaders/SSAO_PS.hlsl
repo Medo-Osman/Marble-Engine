@@ -1,8 +1,8 @@
 // Globals
-static float occlusionRadius = 0.5f;
+static float occlusionRadius = 0.2f;
 static float occlusionFadeStart = 0.2f;
 static float occlusionFadeEnd = 2.0f;
-static float surfaceEpsilon = 0.05f;
+static float surfaceEpsilon = 0.03f;
 static const int SAMPLE_COUNT = 14;
 static float nearZ = 0.1f;
 static float farZ = 1000.f;
@@ -29,12 +29,12 @@ cbuffer HBAOData : register(b1)
 
 Texture2D DepthTexture : register(t0);
 Texture2D NormalRoughnessTexture : register(t1);
-Texture2D<float3> DitherTexture : register(t2);
+Texture2D<float3> RandomTexture : register(t2);
 
 SamplerState depthNormalSampler: register(s2);
 SamplerState randomSampler : register(s3);
 
-float NdcDepthToViewDepth(float depth)
+float ndcDepthToViewDepth(float depth)
 {
     return projectionMatrix[3][2] / (depth - projectionMatrix[2][2]);
 }
@@ -57,11 +57,11 @@ float4 main(PS_IN input) : SV_TARGET
     n = mul(n, (float3x3) viewMatrix); // Convert from World to View
     
     // Sample Depth texcture to get Position
-    float pz = NdcDepthToViewDepth(DepthTexture.SampleLevel(depthNormalSampler, input.TexCoord, 0.0f).r);
+    float pz = ndcDepthToViewDepth(DepthTexture.SampleLevel(depthNormalSampler, input.TexCoord, 0.0f).r);
     float3 p = (pz / input.PositionV.z) * input.PositionV;
     
     // Get Random Vector
-    float3 randVec = DitherTexture.SampleLevel(randomSampler, input.TexCoord * ditherScale, 0);
+    float3 randVec = 2.0f * RandomTexture.SampleLevel(randomSampler, input.TexCoord * 4.0, 0).rgb - 1.0f;
     
     float occlusionSum = 0.0f;
     
@@ -77,7 +77,7 @@ float4 main(PS_IN input) : SV_TARGET
         float4 projQ = mul(float4(q, 1.0f), viewToTexMatrix);
         projQ /= projQ.w;
 
-        float rz = NdcDepthToViewDepth(DepthTexture.SampleLevel(depthNormalSampler, projQ.xy, 0.0f).r);
+        float rz = ndcDepthToViewDepth(DepthTexture.SampleLevel(depthNormalSampler, projQ.xy, 0.0f).r);
         float3 r = (rz / q.z) * q;
         
         float distZ = p.z - r.z;

@@ -13,6 +13,7 @@ RenderHandler::RenderHandler()
 
 RenderHandler::~RenderHandler()
 {
+	delete m_blurConstantData;
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
@@ -86,7 +87,7 @@ void RenderHandler::initRenderTarget(RenderTarget& rtv, UINT width, UINT height)
 	textureDesc.CPUAccessFlags = 0;
 	textureDesc.MiscFlags = 0;
 
-	HRESULT hr = this->m_device->CreateTexture2D(&textureDesc, NULL, &rtv.rtt);
+	HRESULT hr = m_device->CreateTexture2D(&textureDesc, NULL, &rtv.rtt);
 	assert(SUCCEEDED(hr) && "Error, render target texture could not be created!");
 
 	// Render Rarget View
@@ -96,7 +97,7 @@ void RenderHandler::initRenderTarget(RenderTarget& rtv, UINT width, UINT height)
 	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 	renderTargetViewDesc.Texture2D.MipSlice = 0;
 
-	hr = this->m_device->CreateRenderTargetView(rtv.rtt, &renderTargetViewDesc, &rtv.rtv);
+	hr = m_device->CreateRenderTargetView(rtv.rtt, &renderTargetViewDesc, &rtv.rtv);
 	assert(SUCCEEDED(hr) && "Error, render target view could not be created!");
 
 	// Shader Resource View
@@ -107,8 +108,17 @@ void RenderHandler::initRenderTarget(RenderTarget& rtv, UINT width, UINT height)
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	hr = this->m_device->CreateShaderResourceView(rtv.rtt, &srvDesc, &rtv.srv);
+	hr = m_device->CreateShaderResourceView(rtv.rtt, &srvDesc, &rtv.srv);
 	assert(SUCCEEDED(hr) && "Error, shader resource view could not be created!");
+
+	// Unordered Access View
+	D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.Format = textureDesc.Format;
+	uavDesc.ViewDimension = D3D11_UAV_DIMENSION::D3D11_UAV_DIMENSION_TEXTURE2D;
+	uavDesc.Texture2D.MipSlice = 0;
+
+	hr = m_device->CreateUnorderedAccessView(rtv.rtt, &uavDesc, &rtv.uav);
+	assert(SUCCEEDED(hr) && "Error, unordered access view could not be created!");
 }
 
 void RenderHandler::initRenderTargets()
@@ -296,6 +306,58 @@ void RenderHandler::initRenderStates()
 	m_device->CreateBlendState(&blendStateDesc, m_blendStateBlend.GetAddressOf());
 }
 
+void RenderHandler::initBlurPass(UINT width, UINT height, DXGI_FORMAT format)
+{
+	ShaderFiles shaderFiles;
+	shaderFiles.vs = L"";
+	shaderFiles.ps = L"";
+	shaderFiles.cs = L"EdgePreservingBlurCS.hlsl";
+	m_edgePreservingBlurCS.initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS);
+
+	m_blurConstantData->projectionMatrix = m_camera.getProjectionMatrix();
+	m_blurDirectionBuffer.initialize(m_device.Get(), m_deviceContext.Get(), m_blurConstantData, BufferType::CONSTANT);
+
+	// Texture
+	D3D11_TEXTURE2D_DESC textureDesc;
+	ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
+	textureDesc.Width = width;
+	textureDesc.Height = height;
+	textureDesc.MipLevels = 1;
+	textureDesc.ArraySize = 1;
+	textureDesc.Format = format;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.Usage = D3D11_USAGE_DEFAULT;
+	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+	textureDesc.CPUAccessFlags = 0;
+	textureDesc.MiscFlags = 0;
+
+	ID3D11Texture2D* texture;
+	HRESULT hr = m_device->CreateTexture2D(&textureDesc, NULL, &texture);
+	assert(SUCCEEDED(hr) && "Error, blur pass ping pong texture could not be created!");
+
+	// SRV
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	ZeroMemory(&srvDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+	srvDesc.Format = m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].format;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	hr = m_device->CreateShaderResourceView(texture, &srvDesc, m_blurPingPongSRV.GetAddressOf());
+	assert(SUCCEEDED(hr) && "Error, blur pass ping pong shader resource view could not be created!");
+
+	// UAV
+	D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.Format = textureDesc.Format;
+	uavDesc.ViewDimension = D3D11_UAV_DIMENSION::D3D11_UAV_DIMENSION_TEXTURE2D;
+	uavDesc.Texture2D.MipSlice = 0;
+
+	hr = m_device->CreateUnorderedAccessView(texture, &uavDesc, m_blurPingPongUAV.GetAddressOf());
+	assert(SUCCEEDED(hr) && "Error, blur pass ping pong unordered access view could not be created!");
+
+	texture->Release();
+}
+
 void RenderHandler::lightPass()
 {
 	// Set Output Render Target
@@ -331,6 +393,46 @@ void RenderHandler::lightPass()
 	// Unbind Render Target and Shader Resource Views
 	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, nullptr);
 	m_deviceContext->PSSetShaderResources(0, 5, m_shaderResourcesNullptr);
+}
+
+void RenderHandler::blurSSAOPass()
+{
+	UINT offset = 0;
+	int vertexCount = 6;
+	UINT cOffset = -1;
+
+	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, NULL);
+	m_deviceContext->CSSetUnorderedAccessViews(0, 1, &m_unorderedAccessNullptr, &cOffset);
+	m_deviceContext->PSSetShaderResources(0, 2, m_shaderResourcesNullptr);
+
+	m_edgePreservingBlurCS.setShaders();
+
+	ID3D11ShaderResourceView* blurSRVs[] = { m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].srv, m_blurPingPongSRV.Get() };
+	ID3D11UnorderedAccessView* blurUAVs[] = { m_blurPingPongUAV.Get(), m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].uav };
+
+	for (UINT i = 0; i < 2; i++)
+	{
+		// Blur Constant Buffer
+		m_blurConstantData->direction = i;
+		
+		m_blurDirectionBuffer.update(m_blurConstantData);
+		m_deviceContext->CSSetConstantBuffers(0, 1, m_blurDirectionBuffer.GetAddressOf());
+
+		// Set Rescources
+		m_deviceContext->CSSetShaderResources(0, 1, &blurSRVs[m_blurConstantData->direction]);
+		m_deviceContext->CSSetShaderResources(1, 1, &m_gBuffer.renderTargets[GBufferType::DEPTH].srv);
+		m_deviceContext->CSSetShaderResources(2, 1, &m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].srv);
+		m_deviceContext->CSSetUnorderedAccessViews(0, 1, &blurUAVs[m_blurConstantData->direction], &cOffset);
+
+		// Dispatch Shader
+		m_deviceContext->Dispatch(m_clientWidth / 16, m_clientHeight / 16, 1);
+
+		// Unbind Unordered Access View and Shader Resource View
+		m_deviceContext->CSSetShaderResources(0, 1, &m_shaderResourceNullptr);
+		m_deviceContext->CSSetUnorderedAccessViews(0, 1, &m_unorderedAccessNullptr, &cOffset);
+	}
+
+	m_deviceContext->PSSetShaderResources(0, 2, m_shaderResourcesNullptr);
 }
 
 void RenderHandler::initCamera()
@@ -391,6 +493,9 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_HBAOInstance.initialize(m_device.Get(), m_deviceContext.Get(), winRect.right, winRect.bottom, m_camera.getFarZ(), m_camera.getFov(), m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
 	m_SSAOInstance.initialize(m_device.Get(), m_deviceContext.Get(), winRect.right, winRect.bottom, m_camera.getFarZ(), m_camera.getFov(), m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
 
+	// Blur
+	initBlurPass(m_clientWidth, m_clientHeight, m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].format);
+	
 	// Particles
 	m_particleSystem.Initialize(m_device.Get(), m_deviceContext.Get(), L"flare.dds", 10);
 
@@ -764,6 +869,7 @@ void RenderHandler::updatePassShaders()
 	m_lightPassShaders.updateShaders();
 	//m_HBAOInstance.updateShaders();
 	m_SSAOInstance.updateShaders();
+	m_edgePreservingBlurCS.updateShaders();
 }
 
 void RenderHandler::UIRenderShadowMap()
@@ -782,6 +888,7 @@ void RenderHandler::UIRenderAmbientOcclusionWindow()
 	ImGui::Image(m_gBuffer.renderTargets[GBufferType::EMISSIVE_SHADOWMASK].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
 	//ImGui::Image(m_gBuffer.renderTargets[GBufferType::DEPTH].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
 	//ImGui::Image(m_shadowInstance.getShadowMapSRVNoneConst(), ImVec2((float)m_clientWidth / 4.f, (float)m_clientWidth / 4.f));
+	ImGui::Image(m_blurPingPongSRV.Get(), ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
 	ImGui::Image(m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
 	ImGui::End();
 	//m_HBAOInstance.UIRenderDitherTextureWindow();
@@ -862,6 +969,9 @@ void RenderHandler::render()
 		m_deviceContext->PSSetShaderResources(1, 1, &m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].srv);
 		//m_HBAOInstance.render();
 		m_SSAOInstance.render();
+
+		// Blur
+		blurSSAOPass();
 	}
 	
 	// Light Pass
