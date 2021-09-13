@@ -15,8 +15,8 @@ void CameraObject::initialize(float mouseSensitivity, XMVECTOR startPosition)
 	m_movementComponent->position = startPosition;
 
 	m_physicsComponent = std::make_unique<PhysicsComponent>();
-	m_physicsComponent->initialize(m_movementComponent.get(), 60.f, XMFLOAT3(.2f, .2f, .2f), XMFLOAT3(.99f, .99f, .99f));
-
+	m_physicsComponent->initialize(m_movementComponent.get(), 60.f, XMFLOAT3(.5f, .5f, .5f), XMFLOAT3(40.f, 40.f, 40.f), 20.f);
+	
 	m_renderHandler = RenderHandler::getInstance();
 	m_renderHandler->updateCamera(m_movementComponent->position, m_movementComponent->rotation);
 }
@@ -38,8 +38,8 @@ void CameraObject::rotate(int mouseX, int mouseY)
 
 	// Limit pitch to straight up or straight down with a little fudge-factor to avoid gimbal lock
 	float limit = XM_PI / 2.0f - 0.01f;
-	rotationF3.x = max(-limit, rotationF3.x);
-	rotationF3.x = min(limit, rotationF3.x);
+	rotationF3.x = std::max(-limit, rotationF3.x);
+	rotationF3.x = std::min(limit, rotationF3.x);
 
 	// Set Yaw
 	rotationF3.y += mouseDelta.x * m_mouseSensitivity;
@@ -72,4 +72,11 @@ void CameraObject::update(float dt)
 {
 	m_physicsComponent->updatePosition(dt);
 	m_renderHandler->updateCamera(m_movementComponent->position, m_movementComponent->rotation);
+}
+
+void CameraObject::updateUI()
+{
+	ImGui::PushID("camera");
+	m_physicsComponent->updateUI();
+	ImGui::PopID();
 }

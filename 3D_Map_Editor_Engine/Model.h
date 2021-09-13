@@ -27,7 +27,7 @@ private:
 		std::vector<VertexPosNormTexTan> vertices;
 		std::vector<UINT> indices;
 
-		int indexOffset = m_vertices.size(); // Vertex offset for indices index
+		int indexOffset = (int)m_vertices.size(); // Vertex offset for indices index
 		m_vertices.reserve(m_vertices.size() + mesh->mNumVertices);
 		m_indices.reserve(m_indices.size() + mesh->mNumFaces * 3);
 

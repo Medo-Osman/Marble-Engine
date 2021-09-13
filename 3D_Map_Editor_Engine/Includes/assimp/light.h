@@ -3,7 +3,9 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2016, assimp team
+Copyright (c) 2006-2021, assimp team
+
+
 
 All rights reserved.
 
@@ -43,10 +45,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *  @brief Defines the aiLight data structure
  */
 
-#ifndef __AI_LIGHT_H_INC__
-#define __AI_LIGHT_H_INC__
+#pragma once
+#ifndef AI_LIGHT_H_INC
+#define AI_LIGHT_H_INC
 
-#include "types.h"
+#ifdef __GNUC__
+#   pragma GCC system_header
+#endif
+
+#include <assimp/types.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -234,7 +241,7 @@ struct aiLight
 
 #ifdef __cplusplus
 
-    aiLight()
+    aiLight() AI_NO_EXCEPT
         :   mType                 (aiLightSource_UNDEFINED)
         ,   mAttenuationConstant  (0.f)
         ,   mAttenuationLinear    (1.f)
@@ -253,4 +260,4 @@ struct aiLight
 #endif
 
 
-#endif // !! __AI_LIGHT_H_INC__
+#endif // !! AI_LIGHT_H_INC

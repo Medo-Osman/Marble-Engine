@@ -186,7 +186,7 @@ void GameState::initialize(Settings settings)
 	// Games Objects
 	// - Ground quad
 	m_gameObjects.push_back(new GameObject());
-	m_gameObjects.back()->initialize("", m_gameObjects.size(), ShaderStates::PBR);
+	m_gameObjects.back()->initialize("", (UINT)m_gameObjects.size(), ShaderStates::PBR);
 	m_gameObjects.back()->setScale(XMVectorSet(1000.f, 1000.f, 1000.f, 1.f));
 	PS_MATERIAL_PBR_BUFFER groundMat;
 	groundMat.albedo = XMFLOAT3(1.f, 1.f, 1.f);
@@ -210,7 +210,7 @@ void GameState::initialize(Settings settings)
 	m_gameObjects.back()->setTextures(pbrTextures);*/
 
 	// Map Handler
-	m_mapHandler.initialize("map1.txt", m_gameObjects.size(), true);
+	m_mapHandler.initialize("map1.txt", (UINT)m_gameObjects.size(), true);
 
 	// - Game Objects from Map file
 	m_mapHandler.importGameObjects(m_gameObjects);
@@ -532,6 +532,10 @@ void GameState::update(float dt)
 		ImGui::Checkbox(" SSAO", RenderHandler::getInstance()->getSsaoModePtr());
 		ImGui::Checkbox(" Window Resize", &m_windowResizeFlag);
 		ImGui::Checkbox(" Window Move", &m_windowMoveFlag);
+		if (ImGui::CollapsingHeader("Camera"))
+		{
+			m_camera.updateUI();
+		}
 	}
 	ImGui::End();
 	ImGui::PopStyleColor();
@@ -557,7 +561,7 @@ void GameState::update(float dt)
 
 			// Model card Begin
 			// - Thumbnail
-			ImGui::BeginChildFrame(i + 1, ImVec2(110, 130));
+			ImGui::BeginChildFrame((ImGuiID)i + 1, ImVec2(110, 130));
 			if (m_modelNames[i].second)
 			{
 				if (m_modelNames[i].first == "..")
@@ -593,7 +597,7 @@ void GameState::update(float dt)
 					size_t position = m_currentDirectoryPath.find_first_of("\\/") + 1;
 					std::string modelPath = m_currentDirectoryPath + m_modelNames[i].first;
 					modelPath.erase(0, position);
-					m_gameObjects.back()->initialize(modelPath, m_gameObjects.size(), ShaderStates::PBR);
+					m_gameObjects.back()->initialize(modelPath, (UINT)m_gameObjects.size(), ShaderStates::PBR);
 
 					//m_mapHandler.addGameObjectToFile(m_gameObjects.back());
 				}
@@ -639,7 +643,7 @@ void GameState::update(float dt)
 		ImGui::SameLine(ImGui::GetWindowWidth() - 48);
 		if (ImGui::ImageButton(ResourceHandler::getInstance().getTexture(L"baseline_delete_white_18dp.png"), ImVec2(20, 20)))
 		{
-			if (m_selectedIndex = i)
+			if (m_selectedIndex = (int)i)
 			{
 				m_selectedIndex = -1;
 				m_renderHandler->deselectObject();
@@ -655,7 +659,7 @@ void GameState::update(float dt)
 			ImGui::SameLine(ImGui::GetWindowWidth() - 48 - 56);
 			if (ImGui::Button("Select"))
 			{
-				m_selectedIndex = i;
+				m_selectedIndex = (int)i;
 				m_renderHandler->updateSelectedObject(m_gameObjects[i]->getKey(), m_gameObjects[i]->getPositionF3());
 			}
 			m_gameObjects[i]->update(dt);
@@ -680,18 +684,18 @@ void GameState::update(float dt)
 
 			delete m_lights[i];
 			m_lights.erase(m_lights.begin() + i);
-			m_renderHandler->removeLight(i);
+			m_renderHandler->removeLight((int)i);
 			ImGui::PopStyleVar();
 		}
 		else
 		{
 			ImGui::PopStyleVar();
 			if (ImGui::ColorEdit4("Color##2f", &m_lights[i]->color.x, ImGuiColorEditFlags_Float))
-				m_renderHandler->updateLight(m_lights[i], i);
+				m_renderHandler->updateLight(m_lights[i], (int)i);
 
 			if (m_lights[i]->type != DIRECTIONAL_LIGHT)
 				if (ImGui::DragFloat3("Position", &m_lights[i]->position.x, 0.1f))
-					m_renderHandler->updateLight(m_lights[i], i);
+					m_renderHandler->updateLight(m_lights[i], (int)i);
 
 			if (m_lights[i]->type == DIRECTIONAL_LIGHT)
 			{
@@ -699,7 +703,7 @@ void GameState::update(float dt)
 				{
 					if (m_lights[i]->isCastingShadow)
 						m_renderHandler->changeShadowMappingLight(m_lights[i], false);
-					m_renderHandler->updateLight(m_lights[i], i);
+					m_renderHandler->updateLight(m_lights[i], (int)i);
 				}
 
 				if (ImGui::Checkbox("Casts Shadow", (bool*)(&m_lights[i]->isCastingShadow)))

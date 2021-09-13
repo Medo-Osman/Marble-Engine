@@ -166,7 +166,7 @@ public:
 		for (size_t i = sizeBefore; i < sizeAfter; i++)
 		{
 			gameObjects[i] = new GameObject();
-			gameObjects[i]->initialize(		m_gameObjectData[i - sizeBefore].modelFile, i + 1, m_gameObjectData[i - sizeBefore].shaderType);
+			gameObjects[i]->initialize(		m_gameObjectData[i - sizeBefore].modelFile, (UINT)i + 1, m_gameObjectData[i - sizeBefore].shaderType);
 			gameObjects[i]->setScale(		m_gameObjectData[i - sizeBefore].scale);
 			gameObjects[i]->setRotation(	m_gameObjectData[i - sizeBefore].rotation);
 			gameObjects[i]->setPosition(	m_gameObjectData[i - sizeBefore].position);
@@ -214,7 +214,7 @@ public:
 
 	void removeGameObjectFromFile(int removedIndex, int gameObjectSize)
 	{
-		int sizeDifference = gameObjectSize - m_gameObjectData.size();
+		int sizeDifference = gameObjectSize - (int)m_gameObjectData.size();
 		m_gameObjectData.erase(m_gameObjectData.begin() + removedIndex - sizeDifference);
 
 		dumpDataToFile();

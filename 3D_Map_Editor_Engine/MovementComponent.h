@@ -78,10 +78,10 @@ public:
 	void updateDirVectors()
 	{
 		XMMATRIX rotationMatrix = XMMatrixRotationY(XMVectorGetY(rotation));
-		forward = XMVector3TransformCoord(XMVectorSet(0.f, 0.f, 1.f, 0.f), rotationMatrix);
-		left = XMVector3TransformCoord(XMVectorSet(-1.f, 0.f, 0.f, 0.f), rotationMatrix);
-		right = XMVector3TransformCoord(XMVectorSet(1.f, 0.f, 0.f, 0.f), rotationMatrix);
-		backward = XMVector3TransformCoord(XMVectorSet(0.f, 0.f, -1.f, 0.f), rotationMatrix);
+		forward = XMVector4Normalize(XMVector3TransformCoord(XMVectorSet(0.f, 0.f, 1.f, 0.f), rotationMatrix));
+		left = XMVector4Normalize(XMVector3TransformCoord(XMVectorSet(-1.f, 0.f, 0.f, 0.f), rotationMatrix));
+		right = XMVector4Normalize(XMVector3TransformCoord(XMVectorSet(1.f, 0.f, 0.f, 0.f), rotationMatrix));
+		backward = XMVector4Normalize(XMVector3TransformCoord(XMVectorSet(0.f, 0.f, -1.f, 0.f), rotationMatrix));
 	}
 };
 

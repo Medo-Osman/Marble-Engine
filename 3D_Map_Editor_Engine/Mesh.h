@@ -34,12 +34,12 @@ public:
 		setName(name);
 
 		m_vertexBuffer = std::make_shared< Buffer<T> >();
-		m_vertexBuffer->initialize(device, deviceContext, vertices.data(), BufferType::VERTEX, vertices.size());
+		m_vertexBuffer->initialize(device, deviceContext, vertices.data(), BufferType::VERTEX, (UINT)vertices.size());
 		m_hasIndices = false;
 		
 		if (indices.size() > 0)
 		{
-			m_IndexBuffer.initialize(device, deviceContext, indices.data(), BufferType::INDEX, indices.size());
+			m_IndexBuffer.initialize(device, deviceContext, indices.data(), BufferType::INDEX, (UINT)indices.size());
 			m_hasIndices = true;
 		}
 

@@ -35,6 +35,7 @@ public:
 
 	// Update
 	void update(float dt);
+	void updateUI();
 };
 
 #endif // !CAMERAOBJECT_H

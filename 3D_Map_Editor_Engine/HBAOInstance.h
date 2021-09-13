@@ -181,9 +181,9 @@ public:
             offsets2.push_back((float)i / len);
         }
 
-        unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+        unsigned int seed = (unsigned int)std::chrono::system_clock::now().time_since_epoch().count();
         std::shuffle(offsets1.begin(), offsets1.end(), std::default_random_engine(seed));
-        seed = std::chrono::system_clock::now().time_since_epoch().count();
+        seed = (unsigned int)std::chrono::system_clock::now().time_since_epoch().count();
         std::shuffle(offsets2.begin(), offsets2.end(), std::default_random_engine(seed));
 
         int i = 0;

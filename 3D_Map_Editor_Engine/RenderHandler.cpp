@@ -432,7 +432,9 @@ void RenderHandler::blurSSAOPass()
 		m_deviceContext->CSSetUnorderedAccessViews(0, 1, &m_unorderedAccessNullptr, &cOffset);
 	}
 
-	m_deviceContext->PSSetShaderResources(0, 2, m_shaderResourcesNullptr);
+	m_deviceContext->CSSetShaderResources(0, 3, m_shaderResourcesNullptr);
+	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, NULL);
+	m_deviceContext->CSSetUnorderedAccessViews(0, 1, &m_unorderedAccessNullptr, &cOffset);
 }
 
 void RenderHandler::initCamera()
@@ -539,12 +541,12 @@ RenderObjectKey RenderHandler::newRenderObject(std::string modelName, ShaderStat
 	}
 
 	RenderObjectKey key;
-	key.key = objects->size();
+	key.key = (int)objects->size();
 	key.valid = true;
 	key.objectType = shaderState;
 
 	(*objects)[key] = new RenderObject();
-	objects->at(key)->initialize(m_device.Get(), m_deviceContext.Get(), objects->size(), modelName);
+	objects->at(key)->initialize(m_device.Get(), m_deviceContext.Get(), (int)objects->size(), modelName);
 	objects->at(key)->setShaderState(shaderState);
 	if (m_camera.isInitialized())
 	{
@@ -649,7 +651,7 @@ RenderObjectKey RenderHandler::setShaderState(RenderObjectKey key, ShaderStates 
 			switch (shaderState)
 			{
 			case PBR:
-				newKey.key = m_renderObjectsPBR.size();
+				newKey.key = (int)m_renderObjectsPBR.size();
 				newKey.valid = true;
 				newKey.objectType = shaderState;
 				m_renderObjectsPBR[newKey] = m_renderObjects[key];
@@ -670,7 +672,7 @@ RenderObjectKey RenderHandler::setShaderState(RenderObjectKey key, ShaderStates 
 			switch (shaderState)
 			{
 			case PHONG:
-				newKey.key = m_renderObjects.size();
+				newKey.key = (int)m_renderObjects.size();
 				newKey.valid = true;
 				newKey.objectType = shaderState;
 				m_renderObjects[newKey] = m_renderObjectsPBR[key];

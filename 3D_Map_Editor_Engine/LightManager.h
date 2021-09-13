@@ -66,7 +66,7 @@ public:
         {
             // Add Render Object
             m_renderObjects.push_back(std::make_pair( m_lightData.nrOfLights - 1, new RenderObject() ));
-            m_renderObjects.back().second->initialize(m_device, m_deviceContext, m_renderObjects.size(), "sphere.obj");
+            m_renderObjects.back().second->initialize(m_device, m_deviceContext, (int)m_renderObjects.size(), "sphere.obj");
             TexturePaths textures;
             textures.diffusePath = L"circle_pattern.png";
             m_renderObjects.back().second->setTextures(textures);
