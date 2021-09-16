@@ -150,6 +150,9 @@ private:
     void initRenderStates();
     void initBlurPass(UINT width, UINT height, DXGI_FORMAT format);
 
+    // Helper Functions
+    void calculateBlurWeights(CS_BLUR_CBUFFER* bufferData, int radius, float sigma);
+
     // Pass Functions
     void lightPass();
     void blurSSAOPass();

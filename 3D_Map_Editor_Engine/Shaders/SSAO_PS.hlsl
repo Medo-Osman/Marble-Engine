@@ -2,7 +2,7 @@
 static float occlusionRadius = 0.2f;
 static float occlusionFadeStart = 0.2f;
 static float occlusionFadeEnd = 2.0f;
-static float surfaceEpsilon = 0.03f;
+static float surfaceEpsilon = 0.1f;
 static const int SAMPLE_COUNT = 14;
 static float nearZ = 0.1f;
 static float farZ = 1000.f;

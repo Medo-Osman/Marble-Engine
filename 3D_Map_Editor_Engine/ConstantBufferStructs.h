@@ -63,9 +63,12 @@ struct GS_PARTICLE_CBUFFER
     float pad;
 };
 
+const int BLUR_RADIUS = 7;
 struct CS_BLUR_CBUFFER
 {
     XMMATRIX projectionMatrix;
+    float weights[BLUR_RADIUS + 1]; // BLUR_RADIUS + 1 * 4 bytes
+    int radius;
     BOOL direction;
-    XMFLOAT3 pad;
+    XMFLOAT2 pad;
 };

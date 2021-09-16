@@ -315,6 +315,8 @@ void RenderHandler::initBlurPass(UINT width, UINT height, DXGI_FORMAT format)
 	m_edgePreservingBlurCS.initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS);
 
 	m_blurConstantData->projectionMatrix = m_camera.getProjectionMatrix();
+	calculateBlurWeights(m_blurConstantData, BLUR_RADIUS, 30.f);
+
 	m_blurDirectionBuffer.initialize(m_device.Get(), m_deviceContext.Get(), m_blurConstantData, BufferType::CONSTANT);
 
 	// Texture
@@ -356,6 +358,28 @@ void RenderHandler::initBlurPass(UINT width, UINT height, DXGI_FORMAT format)
 	assert(SUCCEEDED(hr) && "Error, blur pass ping pong unordered access view could not be created!");
 
 	texture->Release();
+}
+
+void RenderHandler::calculateBlurWeights(CS_BLUR_CBUFFER* bufferData, int radius, float sigma)
+{
+	// One Dimensional weight calculation
+	bufferData->direction = 0;
+	bufferData->radius = radius;
+
+	float sum = 0.f;
+	float newSum = 0.f;
+	float twoSigmaSq = 2 * sigma * sigma;
+
+	for (size_t i = 0; i <= bufferData->radius; ++i)
+	{
+		float temp = (1.f / sigma) * std::expf(-(float)(i * i) / twoSigmaSq);
+		bufferData->weights[i] = temp;
+		sum += 2 * temp;
+	}
+	sum -= bufferData->weights[0];
+
+	for (int i = 0; i <= bufferData->radius; ++i)
+		bufferData->weights[i] /= sum;
 }
 
 void RenderHandler::lightPass()
@@ -425,7 +449,9 @@ void RenderHandler::blurSSAOPass()
 		m_deviceContext->CSSetUnorderedAccessViews(0, 1, &blurUAVs[m_blurConstantData->direction], &cOffset);
 
 		// Dispatch Shader
-		m_deviceContext->Dispatch(m_clientWidth / 16, m_clientHeight / 16, 1);
+		UINT clientWidth = (UINT)std::ceil((m_clientWidth / 16.f) + 0.5f);
+		UINT clientHeight = (UINT)std::ceil((m_clientHeight / 16.f) + 0.5f);
+		m_deviceContext->Dispatch(clientWidth, clientHeight, 1);
 
 		// Unbind Unordered Access View and Shader Resource View
 		m_deviceContext->CSSetShaderResources(0, 1, &m_shaderResourceNullptr);
@@ -963,7 +989,7 @@ void RenderHandler::render()
 	for (auto& object : m_renderObjectsPBR)
 		object.second->render(true);
 
-	// HBAO
+	// SSAO
 	if (m_ssaoToggle)
 	{
 		m_deviceContext->OMSetRenderTargets(1, &renderTargets[GBufferType::AMBIENT_OCCLUSION], nullptr);

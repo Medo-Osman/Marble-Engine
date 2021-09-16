@@ -1,4 +1,4 @@
-static const int radius = 5;
+static const int RADIUS = 7;
 
 Texture2D<float4> inputTex : register(t0);
 Texture2D<float4> DepthTexture : register(t1);
@@ -8,9 +8,11 @@ RWTexture2D<float4> outputTex : register(u0);
 cbuffer blurBuffer : register(b0)
 {
     matrix projectionMatrix;
+    float4 weights[(RADIUS + 1) / 4]; // Saved as float4 because float packing behaviour
+    int radius;
     bool direction;
 }
-static float4 weights[2] = { float4(0.227027, 0.1945946, 0.1216216, 0.054054), float4(0.016216, 0, 0, 0) };
+//static float4 weights[2] = { float4(0.227027, 0.1945946, 0.1216216, 0.054054), float4(0.016216, 0, 0, 0) };
 
 float ndcDepthToViewDepth(float depth)
 {
