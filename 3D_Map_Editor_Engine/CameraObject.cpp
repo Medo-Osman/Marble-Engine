@@ -15,7 +15,7 @@ void CameraObject::initialize(float mouseSensitivity, XMVECTOR startPosition)
 	m_movementComponent->position = startPosition;
 
 	m_physicsComponent = std::make_unique<PhysicsComponent>();
-	m_physicsComponent->initialize(m_movementComponent.get(), 60.f, XMFLOAT3(.5f, .5f, .5f), XMFLOAT3(40.f, 40.f, 40.f), 20.f);
+	m_physicsComponent->initialize(m_movementComponent.get(), 60.f, XMFLOAT3(.8f, .8f, .8f), XMFLOAT3(0.001f, 0.001f, 0.001f));
 	
 	m_renderHandler = RenderHandler::getInstance();
 	m_renderHandler->updateCamera(m_movementComponent->position, m_movementComponent->rotation);

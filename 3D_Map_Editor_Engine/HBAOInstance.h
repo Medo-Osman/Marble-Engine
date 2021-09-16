@@ -175,7 +175,7 @@ public:
         std::vector<float> offsets1;
         std::vector<float> offsets2;
 
-        for (size_t i = 0; i < len; ++i)
+        for (int i = 0; i < len; ++i)
         {
             offsets1.push_back((float)i / len);
             offsets2.push_back((float)i / len);

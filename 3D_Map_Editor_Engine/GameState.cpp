@@ -533,9 +533,7 @@ void GameState::update(float dt)
 		ImGui::Checkbox(" Window Resize", &m_windowResizeFlag);
 		ImGui::Checkbox(" Window Move", &m_windowMoveFlag);
 		if (ImGui::CollapsingHeader("Camera"))
-		{
 			m_camera.updateUI();
-		}
 	}
 	ImGui::End();
 	ImGui::PopStyleColor();

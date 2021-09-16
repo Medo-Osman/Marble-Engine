@@ -76,6 +76,7 @@ StyleCopReport.xml
 *.ilk
 *.meta
 *.obj
+!3D_Map_Editor_Engine/Models/*.obj
 *.iobj
 *.pch
 *.pdb

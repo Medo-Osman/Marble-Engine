@@ -2,7 +2,7 @@
 Open Asset Import Library (assimp)
 ----------------------------------------------------------------------
 
-Copyright (c) 2006-2021, assimp team
+Copyright (c) 2006-2019, assimp team
 
 
 All rights reserved.
@@ -66,11 +66,6 @@ public:
         (void)message; //this avoids compiler warnings
     }
 
-    /** @brief  Logs a verbose debug message */
-	void OnVerboseDebug(const char *message) {
-		(void)message; //this avoids compiler warnings
-	}
-
     /** @brief  Logs an info message */
     void OnInfo(const char* message) {
         (void)message; //this avoids compiler warnings
@@ -93,7 +88,7 @@ public:
     }
 
     /** @brief  Detach a still attached stream from logger */
-    bool detachStream(LogStream *pStream, unsigned int severity) {
+    bool detatchStream(LogStream *pStream, unsigned int severity) {
         (void)pStream; (void)severity; //this avoids compiler warnings
         return false;
     }

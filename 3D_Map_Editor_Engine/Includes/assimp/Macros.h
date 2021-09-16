@@ -3,9 +3,7 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2021, assimp team
-
-
+Copyright (c) 2006-2019, assimp team
 
 All rights reserved.
 
@@ -41,27 +39,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ---------------------------------------------------------------------------
 */
 
-/** @file commonMetaData.h
- *  @brief Defines a set of common scene metadata keys.
+/* Helper macro to set a pointer to NULL in debug builds
  */
-#pragma once
-#ifndef AI_COMMONMETADATA_H_INC
-#define AI_COMMONMETADATA_H_INC
-
-/// Scene metadata holding the name of the importer which loaded the source asset.
-/// This is always present if the scene was created from an imported asset.
-#define AI_METADATA_SOURCE_FORMAT "SourceAsset_Format"
-
-/// Scene metadata holding the version of the source asset as a string, if available.
-/// Not all formats add this metadata.
-#define AI_METADATA_SOURCE_FORMAT_VERSION "SourceAsset_FormatVersion"
-
-/// Scene metadata holding the name of the software which generated the source asset, if available.
-/// Not all formats add this metadata.
-#define AI_METADATA_SOURCE_GENERATOR "SourceAsset_Generator"
-
-/// Scene metadata holding the source asset copyright statement, if available.
-/// Not all formats add this metadata.
-#define AI_METADATA_SOURCE_COPYRIGHT "SourceAsset_Copyright"
-
+#if (defined ASSIMP_BUILD_DEBUG)
+#   define AI_DEBUG_INVALIDATE_PTR(x) x = NULL;
+#else
+#   define AI_DEBUG_INVALIDATE_PTR(x)
 #endif
+

@@ -220,6 +220,10 @@ public:
 	{
 		m_velocity.y *= m_deceleration.y * dt;
 	}
+	float decelerate(float source, float target, float smoothing, float dt)
+	{
+		return lerpF(source, target, 1 - std::pow(smoothing, dt));
+	}
 
 	void jump(float accelerationMultipler, float dt)
 	{
@@ -298,50 +302,54 @@ public:
 
 		m_moveComp->updateDirVectors();
 
-		m_oldVelocity = m_velocity;
+		m_velocity.x = decelerate(m_velocity.x, 0, m_deceleration.x * m_decelMultiplier, dt);
+		m_velocity.y = decelerate(m_velocity.y, 0, m_deceleration.y * m_decelMultiplier, dt);
+		m_velocity.z = decelerate(m_velocity.z, 0, m_deceleration.z * m_decelMultiplier, dt);
+
+		//m_oldVelocity = m_velocity;
 
 		// X
-		if (m_velocity.x != 0.f)
-		{
-			if (m_velocity.x > 0.f)
-				m_velocity.x -= m_deceleration.x * m_decelMultiplier * dt;
-			else
-				m_velocity.x += m_deceleration.x * m_decelMultiplier * dt;
+		//if (m_velocity.x != 0.f)
+		//{
+		//	if (m_velocity.x > 0.f)
+		//		m_velocity.x -= m_deceleration.x * m_decelMultiplier * dt;
+		//	else
+		//		m_velocity.x += m_deceleration.x * m_decelMultiplier * dt;
 
-			// Avoid Direction Reversal from decelerating to much
-			if (m_oldVelocity.x > 0 && m_velocity.x < 0)
-				m_velocity.x = 0;
-			else if (m_oldVelocity.x < 0 && m_velocity.x > 0)
-				m_velocity.x = 0;
-		}
-		// Y
-		if (m_velocity.y != 0.f)
-		{
-			if (m_velocity.y > 0.f)
-				m_velocity.y -= m_deceleration.y * m_decelMultiplier * dt;
-			else
-				m_velocity.y += m_deceleration.y * m_decelMultiplier * dt;
+		//	// Avoid Direction Reversal from decelerating to much
+		//	if (m_oldVelocity.x > 0 && m_velocity.x < 0)
+		//		m_velocity.x = 0;
+		//	else if (m_oldVelocity.x < 0 && m_velocity.x > 0)
+		//		m_velocity.x = 0;
+		//}
+		//// Y
+		//if (m_velocity.y != 0.f)
+		//{
+		//	if (m_velocity.y > 0.f)
+		//		m_velocity.y -= m_deceleration.y * m_decelMultiplier * dt;
+		//	else
+		//		m_velocity.y += m_deceleration.y * m_decelMultiplier * dt;
 
-			// Avoid Direction Reversal from decelerating to much
-			if (m_oldVelocity.y > 0 && m_velocity.y < 0)
-				m_velocity.y = 0;
-			else if (m_oldVelocity.y < 0 && m_velocity.y > 0)
-				m_velocity.y = 0;
-		}
-		// Z
-		if (m_velocity.z != 0.f)
-		{
-			if (m_velocity.z > 0.f)
-				m_velocity.z -= m_deceleration.z * m_decelMultiplier * dt;
-			else
-				m_velocity.z += m_deceleration.z * m_decelMultiplier * dt;
+		//	// Avoid Direction Reversal from decelerating to much
+		//	if (m_oldVelocity.y > 0 && m_velocity.y < 0)
+		//		m_velocity.y = 0;
+		//	else if (m_oldVelocity.y < 0 && m_velocity.y > 0)
+		//		m_velocity.y = 0;
+		//}
+		//// Z
+		//if (m_velocity.z != 0.f)
+		//{
+		//	if (m_velocity.z > 0.f)
+		//		m_velocity.z -= m_deceleration.z * m_decelMultiplier * dt;
+		//	else
+		//		m_velocity.z += m_deceleration.z * m_decelMultiplier * dt;
 
-			// Avoid Direction Reversal from decelerating to much
-			if (m_oldVelocity.z > 0 && m_velocity.z < 0)
-				m_velocity.z = 0;
-			else if (m_oldVelocity.z < 0 && m_velocity.z > 0)
-				m_velocity.z = 0;
-		}
+		//	// Avoid Direction Reversal from decelerating to much
+		//	if (m_oldVelocity.z > 0 && m_velocity.z < 0)
+		//		m_velocity.z = 0;
+		//	else if (m_oldVelocity.z < 0 && m_velocity.z > 0)
+		//		m_velocity.z = 0;
+		//}
 
 		/*m_velocity.x = lerpF(m_velocity.x, 0.f, m_deceleration.x * dt);
 		m_velocity.y = lerpF(m_velocity.y, 0.f, m_deceleration.y * dt);
@@ -367,9 +375,9 @@ public:
 		ImGui::PushItemWidth(90);
 		ImGui::DragFloat("Acceleration", &m_accelMultiplier, 0.1f);
 		// Deceleration
-		ImGui::DragFloat("Decceleration", &m_decelMultiplier, 0.1f);
+		ImGui::DragFloat("Deceleration", &m_decelMultiplier, 0.1f);
 		// Max Speed
-		ImGui::DragFloat("Max Speed", &m_maxSpeed, 0.1f);
+		//ImGui::DragFloat("Max Speed", &m_maxSpeed, 0.1f);
 		ImGui::PopItemWidth();
 	}
 };

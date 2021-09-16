@@ -3,7 +3,9 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2021, assimp team
+Copyright (c) 2006-2019, assimp team
+
+
 
 All rights reserved.
 
@@ -47,7 +49,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define AI_VECTOR3D_INL_INC
 
 #ifdef __cplusplus
-#include <assimp/vector3.h>
+#include "vector3.h"
 
 #include <cmath>
 
@@ -152,9 +154,6 @@ const aiVector3t<TReal>& aiVector3t<TReal>::operator *= (TReal f) {
 template <typename TReal>
 AI_FORCE_INLINE
 const aiVector3t<TReal>& aiVector3t<TReal>::operator /= (TReal f) {
-    if ( f == static_cast<TReal>(0.0)) {
-        return *this;
-    }
     const TReal invF = (TReal) 1.0 / f;
     x *= invF;
     y *= invF;
