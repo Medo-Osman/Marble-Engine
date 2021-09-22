@@ -88,6 +88,8 @@ private:
 
     // Ambient Occlusion
     bool m_ssaoToggle = true;
+    bool m_ssaoBlurToggle = true;
+    float m_ssaoBlurSigma = 3.f;
     HBAOInstance m_HBAOInstance;
     SSAOInstance m_SSAOInstance;
 
@@ -97,6 +99,10 @@ private:
     ComPtr< ID3D11UnorderedAccessView > m_blurPingPongUAV;
     Buffer< CS_BLUR_CBUFFER > m_blurDirectionBuffer;
     CS_BLUR_CBUFFER* m_blurConstantData = new CS_BLUR_CBUFFER();
+
+    // Down Sampling
+    Shaders m_downsampleCS;
+    RenderTexture m_halfResTexture;
 
     // Blend State
     ComPtr< ID3D11BlendState > m_blendStateNoBlend;
@@ -143,18 +149,19 @@ private:
 
     // Initialization Functions
     void initDeviceAndSwapChain();
-    void initRenderTarget(RenderTarget& rtv, UINT width, UINT height);
+    void initRenderTarget(RenderTexture& rtv, UINT width, UINT height);
     void initRenderTargets();
     void initViewPort();
     void initDepthStencilBuffer();
     void initRenderStates();
-    void initBlurPass(UINT width, UINT height, DXGI_FORMAT format);
+    void initSSAOBlurPass(UINT width, UINT height, DXGI_FORMAT format);
 
     // Helper Functions
     void calculateBlurWeights(CS_BLUR_CBUFFER* bufferData, int radius, float sigma);
 
     // Pass Functions
     void lightPass();
+    void downsampleSSAOPass();
     void blurSSAOPass();
 
 public:
@@ -193,6 +200,7 @@ public:
     // Render Modes
     bool* getWireframeModePtr();
     bool* getSsaoModePtr();
+    bool* getSsaoBlurModePtr();
 
     // Lighting
     //void newLight(Light newLight);
@@ -210,7 +218,8 @@ public:
 
     // Render
     void UIRenderShadowMap();
-    void UIRenderAmbientOcclusionWindow();
+    void UIRenderPipelineTexturesWindow();
+    void UIssaoSettings();
     void render();
 };
 

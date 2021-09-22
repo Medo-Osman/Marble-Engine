@@ -196,7 +196,7 @@ void GameState::initialize(Settings settings)
 	m_gameObjects.back()->setMaterial(groundMat);
 
 	// PBR Test
-	/*m_gameObjects.push_back(new GameObject());
+	m_gameObjects.push_back(new GameObject());
 	m_gameObjects.back()->initialize("Cerberus_by_Andrew_Maximov\\Cerberus_LP.FBX", m_gameObjects.size(), ShaderStates::PBR);
 	m_gameObjects.back()->setScale(XMVectorSet(0.1f, 0.1f, 0.1f, 1.f));
 	m_gameObjects.back()->setRotation(XMVectorSet(XM_PIDIV2, 0.f, 0.f, 1.f));
@@ -207,7 +207,7 @@ void GameState::initialize(Settings settings)
 	pbrTextures.metallicPath = L"Cerberus_M.tga";
 	pbrTextures.roughnessPath = L"Cerberus_R.tga";
 	pbrTextures.ambientOcclusionPath = L"Cerberus_AO.tga";
-	m_gameObjects.back()->setTextures(pbrTextures);*/
+	m_gameObjects.back()->setTextures(pbrTextures);
 
 	// Map Handler
 	m_mapHandler.initialize("map1.txt", (UINT)m_gameObjects.size(), true);
@@ -529,7 +529,7 @@ void GameState::update(float dt)
 	if (ImGui::CollapsingHeader("Settings"))
 	{
 		ImGui::Checkbox(" Wireframe Mode", RenderHandler::getInstance()->getWireframeModePtr());
-		ImGui::Checkbox(" SSAO", RenderHandler::getInstance()->getSsaoModePtr());
+		RenderHandler::getInstance()->UIssaoSettings();
 		ImGui::Checkbox(" Window Resize", &m_windowResizeFlag);
 		ImGui::Checkbox(" Window Move", &m_windowMoveFlag);
 		if (ImGui::CollapsingHeader("Camera"))
@@ -724,7 +724,7 @@ void GameState::update(float dt)
 
 	// Render Texture Window, for Debug
 	//m_renderHandler->UIRenderShadowMap();
-	m_renderHandler->UIRenderAmbientOcclusionWindow();
+	m_renderHandler->UIRenderPipelineTexturesWindow();
 
 	ImGui::ShowDemoWindow(); // For debugging
 	ImGui::Render(); // Render ImGui(Runs at the end of RenderHandler render funtion!)

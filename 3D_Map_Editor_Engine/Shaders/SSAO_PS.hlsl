@@ -1,5 +1,5 @@
 // Globals
-static float occlusionRadius = 0.2f;
+static float occlusionRadius = 0.5f;
 static float occlusionFadeStart = 0.2f;
 static float occlusionFadeEnd = 2.0f;
 static float surfaceEpsilon = 0.1f;
@@ -61,7 +61,8 @@ float4 main(PS_IN input) : SV_TARGET
     float3 p = (pz / input.PositionV.z) * input.PositionV;
     
     // Get Random Vector
-    float3 randVec = 2.0f * RandomTexture.SampleLevel(randomSampler, input.TexCoord * 4.0, 0).rgb - 1.0f;
+    //float3 randVec = RandomTexture.SampleLevel(randomSampler, input.TexCoord * 4.0, 0).rgb * 2.f - 1.0f; // Random Vector
+    float3 randVec = RandomTexture.SampleLevel(randomSampler, input.TexCoord * ditherScale, 0).rgb; // Dither Texture
     
     float occlusionSum = 0.0f;
     

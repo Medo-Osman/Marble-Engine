@@ -71,7 +71,7 @@ void RenderHandler::initDeviceAndSwapChain()
 	assert(SUCCEEDED(hr) && "Error, failed to create device and swapchain!");
 }
 
-void RenderHandler::initRenderTarget(RenderTarget& rtv, UINT width, UINT height)
+void RenderHandler::initRenderTarget(RenderTexture& rtv, UINT width, UINT height)
 {
 	// Texture
 	D3D11_TEXTURE2D_DESC textureDesc;
@@ -128,14 +128,14 @@ void RenderHandler::initRenderTargets()
 
 	// GBuffer
 	// - Albedo Metallic
-	initRenderTarget(m_gBuffer.renderTargets[GBufferType::ALBEDO_METALLIC], winRect.right, winRect.bottom);
+	initRenderTarget(m_gBuffer.renderTextures[GBufferType::ALBEDO_METALLIC], winRect.right, winRect.bottom);
 	// - Normal Roughness
-	m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	initRenderTarget(m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS], winRect.right, winRect.bottom);
-	// - Emissive Ambient Occlusion
-	initRenderTarget(m_gBuffer.renderTargets[GBufferType::EMISSIVE_SHADOWMASK], winRect.right, winRect.bottom);
-	// - Shadow Mask
-	initRenderTarget(m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION], winRect.right, winRect.bottom);
+	m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	initRenderTarget(m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS], winRect.right, winRect.bottom);
+	// - Emissive Shadow Mask
+	initRenderTarget(m_gBuffer.renderTextures[GBufferType::EMISSIVE_SHADOWMASK], winRect.right, winRect.bottom);
+	// - Ambient Occlusion
+	initRenderTarget(m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION], winRect.right, winRect.bottom);
 
 	// Output Render Target
 	// - Get Back Buffer Texture for Output RenderTarget
@@ -201,7 +201,7 @@ void RenderHandler::initDepthStencilBuffer()
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	hr = m_device->CreateShaderResourceView(m_depthStencilBuffer.Get(), &srvDesc, &m_gBuffer.renderTargets[GBufferType::DEPTH].srv);
+	hr = m_device->CreateShaderResourceView(m_depthStencilBuffer.Get(), &srvDesc, &m_gBuffer.renderTextures[GBufferType::DEPTH].srv);
 	assert(SUCCEEDED(hr) && "Error, failed to create depth stencil shader resource view!");
 
 	// Create Depth Stencil State
@@ -306,7 +306,7 @@ void RenderHandler::initRenderStates()
 	m_device->CreateBlendState(&blendStateDesc, m_blendStateBlend.GetAddressOf());
 }
 
-void RenderHandler::initBlurPass(UINT width, UINT height, DXGI_FORMAT format)
+void RenderHandler::initSSAOBlurPass(UINT width, UINT height, DXGI_FORMAT format)
 {
 	ShaderFiles shaderFiles;
 	shaderFiles.vs = L"";
@@ -315,7 +315,7 @@ void RenderHandler::initBlurPass(UINT width, UINT height, DXGI_FORMAT format)
 	m_edgePreservingBlurCS.initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS);
 
 	m_blurConstantData->projectionMatrix = m_camera.getProjectionMatrix();
-	calculateBlurWeights(m_blurConstantData, BLUR_RADIUS, 30.f);
+	calculateBlurWeights(m_blurConstantData, MAX_BLUR_RADIUS, m_ssaoBlurSigma);
 
 	m_blurDirectionBuffer.initialize(m_device.Get(), m_deviceContext.Get(), m_blurConstantData, BufferType::CONSTANT);
 
@@ -336,11 +336,11 @@ void RenderHandler::initBlurPass(UINT width, UINT height, DXGI_FORMAT format)
 	ID3D11Texture2D* texture;
 	HRESULT hr = m_device->CreateTexture2D(&textureDesc, NULL, &texture);
 	assert(SUCCEEDED(hr) && "Error, blur pass ping pong texture could not be created!");
-
+	
 	// SRV
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	ZeroMemory(&srvDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
-	srvDesc.Format = m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].format;
+	srvDesc.Format = m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION].format;
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = 1;
@@ -363,23 +363,49 @@ void RenderHandler::initBlurPass(UINT width, UINT height, DXGI_FORMAT format)
 void RenderHandler::calculateBlurWeights(CS_BLUR_CBUFFER* bufferData, int radius, float sigma)
 {
 	// One Dimensional weight calculation
-	bufferData->direction = 0;
+	/*bufferData->direction = 0;
 	bufferData->radius = radius;
 
 	float sum = 0.f;
-	float newSum = 0.f;
 	float twoSigmaSq = 2 * sigma * sigma;
 
 	for (size_t i = 0; i <= bufferData->radius; ++i)
 	{
-		float temp = (1.f / sigma) * std::expf(-(float)(i * i) / twoSigmaSq);
+		float temp = (1.f / sigma) * std::expf(-static_cast<float>(i * i) / twoSigmaSq);
 		bufferData->weights[i] = temp;
 		sum += 2 * temp;
 	}
 	sum -= bufferData->weights[0];
 
+	float normalizationFactor = 1.f / sum;
 	for (int i = 0; i <= bufferData->radius; ++i)
-		bufferData->weights[i] /= sum;
+		bufferData->weights[i] *= normalizationFactor;*/
+
+
+	bufferData->direction = 0;
+	float twoSigma2 = 2.0f * sigma * sigma;
+
+	// Estimate the blur radius based on sigma since sigma controls the "width" of the bell curve.
+	// For example, for sigma = 3, the width of the bell curve is 
+	int blurRadius = (int)ceil(2.0f * sigma);
+	bufferData->radius = blurRadius;
+
+	assert(blurRadius <= MAX_BLUR_RADIUS);
+
+	float weightSum = 0.0f;
+
+	for (int i = -blurRadius; i <= blurRadius; ++i)
+	{
+		float x = (float)i;
+
+		bufferData->weights[i + blurRadius] = expf(-x * x / twoSigma2);
+		weightSum += bufferData->weights[i + blurRadius];
+	}
+
+	// Divide by the sum so all the weights add up to 1.0.
+	float weightLength = 2 * blurRadius + 1;
+	for (int i = 0; i < weightLength; ++i)
+		bufferData->weights[i] /= weightSum;
 }
 
 void RenderHandler::lightPass()
@@ -396,12 +422,16 @@ void RenderHandler::lightPass()
 	// Set G-Buffer Shader Resource views
 	ID3D11ShaderResourceView* gBufferSRVs[] =
 	{
-		m_gBuffer.renderTargets[GBufferType::ALBEDO_METALLIC].srv,
-		m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].srv,
-		m_gBuffer.renderTargets[GBufferType::EMISSIVE_SHADOWMASK].srv,
-		m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].srv,
-		m_gBuffer.renderTargets[GBufferType::DEPTH].srv
+		m_gBuffer.renderTextures[GBufferType::ALBEDO_METALLIC].srv,
+		m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].srv,
+		m_gBuffer.renderTextures[GBufferType::EMISSIVE_SHADOWMASK].srv,
+		m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION].srv,
+		m_gBuffer.renderTextures[GBufferType::DEPTH].srv
 	};
+	
+	if (m_ssaoToggle)
+		gBufferSRVs[GBufferType::AMBIENT_OCCLUSION] = m_SSAOInstance.getSSAORenderTexture().srv;
+
 	m_deviceContext->PSSetShaderResources(0, GBufferType::GB_NUM, gBufferSRVs);
 	UINT srvIndex = GBufferType::GB_NUM; // 4
 
@@ -419,10 +449,21 @@ void RenderHandler::lightPass()
 	m_deviceContext->PSSetShaderResources(0, 5, m_shaderResourcesNullptr);
 }
 
+void RenderHandler::downsampleSSAOPass()
+{
+	/*m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, NULL);
+	m_downsampleCS.setShaders();
+
+	m_deviceContext->CSSetShaderResources(0, 1, &m_SSAOInstance.getSSAORenderTexture().srv);
+	m_deviceContext->CSSetUnorderedAccessViews(0, 1, m_downSampledUnorderedAccessView.GetAddressOf(), 0);
+	m_deviceContext->Dispatch(m_settings.width / 16, m_settings.height / 16, 1);
+
+	m_deviceContext->CSSetShaderResources(0, 1, &m_shaderResourceNullptr);
+	m_deviceContext->CSSetUnorderedAccessViews(0, 1, &m_unorderedAccessNullptr, 0);*/
+}
+
 void RenderHandler::blurSSAOPass()
 {
-	UINT offset = 0;
-	int vertexCount = 6;
 	UINT cOffset = -1;
 
 	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, NULL);
@@ -431,8 +472,8 @@ void RenderHandler::blurSSAOPass()
 
 	m_edgePreservingBlurCS.setShaders();
 
-	ID3D11ShaderResourceView* blurSRVs[] = { m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].srv, m_blurPingPongSRV.Get() };
-	ID3D11UnorderedAccessView* blurUAVs[] = { m_blurPingPongUAV.Get(), m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].uav };
+	ID3D11ShaderResourceView* blurSRVs[] = { m_SSAOInstance.getSSAORenderTexture().srv, m_blurPingPongSRV.Get() };
+	ID3D11UnorderedAccessView* blurUAVs[] = { m_blurPingPongUAV.Get(), m_SSAOInstance.getSSAORenderTexture().uav };
 
 	for (UINT i = 0; i < 2; i++)
 	{
@@ -444,8 +485,8 @@ void RenderHandler::blurSSAOPass()
 
 		// Set Rescources
 		m_deviceContext->CSSetShaderResources(0, 1, &blurSRVs[m_blurConstantData->direction]);
-		m_deviceContext->CSSetShaderResources(1, 1, &m_gBuffer.renderTargets[GBufferType::DEPTH].srv);
-		m_deviceContext->CSSetShaderResources(2, 1, &m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].srv);
+		m_deviceContext->CSSetShaderResources(1, 1, &m_gBuffer.renderTextures[GBufferType::DEPTH].srv);
+		m_deviceContext->CSSetShaderResources(2, 1, &m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].srv);
 		m_deviceContext->CSSetUnorderedAccessViews(0, 1, &blurUAVs[m_blurConstantData->direction], &cOffset);
 
 		// Dispatch Shader
@@ -522,7 +563,7 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_SSAOInstance.initialize(m_device.Get(), m_deviceContext.Get(), winRect.right, winRect.bottom, m_camera.getFarZ(), m_camera.getFov(), m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
 
 	// Blur
-	initBlurPass(m_clientWidth, m_clientHeight, m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].format);
+	initSSAOBlurPass(m_clientWidth, m_clientHeight, m_SSAOInstance.getSSAORenderTexture().format);
 	
 	// Particles
 	m_particleSystem.Initialize(m_device.Get(), m_deviceContext.Get(), L"flare.dds", 10);
@@ -783,6 +824,11 @@ bool* RenderHandler::getSsaoModePtr()
 	return &m_ssaoToggle;
 }
 
+bool* RenderHandler::getSsaoBlurModePtr()
+{
+	return &m_ssaoBlurToggle;
+}
+
 void RenderHandler::updateSelectedObject(RenderObjectKey key, XMFLOAT3 newPosition)
 {
 	m_selectedObjectKey = key;
@@ -907,19 +953,52 @@ void RenderHandler::UIRenderShadowMap()
 	ImGui::End();
 }
 
-void RenderHandler::UIRenderAmbientOcclusionWindow()
+void RenderHandler::UIRenderPipelineTexturesWindow()
 {
 	ImGui::Begin("Horizon Based Ambient Occlusion Texture");
+	
 	static ImVec4 color_multipler(1, 1, 1, 100);
-	ImGui::Image(m_gBuffer.renderTargets[GBufferType::ALBEDO_METALLIC].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
-	ImGui::Image(m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
-	ImGui::Image(m_gBuffer.renderTargets[GBufferType::EMISSIVE_SHADOWMASK].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
-	//ImGui::Image(m_gBuffer.renderTargets[GBufferType::DEPTH].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	ImGui::Image(m_gBuffer.renderTextures[GBufferType::ALBEDO_METALLIC].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	ImGui::Image(m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	ImGui::Image(m_gBuffer.renderTextures[GBufferType::EMISSIVE_SHADOWMASK].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	//ImGui::Image(m_gBuffer.renderTextures[GBufferType::DEPTH].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
 	//ImGui::Image(m_shadowInstance.getShadowMapSRVNoneConst(), ImVec2((float)m_clientWidth / 4.f, (float)m_clientWidth / 4.f));
+	
 	ImGui::Image(m_blurPingPongSRV.Get(), ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
-	ImGui::Image(m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	if (m_ssaoToggle)
+		ImGui::Image(m_SSAOInstance.getSSAORenderTexture().srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	else
+		ImGui::Image(m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	
+	//m_SSAOInstance.updateUI();
 	ImGui::End();
-	//m_HBAOInstance.UIRenderDitherTextureWindow();
+}
+
+void RenderHandler::UIssaoSettings()
+{
+	if (ImGui::CollapsingHeader("SSAO", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		m_ssaoToggle = true;
+		ImGui::Indent(16.0f);
+		ImGui::PushItemWidth(-16.f);
+		if (ImGui::CollapsingHeader("Blur", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			m_ssaoBlurToggle = true;
+			ImGui::Indent(16.0f);
+			ImGui::PushItemWidth(-40.f);
+			if (ImGui::DragFloat("Sigma", &m_ssaoBlurSigma, 0.1f, 1.f, 5.f))
+				calculateBlurWeights(m_blurConstantData, MAX_BLUR_RADIUS, m_ssaoBlurSigma);
+
+			ImGui::PopItemWidth();
+			ImGui::Unindent(16.0f);
+		}
+		else
+			m_ssaoBlurToggle = false;
+		ImGui::PopItemWidth();
+		ImGui::Unindent(16.0f);
+	}
+	else
+		m_ssaoToggle = false;
 }
 
 void RenderHandler::render()
@@ -929,10 +1008,10 @@ void RenderHandler::render()
 	m_deviceContext->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	ID3D11RenderTargetView* renderTargets[] = {
-		m_gBuffer.renderTargets[GBufferType::ALBEDO_METALLIC].rtv,
-		m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].rtv,
-		m_gBuffer.renderTargets[GBufferType::EMISSIVE_SHADOWMASK].rtv,
-		m_gBuffer.renderTargets[GBufferType::AMBIENT_OCCLUSION].rtv
+		m_gBuffer.renderTextures[GBufferType::ALBEDO_METALLIC].rtv,
+		m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].rtv,
+		m_gBuffer.renderTextures[GBufferType::EMISSIVE_SHADOWMASK].rtv,
+		m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION].rtv
 	};
 
 	for (int i = 0; i < GBufferType::GB_NUM - 2; i++)
@@ -989,17 +1068,23 @@ void RenderHandler::render()
 	for (auto& object : m_renderObjectsPBR)
 		object.second->render(true);
 
+	m_deviceContext->RSSetState(m_defaultRasterizerState.Get());
+
 	// SSAO
 	if (m_ssaoToggle)
 	{
-		m_deviceContext->OMSetRenderTargets(1, &renderTargets[GBufferType::AMBIENT_OCCLUSION], nullptr);
-		m_deviceContext->PSSetShaderResources(0, 1, &m_gBuffer.renderTargets[GBufferType::DEPTH].srv);
-		m_deviceContext->PSSetShaderResources(1, 1, &m_gBuffer.renderTargets[GBufferType::NORMAL_ROUGNESS].srv);
+		m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, nullptr);
+		m_deviceContext->PSSetShaderResources(0, 1, &m_gBuffer.renderTextures[GBufferType::DEPTH].srv);
+		m_deviceContext->PSSetShaderResources(1, 1, &m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].srv);
 		//m_HBAOInstance.render();
 		m_SSAOInstance.render();
 
+		// Downsample SSAO Texture
+		downsampleSSAOPass();
+
 		// Blur
-		blurSSAOPass();
+		if (m_ssaoBlurToggle)
+			blurSSAOPass();
 	}
 	
 	// Light Pass

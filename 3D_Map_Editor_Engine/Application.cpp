@@ -9,7 +9,7 @@ Application::Application()
 {
 	m_name = L"3D Map Editor Engine";
 	m_settings.width = 1440;
-	m_settings.height = 810;
+	m_settings.height = 811;
 	m_settings.fov = 70;
 	m_settings.mouseSensitivity = 0.005f;
 	m_deltaTime = 0.f;

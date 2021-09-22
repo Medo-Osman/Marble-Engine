@@ -209,6 +209,7 @@
     <ClInclude Include="Skybox.h" />
     <ClInclude Include="SSAOInstance.h" />
     <ClInclude Include="StringUtilities.h" />
+    <ClInclude Include="TextureHelper.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="VertexTypeList.h" />
   </ItemGroup>

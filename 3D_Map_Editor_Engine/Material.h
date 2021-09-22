@@ -201,7 +201,8 @@ public:
 	void updateUI()
 	{
 		float imageSize = 50;
-		float imageOffset = ImGui::GetWindowSize().x - ImGui::GetContentRegionMax().x + imageSize + 40;
+		float offset = 60.f;
+		float imageOffset = ImGui::GetWindowSize().x - ImGui::GetContentRegionMax().x + imageSize + offset;
 		UINT nameSize = 64;
 		WCHAR name[64];
 

@@ -55,6 +55,7 @@
 // DirectX Helpers
 #include "VertexTypeList.h"
 #include "ConstantBufferStructs.h"
+#include "TextureHelper.h"
 #include "Buffer.h"
 
 // DirectX

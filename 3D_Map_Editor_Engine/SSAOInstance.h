@@ -33,6 +33,9 @@ private:
     Buffer<PS_SSAO_CAMERA_BUFFER> m_SSAOCameraBuffer;
     Buffer<XMMATRIX> m_SSAOMatrixBuffer;
 
+    // Texture
+    RenderTexture m_texture;
+
     // Shader
     Shaders m_SSAOPassShaders;
 
@@ -45,65 +48,121 @@ private:
     ComPtr< ID3D11ShaderResourceView > m_ditherTextureSRV;
 
     // Functions
+    void initSSAOTexture(ID3D11Device* device, int width, int height)
+    {
+        // Texture
+        D3D11_TEXTURE2D_DESC textureDesc;
+        ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
+        textureDesc.Width = width;
+        textureDesc.Height = height;
+        textureDesc.MipLevels = 1;
+        textureDesc.ArraySize = 1;
+        textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        textureDesc.SampleDesc.Count = 1;
+        textureDesc.Usage = D3D11_USAGE_DEFAULT;
+        textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+        textureDesc.CPUAccessFlags = 0;
+        textureDesc.MiscFlags = 0;
+
+        HRESULT hr = device->CreateTexture2D(&textureDesc, NULL, &m_texture.rtt);
+        assert(SUCCEEDED(hr) && "Error, render target texture could not be created!");
+
+        // Render Rarget View
+        D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
+        ZeroMemory(&renderTargetViewDesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
+        renderTargetViewDesc.Format = textureDesc.Format;
+        renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+        renderTargetViewDesc.Texture2D.MipSlice = 0;
+
+        hr = device->CreateRenderTargetView(m_texture.rtt, &renderTargetViewDesc, &m_texture.rtv);
+        assert(SUCCEEDED(hr) && "Error, render target view could not be created!");
+
+        // Shader Resource View
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+        ZeroMemory(&srvDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+        srvDesc.Format = textureDesc.Format;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.MipLevels = 1;
+
+        hr = device->CreateShaderResourceView(m_texture.rtt, &srvDesc, &m_texture.srv);
+        assert(SUCCEEDED(hr) && "Error, shader resource view could not be created!");
+
+        // Unordered Access View
+        D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+        uavDesc.Format = textureDesc.Format;
+        uavDesc.ViewDimension = D3D11_UAV_DIMENSION::D3D11_UAV_DIMENSION_TEXTURE2D;
+        uavDesc.Texture2D.MipSlice = 0;
+
+        hr = device->CreateUnorderedAccessView(m_texture.rtt, &uavDesc, &m_texture.uav);
+        assert(SUCCEEDED(hr) && "Error, unordered access view could not be created!");
+    }
     void initRandomTexture(ID3D11Device* device)
     {
-        // Dither Texture
-        //int ditherWidth = 4;
-        //int ditherHeight = 4;
-
-        //D3D11_TEXTURE2D_DESC texDesc;
-        //texDesc.Width = ditherWidth;
-        //texDesc.Height = ditherHeight;
-        //texDesc.MipLevels = 1;
-        //texDesc.ArraySize = 1;
-        //texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        //texDesc.SampleDesc.Count = 1;
-        //texDesc.SampleDesc.Quality = 0;
-        //texDesc.Usage = D3D11_USAGE_DEFAULT;
-        //texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        //texDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        //texDesc.MiscFlags = 0;
-
-        //int len = ditherWidth * ditherHeight;
-        //std::vector<float> data(len);
-        //std::vector<float> offsets1;
-        //std::vector<float> offsets2;
-
-        //for (size_t i = 0; i < len; ++i)
-        //{
-        //    offsets1.push_back((float)i / len);
-        //    offsets2.push_back((float)i / len);
-        //}
-
-        //unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-        //std::shuffle(offsets1.begin(), offsets1.end(), std::default_random_engine(seed));
-        //seed = std::chrono::system_clock::now().time_since_epoch().count();
-        //std::shuffle(offsets2.begin(), offsets2.end(), std::default_random_engine(seed));
-
-        //int i = 0;
-        //int j = 0;
-        //for (int y = 0; y < ditherHeight; ++y)
-        //{
-        //    for (int x = 0; x < ditherWidth; ++x)
-        //    {
-        //        float r = offsets1[i];
-        //        float g = offsets2[i];
-        //        ++i;
-
-        //        data[j] = std::round(r * 0xff);
-        //        data[j + 1] = std::round(g * 0xff);
-        //        data[j + 2] = 0;
-        //        data[j + 3] = 1;
-        //    }
-        //}
-
-        //D3D11_SUBRESOURCE_DATA subData;
-        //subData.pSysMem = data.data();
-        //subData.SysMemPitch = texDesc.Width * sizeof(float) * 4;
-        ////subData.SysMemSlicePitch = texDesc.Width * texDesc.Height * sizeof(float) * 4;
-
         HRESULT hr;
-        int dimensions = 256;
+
+        // Dither Texture
+        int ditherWidth = 4;
+        int ditherHeight = 4;
+
+        D3D11_TEXTURE2D_DESC texDesc;
+        texDesc.Width = ditherWidth;
+        texDesc.Height = ditherHeight;
+        texDesc.MipLevels = 1;
+        texDesc.ArraySize = 1;
+        texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        texDesc.SampleDesc.Count = 1;
+        texDesc.SampleDesc.Quality = 0;
+        texDesc.Usage = D3D11_USAGE_DEFAULT;
+        texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        texDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        texDesc.MiscFlags = 0;
+
+        int len = ditherWidth * ditherHeight;
+        std::vector<XMFLOAT4> data(len);
+
+        /*for (size_t i = 0; i < len; i += 3) {
+            data[i] = XMFLOAT4(frand(-1.0f, 1.0f), frand(-1.0f, 1.0f), 0.0f, 0.0f);
+            
+            XMVECTOR vec = XMVector3Normalize(XMLoadFloat4(&m_SSAOData.sampleDirections[i]));
+            XMStoreFloat4(&m_SSAOData.sampleDirections[i], vec);
+        }*/
+
+        std::vector<float> offsets1;
+        std::vector<float> offsets2;
+
+        for (size_t i = 0; i < len; ++i)
+        {
+            offsets1.push_back((float)i / len);
+            offsets2.push_back((float)i / len);
+        }
+
+        unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+        std::shuffle(offsets1.begin(), offsets1.end(), std::default_random_engine(seed));
+        seed = std::chrono::system_clock::now().time_since_epoch().count();
+        std::shuffle(offsets2.begin(), offsets2.end(), std::default_random_engine(seed));
+
+        int i = 0;
+        int j = 0;
+        for (int y = 0; y < ditherHeight; ++y)
+        {
+            for (int x = 0; x < ditherWidth; ++x)
+            {
+                float r = offsets1[i];
+                float g = offsets2[i];
+                ++i;
+
+                data[j] = XMFLOAT4(std::round(r * 0xff), std::round(g * 0xff), 0, 1);
+            }
+        }
+
+        D3D11_SUBRESOURCE_DATA subData;
+        subData.pSysMem = data.data();
+        subData.SysMemPitch = texDesc.Width * sizeof(XMFLOAT4);
+        subData.SysMemSlicePitch = subData.SysMemPitch * texDesc.Height;
+
+        
+        /*int dimensions = 256;
         D3D11_TEXTURE2D_DESC texDesc;
         texDesc.Width = dimensions;
         texDesc.Height = dimensions;
@@ -127,6 +186,7 @@ private:
         D3D11_SUBRESOURCE_DATA subData;
         subData.pSysMem = randomColors;
         subData.SysMemPitch = texDesc.Width * sizeof(XMVECTOR);
+        subData.SysMemSlicePitch = subData.SysMemPitch * texDesc.Height;*/
 
         hr = device->CreateTexture2D(&texDesc, &subData, m_ditherTexture.GetAddressOf());
         assert(SUCCEEDED(hr) && "Error, failed to create dither texture!");
@@ -176,7 +236,7 @@ private:
     }
     void initSampleDirections()
     {
-        // 8 cube corners
+        //// 8 cube corners
         m_SSAOData.sampleDirections[0] = XMFLOAT4(+1.0f, +1.0f, +1.0f, 0.f);
         m_SSAOData.sampleDirections[1] = XMFLOAT4(-1.0f, -1.0f, -1.0f, 0.f);
         m_SSAOData.sampleDirections[2] = XMFLOAT4(-1.0f, +1.0f, +1.0f, 0.f);
@@ -194,12 +254,25 @@ private:
         m_SSAOData.sampleDirections[12] = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.f);
         m_SSAOData.sampleDirections[13] = XMFLOAT4(0.0f, 0.0f, +1.0f, 0.f);
 
-        for (int i = 0; i < 14; ++i) {
-            float s = frand(0.25f, 1.f);
+        for (int i = 0; i < SSAO_SAMPLE_DIRECTIONS; ++i) {
+            float s = frand(0.25f, 1.0f);
             XMVECTOR vec = XMVector3Normalize(XMLoadFloat4(&m_SSAOData.sampleDirections[i]));
             vec *= s;
             XMStoreFloat4(&m_SSAOData.sampleDirections[i], vec);
         }
+
+        /*for (int i = 0; i < SSAO_SAMPLE_DIRECTIONS; ++i) {
+            m_SSAOData.sampleDirections[i] = XMFLOAT4(
+                frand(-1.0f, 1.0f),
+                frand(-1.0f, 1.0f),
+                frand(0.0f, 1.0f), 0.f);
+
+            XMVECTOR vec = XMVector3Normalize(XMLoadFloat4(&m_SSAOData.sampleDirections[i]));
+            float scale = float(i) / float(SSAO_SAMPLE_DIRECTIONS);
+            scale = lerpF(0.1f, 1.0f, scale * scale);
+            vec *= scale;
+            XMStoreFloat4(&m_SSAOData.sampleDirections[i], vec);
+        }*/
     }
 
 public:
@@ -216,6 +289,9 @@ public:
         shaderFiles.vs = L"SSAO_VS.hlsl";
         shaderFiles.ps = L"SSAO_PS.hlsl";
         m_SSAOPassShaders.initialize(device, deviceContext, shaderFiles, LayoutType::POS);
+
+        // SSAO Texture
+        initSSAOTexture(device, width, height);
 
         // Random Texture
         initRandomTexture(device);
@@ -238,6 +314,11 @@ public:
         // - SSAO Camera Buffer
         updateBuffers(width, height, farZ, fov, viewMatrix, projectionMatrix);
         m_SSAOCameraBuffer.initialize(device, deviceContext, &m_SSAOCameraData, BufferType::CONSTANT);
+    }
+
+    RenderTexture& getSSAORenderTexture()
+    {
+        return m_texture;
     }
 
     void updateBuffers(int width, int height, float farZ, float fov, XMMATRIX& viewMatrix, XMMATRIX& projectionMatrix)
@@ -271,8 +352,7 @@ public:
     {
         m_SSAOPassShaders.updateShaders();
     }
-
-    void UIRenderDitherTextureWindow()
+    void updateUI()
     {
         ImGui::Begin("Dither Texture");
         ImGui::Image(m_ditherTextureSRV.Get(), ImVec2(100.f, 100.f));
@@ -281,6 +361,9 @@ public:
 
     void render()
     {
+        // Set Render Target
+        m_deviceContext->OMSetRenderTargets(1, &m_texture.rtv, nullptr);
+
         // Shader
         m_SSAOPassShaders.setShaders();
 
