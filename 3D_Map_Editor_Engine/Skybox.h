@@ -4,6 +4,8 @@
 
 #include "RenderObject.h"
 
+enum class CubemapType { Skybox, Irradiance, None };
+
 class Skybox
 {
 private:
@@ -11,10 +13,18 @@ private:
 	ID3D11DeviceContext* m_deviceContext;
 
 	// Texture
-	ComPtr< ID3D11Texture2D > m_skyboxTexture;
-	ComPtr< ID3D11ShaderResourceView > m_skyboxTextureShaderResourceView;
-	ComPtr< ID3D11Texture2D > m_irradianceTexture;
-	ComPtr< ID3D11ShaderResourceView > m_irradianceTextureShaderResourceView;
+	// - Skybox
+	std::wstring m_skyboxTexturePath;
+	ComPtr< ID3D11ShaderResourceView > m_skyboxTextureSRV;
+	// - Irradiance
+	std::wstring m_irradianceTexturePath;
+	ComPtr< ID3D11ShaderResourceView > m_irradianceTextureSRV;
+	// - Previews
+	RenderTexture m_skyboxPreviewTexture;
+	RenderTexture m_irradiancePreviewTexture;
+	D3D11_VIEWPORT m_previewViewport;
+	UINT m_previewTextureWidth = 100;
+	UINT m_previewTextureHeight = 100;
 
 	// Mesh
 	Mesh<VertexPos>* m_cubeMesh;
@@ -24,9 +34,52 @@ private:
 
 	// Shaders
 	Shaders m_shaders;
+	Shaders m_previewShaders;
 
 	// Skybox Rotation
 	XMVECTOR m_rotation;
+
+	// Functions
+	void initPreviewTexture(ID3D11Device* device, RenderTexture& rtv)
+	{
+		// Texture
+		D3D11_TEXTURE2D_DESC textureDesc;
+		ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
+		textureDesc.Width = m_previewTextureWidth;
+		textureDesc.Height = m_previewTextureHeight;
+		textureDesc.MipLevels = 1;
+		textureDesc.ArraySize = 1;
+		textureDesc.Format = m_skyboxPreviewTexture.format;
+		textureDesc.SampleDesc.Count = 1;
+		textureDesc.Usage = D3D11_USAGE_DEFAULT;
+		textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+		textureDesc.CPUAccessFlags = 0;
+		textureDesc.MiscFlags = 0;
+
+		HRESULT hr = device->CreateTexture2D(&textureDesc, NULL, &rtv.rtt);
+		assert(SUCCEEDED(hr) && "Error, render target texture could not be created!");
+
+		// Render Rarget View
+		D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
+		ZeroMemory(&renderTargetViewDesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
+		renderTargetViewDesc.Format = textureDesc.Format;
+		renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		renderTargetViewDesc.Texture2D.MipSlice = 0;
+
+		hr = device->CreateRenderTargetView(rtv.rtt, &renderTargetViewDesc, &rtv.rtv);
+		assert(SUCCEEDED(hr) && "Error, render target view could not be created!");
+
+		// Shader Resource View
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		ZeroMemory(&srvDesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+		srvDesc.Format = textureDesc.Format;
+		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.MipLevels = 1;
+
+		hr = device->CreateShaderResourceView(rtv.rtt, &srvDesc, &rtv.srv);
+		assert(SUCCEEDED(hr) && "Error, shader resource view could not be created!");
+	}
 
 public:
 	Skybox()
@@ -50,6 +103,10 @@ public:
 		shaders.vs = L"SkyboxVS.hlsl";
 		shaders.ps = L"SkyboxPS.hlsl";
 		m_shaders.initialize(device, m_deviceContext, shaders, LayoutType::POS);
+
+		shaders.vs = L"FullscreenQuadVS.hlsl";
+		shaders.ps = L"SkyboxPreviewPS.hlsl";
+		m_previewShaders.initialize(device, m_deviceContext, shaders, LayoutType::POS);
 
 		// Cube
 		std::vector<VertexPos> vertices =
@@ -113,7 +170,10 @@ public:
 		
 		// Texture
 		// - Skybox Texture
-		HRESULT hr = CreateDDSTextureFromFile(device, skyboxTexturePath.c_str(), (ID3D11Resource**)m_skyboxTexture.GetAddressOf(), &m_skyboxTextureShaderResourceView);
+		m_skyboxTexturePath = skyboxTexturePath;
+		m_skyboxTextureSRV = ResourceHandler::getInstance().getTexture(skyboxTexturePath.c_str());
+		initPreviewTexture(device, m_skyboxPreviewTexture);
+		/*HRESULT hr = CreateDDSTextureFromFile(device, skyboxTexturePath.c_str(), (ID3D11Resource**)m_skyboxTexture.GetAddressOf(), &m_skyboxTextureShaderResourceView);
 		assert(SUCCEEDED(hr) && "Error, skybox texture failed to load!");
 		D3D11_TEXTURE2D_DESC skymapTextureDesc;
 		m_skyboxTexture->GetDesc(&skymapTextureDesc);
@@ -123,10 +183,13 @@ public:
 		textureShaderResourceViewDesc.TextureCube.MipLevels = skymapTextureDesc.MipLevels;
 		textureShaderResourceViewDesc.TextureCube.MostDetailedMip = 0;
 		hr = device->CreateShaderResourceView(m_skyboxTexture.Get(), &textureShaderResourceViewDesc, &m_skyboxTextureShaderResourceView);
-		assert(SUCCEEDED(hr) && "Error, failed to create skybox shader resource view!");
+		assert(SUCCEEDED(hr) && "Error, failed to create skybox shader resource view!");*/
 
 		// - Irradiance Texture
-		hr = CreateDDSTextureFromFile(device, irradianceTexturePath.c_str(), (ID3D11Resource**)m_irradianceTexture.GetAddressOf(), &m_irradianceTextureShaderResourceView);
+		m_irradianceTexturePath = irradianceTexturePath;
+		m_irradianceTextureSRV = ResourceHandler::getInstance().getTexture(irradianceTexturePath.c_str());
+		initPreviewTexture(device, m_irradiancePreviewTexture);
+		/*hr = CreateDDSTextureFromFile(device, irradianceTexturePath.c_str(), (ID3D11Resource**)m_irradianceTexture.GetAddressOf(), &m_irradianceTextureShaderResourceView);
 		assert(SUCCEEDED(hr) && "Error, irradiance skybox texture failed to load!");
 		m_skyboxTexture->GetDesc(&skymapTextureDesc);
 		textureShaderResourceViewDesc.Format = skymapTextureDesc.Format;
@@ -134,7 +197,15 @@ public:
 		textureShaderResourceViewDesc.TextureCube.MipLevels = skymapTextureDesc.MipLevels;
 		textureShaderResourceViewDesc.TextureCube.MostDetailedMip = 0;
 		hr = device->CreateShaderResourceView(m_skyboxTexture.Get(), &textureShaderResourceViewDesc, &m_skyboxTextureShaderResourceView);
-		assert(SUCCEEDED(hr) && "Error, failed to create irradiance skybox shader resource view!");
+		assert(SUCCEEDED(hr) && "Error, failed to create irradiance skybox shader resource view!");*/
+		
+		// - Preivew Viewport
+		m_previewViewport.TopLeftX = 0.f;
+		m_previewViewport.TopLeftY = 0.f;
+		m_previewViewport.Width = (FLOAT)m_previewTextureWidth;
+		m_previewViewport.Height = (FLOAT)m_previewTextureHeight;
+		m_previewViewport.MinDepth = 0.f;
+		m_previewViewport.MaxDepth = 1.f;
 
 		// Constant Buffers
 		m_vpCBuffer.initialize(device, m_deviceContext, nullptr, BufferType::CONSTANT);
@@ -143,12 +214,21 @@ public:
 		//m_rotation = XMVectorSet(0.f, XMConvertToRadians(160.f), 0.f, 0.f);
 	}
 
-	void setSkyboxTextures(int skyboxRegister, int irradianceRegister)
-	{
-		m_deviceContext->PSSetShaderResources(skyboxRegister, 1, m_skyboxTextureShaderResourceView.GetAddressOf());
-		m_deviceContext->PSSetShaderResources(irradianceRegister, 1, m_irradianceTextureShaderResourceView.GetAddressOf());
-	}
+	std::wstring getSkyboxFileName() const { return m_skyboxTexturePath; }
+	std::wstring getIrradianceFileName() const { return m_irradianceTexturePath; }
+	ID3D11ShaderResourceView* getSkyboxPreviewSRV() const { return m_skyboxPreviewTexture.srv; }
+	ID3D11ShaderResourceView* getIrradiancePreviewSRV() const { return m_irradiancePreviewTexture.srv; }
 
+	void updateSkyboxCubemap(std::wstring path)
+	{
+		m_skyboxTextureSRV = ResourceHandler::getInstance().getTexture(path.c_str());
+		m_skyboxTexturePath = path;
+	}
+	void updateIrradianceCubemap(std::wstring path)
+	{
+		m_irradianceTextureSRV = ResourceHandler::getInstance().getTexture(path.c_str());
+		m_irradianceTexturePath = path;
+	}
 	void updateVP(const XMMATRIX& viewMatrix, const XMMATRIX& projectionMatrix)
 	{
 		VS_SKYBOX_MATRIX_CBUFFER* vpData = new VS_SKYBOX_MATRIX_CBUFFER();
@@ -157,7 +237,35 @@ public:
 		vpData->vpMatrix = XMMatrixTranspose(worldMatrix * viewMatrix * projectionMatrix);
 		m_vpCBuffer.update(&vpData);
 	}
+	void updatePreviewShaders()
+	{
+		m_previewShaders.updateShaders();
+	}
 
+	void setSkyboxTextures(int skyboxRegister, int irradianceRegister)
+	{
+		m_deviceContext->PSSetShaderResources(skyboxRegister, 1, m_skyboxTextureSRV.GetAddressOf());
+		m_deviceContext->PSSetShaderResources(irradianceRegister, 1, m_irradianceTextureSRV.GetAddressOf());
+	}
+	void cubemapPreviewsRenderSetup()
+	{
+		// Set Viewport
+		m_deviceContext->RSSetViewports(1, &m_previewViewport);
+		
+		// Setting Shaders
+		m_previewShaders.setShaders();
+
+		// Set RenderTargets
+		ID3D11RenderTargetView* renderTargets[] = {
+			m_skyboxPreviewTexture.rtv,
+			m_irradiancePreviewTexture.rtv
+		};
+		m_deviceContext->OMSetRenderTargets(2, renderTargets, nullptr);
+
+		// Set Textures
+		m_deviceContext->PSSetShaderResources(0, 1, m_skyboxTextureSRV.GetAddressOf());
+		m_deviceContext->PSSetShaderResources(1, 1, m_irradianceTextureSRV.GetAddressOf());
+	}
 	void render()
 	{
 		// Setting Shaders
@@ -167,7 +275,7 @@ public:
 		m_deviceContext->VSSetConstantBuffers(0, 1, m_vpCBuffer.GetAddressOf());
 
 		// Set Texture
-		m_deviceContext->PSSetShaderResources(0, 1, m_skyboxTextureShaderResourceView.GetAddressOf());
+		m_deviceContext->PSSetShaderResources(0, 1, m_skyboxTextureSRV.GetAddressOf());
 
 		// Render
 		m_cubeMesh->render();

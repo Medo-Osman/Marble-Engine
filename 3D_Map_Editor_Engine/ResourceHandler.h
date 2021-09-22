@@ -10,6 +10,7 @@ private:
 	ResourceHandler() {};
 	// Device
 	ID3D11Device* m_device = nullptr;
+	ID3D11DeviceContext* m_deviceContext = nullptr;
 
 	// Textures
 	std::map<const std::wstring, ID3D11ShaderResourceView*> m_textures;
@@ -17,7 +18,7 @@ private:
 	const std::wstring rootTexturePath = L"Textures\\";
 
 	// Helper Functions
-	bool createTextureFromFile(ID3D11Device* device, const WCHAR* texturePath)
+	bool createTextureFromFile(const WCHAR* texturePath, bool isCubeMap = false)
 	{
 		HRESULT hr;
 		bool couldLoad = true;
@@ -28,16 +29,31 @@ private:
 		size_t i = path.rfind('.', path.length());
 		std::wstring fileExtension = path.substr(i + 1, path.length() - i);
 		if (fileExtension == L"dds" || fileExtension == L"DDS")
-			hr = CreateDDSTextureFromFile(device, path.c_str(), nullptr, &m_textures[texturePath]);
+			hr = CreateDDSTextureFromFile(m_device, m_deviceContext, path.c_str(), nullptr, &m_textures[texturePath]);
+		else if (fileExtension == L"hdr")
+		{
+			DirectX::TexMetadata metadata;
+			DirectX::ScratchImage scratchImage;
+			hr = LoadFromHDRFile(path.c_str(), &metadata, scratchImage);
+			assert(SUCCEEDED(hr) && "Error, failed to load HDR texture file!");
+
+			hr = CreateShaderResourceView(m_device, scratchImage.GetImages(), scratchImage.GetImageCount(), metadata, &m_textures[texturePath]);
+		}
 		else if (fileExtension == L"tga" || fileExtension == L"TGA")
 		{
 			DirectX::TexMetadata metadata;
 			DirectX::ScratchImage scratchImage;
-			LoadFromTGAFile(path.c_str(), &metadata, scratchImage);
-			hr = CreateShaderResourceView(device, scratchImage.GetImages(), scratchImage.GetImageCount(), metadata, &m_textures[texturePath]);
+			DirectX::LoadFromTGAFile(path.c_str(), &metadata, scratchImage);
+			DirectX::ScratchImage mipChain;
+
+			hr = GenerateMipMaps(scratchImage.GetImages(), scratchImage.GetImageCount(),
+				scratchImage.GetMetadata(), TEX_FILTER_DEFAULT, 0, mipChain);
+			assert(SUCCEEDED(hr) && "Error, failed to generate mipmaps for TGA texture file!");
+
+			hr = CreateShaderResourceView(m_device, mipChain.GetImages(), mipChain.GetImageCount(), metadata, &m_textures[texturePath]);
 		}
 		else
-			hr = CreateWICTextureFromFile(device, path.c_str(), nullptr, &m_textures[texturePath]);
+			hr = CreateWICTextureFromFile(m_device, m_deviceContext, path.c_str(), nullptr, &m_textures[texturePath]);
 		
 
 		if (FAILED(hr))
@@ -72,12 +88,13 @@ public:
 		return handlerInstance;
 	}
 
-	void setDevice(ID3D11Device* device)
+	void initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext)
 	{
 		m_device = device;
+		m_deviceContext = deviceContext;
 	}
 
-	ID3D11ShaderResourceView* getTexture(const WCHAR* texturePath)
+	ID3D11ShaderResourceView* getTexture(const WCHAR* texturePath, bool isCubeMap = false)
 	{
 		std::wstring path(texturePath);
 		if (path.find(rootTexturePath) == 0)
@@ -86,7 +103,7 @@ public:
 		if (!m_textures.count(path.c_str()))
 		{
 			if (m_device != nullptr)
-				createTextureFromFile(m_device, path.c_str());
+				createTextureFromFile(path.c_str(), isCubeMap);
 
 			return m_textures[path.c_str()];
 		}

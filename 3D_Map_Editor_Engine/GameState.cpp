@@ -251,7 +251,7 @@ void GameState::initialize(Settings settings)
 	//m_renderHandler->addLight(light);
 
 	// Directional Light
-	light.direction = XMFLOAT4(-0.2f, -0.2f, 0.5f, 0.0f);
+	light.direction = XMFLOAT4(-0.2f, -0.2f, -0.5f, 0.0f);
 	light.color = XMFLOAT4(1.f, .7f, .5f, 1.f);
 	light.type = DIRECTIONAL_LIGHT;
 	light.enabled = true;
@@ -530,6 +530,8 @@ void GameState::update(float dt)
 	{
 		ImGui::Checkbox(" Wireframe Mode", RenderHandler::getInstance()->getWireframeModePtr());
 		RenderHandler::getInstance()->UIssaoSettings();
+		ImGui::PushItemWidth(-1);
+		ImGui::PopItemWidth();
 		ImGui::Checkbox(" Window Resize", &m_windowResizeFlag);
 		ImGui::Checkbox(" Window Move", &m_windowMoveFlag);
 		if (ImGui::CollapsingHeader("Camera"))
@@ -537,7 +539,7 @@ void GameState::update(float dt)
 	}
 	ImGui::End();
 	ImGui::PopStyleColor();
-	
+
 	// Model Card Window
 	if (m_modelNames.size())
 	{
@@ -667,8 +669,14 @@ void GameState::update(float dt)
 	ImGui::EndChild();
 
 	// Light Menu
-	ImGui::Text("Lights");
+	ImGui::Text("Lighting");
+
 	ImGui::BeginChild("Lights", ImVec2(ImGui::GetWindowSize().x, m_lightSectionHeight), true);
+	RenderHandler::getInstance()->UIEnviormentPanel();
+	ImGui::Separator();
+	ImGui::NewLine();
+
+	ImGui::Text("Lights");
 	for (size_t i = 0; i < m_lights.size(); i++)
 	{
 		ImGui::Text(std::to_string(i).c_str());
@@ -697,11 +705,14 @@ void GameState::update(float dt)
 
 			if (m_lights[i]->type == DIRECTIONAL_LIGHT)
 			{
-				if (ImGui::DragFloat3("Direction", &m_lights[i]->direction.x, 0.1f))
+				if (ImGui::DragFloat3("Direction", &m_lights[i]->direction.x, 0.1f, 0.f, 1.f))
 				{
-					if (m_lights[i]->isCastingShadow)
-						m_renderHandler->changeShadowMappingLight(m_lights[i], false);
-					m_renderHandler->updateLight(m_lights[i], (int)i);
+					if (!(m_lights[i]->direction.x == 0.f && m_lights[i]->direction.y == 0.f && m_lights[i]->direction.z == 0.f))
+					{
+						if (m_lights[i]->isCastingShadow)
+							m_renderHandler->changeShadowMappingLight(m_lights[i], false);
+						m_renderHandler->updateLight(m_lights[i], (int)i);
+					}
 				}
 
 				if (ImGui::Checkbox("Casts Shadow", (bool*)(&m_lights[i]->isCastingShadow)))

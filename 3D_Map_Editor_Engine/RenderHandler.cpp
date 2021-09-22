@@ -9,6 +9,9 @@ RenderHandler::RenderHandler()
 
 	m_viewport = D3D11_VIEWPORT();
 	m_animationDirection = 1.f;
+
+	m_fileDialog.SetTitle("Load Texture");
+	m_fileDialog.SetTypeFilters({ ".dds", ".DDS" });
 }
 
 RenderHandler::~RenderHandler()
@@ -436,7 +439,7 @@ void RenderHandler::lightPass()
 	UINT srvIndex = GBufferType::GB_NUM; // 4
 
 	// Set Specular radiance and Diffuse irradiance maps
-	m_skybox.setSkyboxTextures(srvIndex, srvIndex + 1);
+	m_skybox.setSkyboxTextures(srvIndex + 1, srvIndex);
 
 	// Set Light Pass Shaders
 	m_lightPassShaders.setShaders();
@@ -449,7 +452,7 @@ void RenderHandler::lightPass()
 	m_deviceContext->PSSetShaderResources(0, 5, m_shaderResourcesNullptr);
 }
 
-void RenderHandler::downsampleSSAOPass()
+void RenderHandler::downsamplePass()
 {
 	/*m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, NULL);
 	m_downsampleCS.setShaders();
@@ -527,14 +530,19 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	initRenderStates();
 	initCamera();
 	ImGui_ImplDX11_Init(m_device.Get(), m_deviceContext.Get());
-	ResourceHandler::getInstance().setDevice(m_device.Get());
+	ResourceHandler::getInstance().initialize(m_device.Get(), m_deviceContext.Get());
 
 	// Lighting
 	m_lightManager.initialize(m_device.Get(), m_deviceContext.Get(), m_camera.getViewMatrixPtr(), m_camera.getProjectionMatrixPtr());
 	m_shadowInstance.initialize(m_device.Get(), m_deviceContext.Get(), SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
 	
 	// Skybox
-	m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"Textures/TableMountain1Cubemap.dds", L"Textures/TableMountain1Cubemap.dds");
+	m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"TableMountain1Cubemap2.dds", L"TableMountain1Irradiance.dds");
+	// - Render Cubemap Previews
+	m_deviceContext->RSSetState(m_defaultRasterizerState.Get());
+	m_deviceContext->PSSetSamplers(0, 1, m_defaultSamplerState.GetAddressOf());
+	m_skybox.cubemapPreviewsRenderSetup();
+	m_deviceContext->Draw(4, 0);
 
 	// Timer
 	m_timer.restart();
@@ -944,6 +952,9 @@ void RenderHandler::updatePassShaders()
 	//m_HBAOInstance.updateShaders();
 	m_SSAOInstance.updateShaders();
 	m_edgePreservingBlurCS.updateShaders();
+	m_skybox.updatePreviewShaders();
+	m_skybox.cubemapPreviewsRenderSetup();
+	m_deviceContext->Draw(4, 0);
 }
 
 void RenderHandler::UIRenderShadowMap()
@@ -955,7 +966,7 @@ void RenderHandler::UIRenderShadowMap()
 
 void RenderHandler::UIRenderPipelineTexturesWindow()
 {
-	ImGui::Begin("Horizon Based Ambient Occlusion Texture");
+	ImGui::Begin("Render Pipeline Textures");
 	
 	static ImVec4 color_multipler(1, 1, 1, 100);
 	ImGui::Image(m_gBuffer.renderTextures[GBufferType::ALBEDO_METALLIC].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
@@ -999,6 +1010,68 @@ void RenderHandler::UIssaoSettings()
 	}
 	else
 		m_ssaoToggle = false;
+}
+
+void RenderHandler::UIEnviormentPanel()
+{
+	if (ImGui::CollapsingHeader("Enviorment Panel"))
+	{
+		float indentSize = 16.f;
+		float imageSize = 100.f;
+		float imageOffset = imageSize + indentSize + 10.f;
+
+		ImGui::Indent(indentSize);
+
+		ImGui::Text("Skybox Cubemap");
+		_bstr_t nameCStr(m_skybox.getSkyboxFileName().c_str());
+		ImGui::Image(m_skybox.getSkyboxPreviewSRV(), ImVec2(imageSize, imageSize));
+		ImGui::SameLine(imageOffset);
+		if (ImGui::Button((const char*)nameCStr))
+		{
+			m_fileDialog.Open();
+			m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+			m_loadNewCubemapType = CubemapType::Skybox;
+		}
+
+		ImGui::Text("Irradiance Cubemap");
+		nameCStr = m_skybox.getIrradianceFileName().c_str();
+		ImGui::Image(m_skybox.getIrradiancePreviewSRV(), ImVec2(imageSize, imageSize));
+		ImGui::SameLine(imageOffset);
+		if (ImGui::Button((const char*)nameCStr))
+		{
+			m_fileDialog.Open();
+			m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+			m_loadNewCubemapType = CubemapType::Irradiance;
+		}
+
+		m_fileDialog.Display();
+		if (m_fileDialog.HasSelected())
+		{
+			std::string strPath = m_fileDialog.GetSelected().string();
+			size_t pos = strPath.find("Textures");
+			strPath.erase(0, pos);
+			std::wstring path = charToWchar(strPath);
+			switch (m_loadNewCubemapType)
+			{
+			case CubemapType::Skybox:
+				m_skybox.updateSkyboxCubemap(path);
+				m_skybox.cubemapPreviewsRenderSetup();
+				m_deviceContext->Draw(4, 0);
+				m_loadNewCubemapType = CubemapType::None;
+				break;
+			case CubemapType::Irradiance:
+				m_skybox.updateIrradianceCubemap(path);
+				m_skybox.cubemapPreviewsRenderSetup();
+				m_deviceContext->Draw(4, 0);
+				m_loadNewCubemapType = CubemapType::None;
+				break;
+			default:
+				break;
+			}
+		}
+		m_fileDialog.ClearSelected();
+		ImGui::Unindent(indentSize);
+	}
 }
 
 void RenderHandler::render()
@@ -1078,9 +1151,6 @@ void RenderHandler::render()
 		m_deviceContext->PSSetShaderResources(1, 1, &m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].srv);
 		//m_HBAOInstance.render();
 		m_SSAOInstance.render();
-
-		// Downsample SSAO Texture
-		downsampleSSAOPass();
 
 		// Blur
 		if (m_ssaoBlurToggle)

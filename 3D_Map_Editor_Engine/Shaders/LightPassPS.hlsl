@@ -264,7 +264,7 @@ float4 main(PS_IN input) : SV_TARGET
 
         // Specular IBL
         float3 prefilteredColor = SpecularIBLMap.SampleLevel(sampState, R, lod).rgb;
-        //prefilteredColor *= max(1 - roughness, 0.001);
+        //prefilteredColor = float3(0,0,0);
     
         const float4 c0 = float4(-1, -0.0275, -0.572, 0.022);
         const float4 c1 = float4(1, 0.0425, 1.04, -0.04);

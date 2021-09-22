@@ -20,9 +20,11 @@ private:
 	// Camera
 	CameraObject m_camera;
 
-	// IMGUI
+	// ImGui
 	bool m_windowMoveFlag;
 	bool m_windowResizeFlag;
+	bool m_enviormentPanelShow = true;
+
 	float m_gameObjectSectionHeight = 500.f;
 	float m_lightSectionHeight = 195.f;
 	ID3D11Resource* m_defaultModelThumbnail;
@@ -31,6 +33,7 @@ private:
 	std::string m_currentDirectoryPath;
 	std::string m_currentDirectoryName;
 	const std::string m_rootModelDirectory = "Models\\";
+
 	void loadModelList(std::string path = "Models\\");
 	void setImGuiStyles();
 

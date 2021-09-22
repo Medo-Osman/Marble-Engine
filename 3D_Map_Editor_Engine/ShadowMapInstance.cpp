@@ -138,6 +138,7 @@ void ShadowMapInstance::initialize(ID3D11Device* device, ID3D11DeviceContext* de
 	// World Bounding Sphere
 	m_worldBoundingSphere.Center = { 0.f, 0.f, 0.f };
 	m_worldBoundingSphere.Radius = 100.f;
+	m_zOffset = -m_worldBoundingSphere.Radius;
 
 	// Constant Buffers
 	m_lightMatrixCBuffer.initialize(device, deviceContext, nullptr, BufferType::CONSTANT);
@@ -149,7 +150,7 @@ void ShadowMapInstance::buildLightMatrix(Light directionalLight, XMFLOAT3 center
 	VS_SHADOW_C_BUFFER* lightMatrices = new VS_SHADOW_C_BUFFER();
 	m_directionalLight = directionalLight;
 	m_worldBoundingSphere.Center = centerPosition;
-	m_worldBoundingSphere.Center.z += m_worldBoundingSphere.Radius;
+	m_worldBoundingSphere.Center.z += m_zOffset;
 	m_worldBoundingSphere.Center.y = 0;
 
 	// Light View Matrix
@@ -206,7 +207,7 @@ void ShadowMapInstance::buildLightMatrix(Light directionalLight, XMFLOAT3 center
 void ShadowMapInstance::buildLightMatrix(XMFLOAT3 centerPosition)
 {
 	m_worldBoundingSphere.Center = centerPosition;
-	m_worldBoundingSphere.Center.z += m_worldBoundingSphere.Radius;
+	m_worldBoundingSphere.Center.z += m_zOffset;
 	m_worldBoundingSphere.Center.y = 0;
 	VS_SHADOW_C_BUFFER* lightMatrices = new VS_SHADOW_C_BUFFER();
 	// Light View Matrix

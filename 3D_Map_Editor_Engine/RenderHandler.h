@@ -147,6 +147,11 @@ private:
     PS_COLOR_ANIMATION_BUFFER m_selectionAnimationData;
     Buffer<PS_COLOR_ANIMATION_BUFFER> m_selectionCBuffer;
 
+    // UI
+    ImGui::FileBrowser m_fileDialog;
+    WCHAR tempName[64];
+    CubemapType m_loadNewCubemapType = CubemapType::None;
+
     // Initialization Functions
     void initDeviceAndSwapChain();
     void initRenderTarget(RenderTexture& rtv, UINT width, UINT height);
@@ -161,7 +166,7 @@ private:
 
     // Pass Functions
     void lightPass();
-    void downsampleSSAOPass();
+    void downsamplePass();
     void blurSSAOPass();
 
 public:
@@ -220,6 +225,7 @@ public:
     void UIRenderShadowMap();
     void UIRenderPipelineTexturesWindow();
     void UIssaoSettings();
+    void UIEnviormentPanel();
     void render();
 };
 

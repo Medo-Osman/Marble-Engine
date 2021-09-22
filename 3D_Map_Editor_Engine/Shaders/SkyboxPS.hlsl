@@ -1,4 +1,3 @@
-// Medo Osman, 961130-3711
 struct PixelShaderInput
 {
     float4 pos : SV_POSITION;

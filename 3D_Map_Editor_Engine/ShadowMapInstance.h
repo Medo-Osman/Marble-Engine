@@ -44,6 +44,7 @@ private:
 
 	// World Bounding Sphere
 	BoundingSphere m_worldBoundingSphere;
+	float m_zOffset;;
 
 	// Constant Buffers
 	Buffer<VS_SHADOW_C_BUFFER> m_lightMatrixCBuffer;
