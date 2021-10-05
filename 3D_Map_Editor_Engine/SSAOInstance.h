@@ -137,9 +137,9 @@ private:
             offsets2.push_back((float)i / len);
         }
 
-        unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+        unsigned seed = (unsigned)std::chrono::system_clock::now().time_since_epoch().count();
         std::shuffle(offsets1.begin(), offsets1.end(), std::default_random_engine(seed));
-        seed = std::chrono::system_clock::now().time_since_epoch().count();
+        seed = (unsigned)std::chrono::system_clock::now().time_since_epoch().count();
         std::shuffle(offsets2.begin(), offsets2.end(), std::default_random_engine(seed));
 
         int i = 0;
@@ -231,8 +231,8 @@ private:
         hr = device->CreateSamplerState(&samplerStateDesc, &m_depthNormalSamplerState);
         assert(SUCCEEDED(hr) && "Error, failed to create random sampler state!");
 
-        m_deviceContext->PSSetSamplers(2, 1, m_depthNormalSamplerState.GetAddressOf());
-        m_deviceContext->PSSetSamplers(3, 1, m_randomSamplerState.GetAddressOf());
+        m_deviceContext->PSSetSamplers(3, 1, m_depthNormalSamplerState.GetAddressOf());
+        m_deviceContext->PSSetSamplers(4, 1, m_randomSamplerState.GetAddressOf());
     }
     void initSampleDirections()
     {

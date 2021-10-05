@@ -16,7 +16,6 @@ RenderHandler::RenderHandler()
 
 RenderHandler::~RenderHandler()
 {
-	delete m_blurConstantData;
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
@@ -74,14 +73,14 @@ void RenderHandler::initDeviceAndSwapChain()
 	assert(SUCCEEDED(hr) && "Error, failed to create device and swapchain!");
 }
 
-void RenderHandler::initRenderTarget(RenderTexture& rtv, UINT width, UINT height)
+void RenderHandler::initRenderTarget(RenderTexture& rtv, UINT width, UINT height, UINT mipLevels)
 {
 	// Texture
 	D3D11_TEXTURE2D_DESC textureDesc;
 	ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
 	textureDesc.Width = width;
 	textureDesc.Height = height;
-	textureDesc.MipLevels = 1;
+	textureDesc.MipLevels = mipLevels;
 	textureDesc.ArraySize = 1;
 	textureDesc.Format = rtv.format;
 	textureDesc.SampleDesc.Count = 1;
@@ -89,6 +88,8 @@ void RenderHandler::initRenderTarget(RenderTexture& rtv, UINT width, UINT height
 	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
 	textureDesc.CPUAccessFlags = 0;
 	textureDesc.MiscFlags = 0;
+	if (mipLevels > 1)
+		textureDesc.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
 	HRESULT hr = m_device->CreateTexture2D(&textureDesc, NULL, &rtv.rtt);
 	assert(SUCCEEDED(hr) && "Error, render target texture could not be created!");
@@ -109,7 +110,7 @@ void RenderHandler::initRenderTarget(RenderTexture& rtv, UINT width, UINT height
 	srvDesc.Format = textureDesc.Format;
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MipLevels = mipLevels;
 
 	hr = m_device->CreateShaderResourceView(rtv.rtt, &srvDesc, &rtv.srv);
 	assert(SUCCEEDED(hr) && "Error, shader resource view could not be created!");
@@ -130,6 +131,7 @@ void RenderHandler::initRenderTargets()
 	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
 
 	// GBuffer
+	
 	// - Albedo Metallic
 	initRenderTarget(m_gBuffer.renderTextures[GBufferType::ALBEDO_METALLIC], winRect.right, winRect.bottom);
 	// - Normal Roughness
@@ -139,6 +141,10 @@ void RenderHandler::initRenderTargets()
 	initRenderTarget(m_gBuffer.renderTextures[GBufferType::EMISSIVE_SHADOWMASK], winRect.right, winRect.bottom);
 	// - Ambient Occlusion
 	initRenderTarget(m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION], winRect.right, winRect.bottom);
+
+	// HDR Render Target
+	m_hdrRTV.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	initRenderTarget(m_hdrRTV, winRect.right, winRect.bottom);
 
 	// Output Render Target
 	// - Get Back Buffer Texture for Output RenderTarget
@@ -265,13 +271,14 @@ void RenderHandler::initRenderStates()
 
 	// Sampler State Setup
 	D3D11_SAMPLER_DESC samplerStateDesc;
+	// - Wrap Sampler
 	samplerStateDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 	samplerStateDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
 	samplerStateDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
 	samplerStateDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	samplerStateDesc.MinLOD = (-FLT_MAX);
-	samplerStateDesc.MaxLOD = (FLT_MAX);
 	samplerStateDesc.MipLODBias = 0.0f;
+	samplerStateDesc.MinLOD = 0.0f;
+	samplerStateDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	samplerStateDesc.MaxAnisotropy = 1;
 	samplerStateDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 	samplerStateDesc.BorderColor[0] = 1.f;
@@ -279,8 +286,22 @@ void RenderHandler::initRenderStates()
 	samplerStateDesc.BorderColor[2] = 1.f;
 	samplerStateDesc.BorderColor[3] = 1.f;
 
-	hr = m_device->CreateSamplerState(&samplerStateDesc, &m_defaultSamplerState);
-	assert(SUCCEEDED(hr) && "Error, failed to create default sampler state!");
+	hr = m_device->CreateSamplerState(&samplerStateDesc, &m_defaultWrapSamplerState);
+	assert(SUCCEEDED(hr) && "Error, failed to create default wrap sampler state!");
+	m_deviceContext->PSSetSamplers(1, 1, m_defaultWrapSamplerState.GetAddressOf()); // ImGui uses slot 0
+
+	// - Border Sampler
+	samplerStateDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+	samplerStateDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+	samplerStateDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+	samplerStateDesc.BorderColor[0] = 0.f;
+	samplerStateDesc.BorderColor[1] = 0.f;
+	samplerStateDesc.BorderColor[2] = 0.f;
+	samplerStateDesc.BorderColor[3] = 0.f;
+
+	hr = m_device->CreateSamplerState(&samplerStateDesc, &m_defaultBorderSamplerState);
+	assert(SUCCEEDED(hr) && "Error, failed to create default border sampler state!");
+	m_deviceContext->CSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
 
 	// Blend State
 	D3D11_BLEND_DESC blendStateDesc;
@@ -312,15 +333,13 @@ void RenderHandler::initRenderStates()
 void RenderHandler::initSSAOBlurPass(UINT width, UINT height, DXGI_FORMAT format)
 {
 	ShaderFiles shaderFiles;
-	shaderFiles.vs = L"";
-	shaderFiles.ps = L"";
 	shaderFiles.cs = L"EdgePreservingBlurCS.hlsl";
 	m_edgePreservingBlurCS.initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS);
-
+	m_blurConstantData = std::make_unique< CS_BLUR_CBUFFER >();
 	m_blurConstantData->projectionMatrix = m_camera.getProjectionMatrix();
-	calculateBlurWeights(m_blurConstantData, MAX_BLUR_RADIUS, m_ssaoBlurSigma);
+	calculateBlurWeights(m_blurConstantData.get(), MAX_BLUR_RADIUS, m_ssaoBlurSigma);
 
-	m_blurDirectionBuffer.initialize(m_device.Get(), m_deviceContext.Get(), m_blurConstantData, BufferType::CONSTANT);
+	m_blurDirectionBuffer.initialize(m_device.Get(), m_deviceContext.Get(), m_blurConstantData.get(), BufferType::CONSTANT);
 
 	// Texture
 	D3D11_TEXTURE2D_DESC textureDesc;
@@ -361,6 +380,72 @@ void RenderHandler::initSSAOBlurPass(UINT width, UINT height, DXGI_FORMAT format
 	assert(SUCCEEDED(hr) && "Error, blur pass ping pong unordered access view could not be created!");
 
 	texture->Release();
+}
+
+void RenderHandler::initBloomPass(UINT width, UINT height)
+{
+	// Render Textures
+	m_bloomBuffers[Base].format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	initRenderTarget(m_bloomBuffers[Base], width / 2, height / 2, NR_OF_BLOOM_MIPS);
+	std::wstring texName = L"Base Bloom Buffer";
+	m_bloomBuffers[Base].srv->SetPrivateData(WKPDID_D3DDebugObjectNameW, (UINT)sizeof(texName), texName.c_str());
+
+	m_bloomBuffers[FirstPingPong].format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	initRenderTarget(m_bloomBuffers[FirstPingPong], width / 2, height / 2, NR_OF_BLOOM_MIPS);
+	texName = L"FirstPingPong Bloom Buffer";
+	m_bloomBuffers[FirstPingPong].srv->SetPrivateData(WKPDID_D3DDebugObjectNameW, (UINT)sizeof(texName), texName.c_str());
+
+	m_bloomBuffers[SecondPingPong].format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	initRenderTarget(m_bloomBuffers[SecondPingPong], width / 2, height / 2, NR_OF_BLOOM_MIPS);
+	texName = L"SecondPingPong Bloom Buffer";
+	m_bloomBuffers[SecondPingPong].srv->SetPrivateData(WKPDID_D3DDebugObjectNameW, (UINT)sizeof(texName), texName.c_str());
+
+	// - Mip UAVS (only one mip slice can be accesed by a UAV)
+	for (size_t i = 0; i < NR_OF_BLOOM_MIPS; i++)
+	{
+		D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+		uavDesc.ViewDimension = D3D11_UAV_DIMENSION::D3D11_UAV_DIMENSION_TEXTURE2D;
+		uavDesc.Texture2D.MipSlice = (UINT)i;
+		
+		// - Base Buffer
+		uavDesc.Format = m_bloomBuffers[Base].format;
+		HRESULT hr = m_device->CreateUnorderedAccessView(m_bloomBuffers[Base].rtt, &uavDesc, m_bloomMipUAVs[Base][i].GetAddressOf());
+		assert(SUCCEEDED(hr) && "Error, unordered access view could not be created!");
+	
+		texName = L"BaseBloomBuffer " + std::to_wstring(i) + L" UAV";
+		m_bloomMipUAVs[Base][i]->SetPrivateData(WKPDID_D3DDebugObjectNameW, (UINT)sizeof(texName), texName.c_str());
+
+		// - First Ping Pong Buffer
+		uavDesc.Format = m_bloomBuffers[FirstPingPong].format;
+		hr = m_device->CreateUnorderedAccessView(m_bloomBuffers[FirstPingPong].rtt, &uavDesc, m_bloomMipUAVs[FirstPingPong][i].GetAddressOf());
+		assert(SUCCEEDED(hr) && "Error, unordered access view could not be created!");
+
+		texName = L"FirstPingPingBloomBuffer " + std::to_wstring(i) + L" UAV";
+		m_bloomMipUAVs[FirstPingPong][i]->SetPrivateData(WKPDID_D3DDebugObjectNameW, (UINT)sizeof(texName), texName.c_str());
+
+		// - Second Ping Pong Buffer
+		uavDesc.Format = m_bloomBuffers[SecondPingPong].format;
+		hr = m_device->CreateUnorderedAccessView(m_bloomBuffers[SecondPingPong].rtt, &uavDesc, m_bloomMipUAVs[SecondPingPong][i].GetAddressOf());
+		assert(SUCCEEDED(hr) && "Error, unordered access view could not be created!");
+
+		texName = L"SecondPingPingBloomBuffer " + std::to_wstring(i) + L" UAV";
+		m_bloomMipUAVs[SecondPingPong][i]->SetPrivateData(WKPDID_D3DDebugObjectNameW, (UINT)sizeof(texName), texName.c_str());
+	}
+
+	// Shaders
+	ShaderFiles sf;
+	sf.cs = L"BloomDownsamplingCS.hlsl";
+	m_bloomDownsampleShader.initialize(m_device.Get(), m_deviceContext.Get(), sf);
+
+	sf.cs = L"BloomUpsamplingCS.hlsl";
+	m_bloomUpsampleShader.initialize(m_device.Get(), m_deviceContext.Get(), sf);
+
+	// Constant Buffer
+	m_bloomUpsampleData = std::make_unique< CS_UPSAMPLE_CBUFFER >();
+	m_bloomUpsampleBuffer.initialize(m_device.Get(), m_deviceContext.Get(), m_bloomUpsampleData.get(), BufferType::CONSTANT);
+	m_bloomDownsampleData = std::make_unique< CS_DOWNSAMPLE_CBUFFER >();
+	m_bloomDownsampleData->threshold = XMFLOAT4(m_bloomThreshold, m_bloomThreshold - m_bloomKnee, m_bloomKnee * 2, 0.25f / m_bloomKnee);
+	m_bloomDownsampleBuffer.initialize(m_device.Get(), m_deviceContext.Get(), m_bloomDownsampleData.get(), BufferType::CONSTANT);
 }
 
 void RenderHandler::calculateBlurWeights(CS_BLUR_CBUFFER* bufferData, int radius, float sigma)
@@ -406,7 +491,7 @@ void RenderHandler::calculateBlurWeights(CS_BLUR_CBUFFER* bufferData, int radius
 	}
 
 	// Divide by the sum so all the weights add up to 1.0.
-	float weightLength = 2 * blurRadius + 1;
+	float weightLength = 2.f * (float)blurRadius + 1.f;
 	for (int i = 0; i < weightLength; ++i)
 		bufferData->weights[i] /= weightSum;
 }
@@ -414,7 +499,7 @@ void RenderHandler::calculateBlurWeights(CS_BLUR_CBUFFER* bufferData, int radius
 void RenderHandler::lightPass()
 {
 	// Set Output Render Target
-	m_deviceContext->OMSetRenderTargets(1, m_outputRTV.GetAddressOf(), nullptr);
+	m_deviceContext->OMSetRenderTargets(1, &m_hdrRTV.rtv, nullptr);
 
 	// Set Camera Buffer
 	m_deviceContext->PSSetConstantBuffers(0, 1, m_camera.getConstantBuffer());
@@ -447,9 +532,8 @@ void RenderHandler::lightPass()
 	// Draw Fullscreen Quad
 	m_deviceContext->Draw(4, 0);
 
-	// Unbind Render Target and Shader Resource Views
-	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, nullptr);
-	m_deviceContext->PSSetShaderResources(0, 5, m_shaderResourcesNullptr);
+	// Unbind Shader Resource Views
+	m_deviceContext->PSSetShaderResources(0, GBufferType::GB_NUM, m_shaderResourcesNullptr);
 }
 
 void RenderHandler::downsamplePass()
@@ -483,7 +567,7 @@ void RenderHandler::blurSSAOPass()
 		// Blur Constant Buffer
 		m_blurConstantData->direction = i;
 		
-		m_blurDirectionBuffer.update(m_blurConstantData);
+		m_blurDirectionBuffer.update(m_blurConstantData.get());
 		m_deviceContext->CSSetConstantBuffers(0, 1, m_blurDirectionBuffer.GetAddressOf());
 
 		// Set Rescources
@@ -505,6 +589,129 @@ void RenderHandler::blurSSAOPass()
 	m_deviceContext->CSSetShaderResources(0, 3, m_shaderResourcesNullptr);
 	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, NULL);
 	m_deviceContext->CSSetUnorderedAccessViews(0, 1, &m_unorderedAccessNullptr, &cOffset);
+}
+
+void RenderHandler::bloomPass()
+{
+	UINT cOffset = -1;
+	UINT mipLevel;
+	float mipWidth;
+	float mipHeight;
+	UINT texWidth;
+	UINT texHeight;
+	
+	// Downsample / Threshold Pass
+	
+	// - Unbind orignal Texture (HDR Texture)
+	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, NULL);
+
+	// - Setup for First Mip
+	m_deviceContext->CSSetShaderResources(0, 1, &m_hdrRTV.srv);
+	m_deviceContext->CSSetUnorderedAccessViews(0, 1, &m_bloomBuffers[Base].uav, &cOffset); // Only works for mip 0
+	m_deviceContext->CSSetUnorderedAccessViews(1, 1, &m_bloomBuffers[FirstPingPong].uav, &cOffset); // Only works for mip 0
+	m_bloomDownsampleShader.setShaders();
+
+	// - Update Constant Buffer
+	m_bloomDownsampleData->mipDimensions = XMFLOAT2(1.f / (float)m_clientWidth, 1.f / (float)m_clientHeight);
+	m_bloomDownsampleData->mipLevel = 0.f;
+
+	m_bloomDownsampleBuffer.update(m_bloomDownsampleData.get());
+	m_deviceContext->CSSetConstantBuffers(0, 1, m_bloomDownsampleBuffer.GetAddressOf());
+
+	// - Dispatch
+	texWidth = (UINT)std::ceil((m_clientWidth / 16.f) + 0.5f);
+	texHeight = (UINT)std::ceil((m_clientHeight / 16.f) + 0.5f);
+	m_deviceContext->Dispatch(texWidth, texHeight, 1);
+
+	// - Unbind Shader Resource Views and Unordered Access View
+	m_deviceContext->CSSetShaderResources(0, 1, m_shaderResourcesNullptr);
+	m_deviceContext->CSSetUnorderedAccessViews(0, 2, m_unorderedAccessesNullptr, &cOffset);
+
+	// - Loop through rest of Mip Chain
+	bool flipper = true;
+	for (size_t i = 0; i < NR_OF_BLOOM_MIPS - 1; ++i)
+	{
+		mipLevel = (UINT)i; // Input Mip Texture
+
+		// - Send Ouput Texture, the Base Buffer(0) will contain all Final Downsampled Mips
+		m_deviceContext->CSSetUnorderedAccessViews(0, 1, m_bloomMipUAVs[Base][mipLevel + 1].GetAddressOf(), &cOffset);
+
+		// - Send Input Texture and Output Buffer Texture
+		if (flipper)
+		{
+			m_deviceContext->CSSetShaderResources(0, 1, &m_bloomBuffers[FirstPingPong].srv);
+			m_deviceContext->CSSetUnorderedAccessViews(1, 1, m_bloomMipUAVs[SecondPingPong][mipLevel + 1].GetAddressOf(), &cOffset);
+		}
+		else
+		{
+			m_deviceContext->CSSetShaderResources(0, 1, &m_bloomBuffers[SecondPingPong].srv);
+			m_deviceContext->CSSetUnorderedAccessViews(1, 1, m_bloomMipUAVs[FirstPingPong][mipLevel + 1].GetAddressOf(), &cOffset);
+		}
+		flipper = !flipper;
+
+		// - Update Constant Buffer
+		mipWidth = (float)((m_clientWidth / 2) >> mipLevel); // Get width of output texture
+		mipHeight = (float)((m_clientHeight / 2) >> mipLevel);
+
+		m_bloomDownsampleData->mipDimensions = XMFLOAT2(1.f / mipWidth, 1.f / mipHeight);
+		m_bloomDownsampleData->mipLevel = (float)mipLevel;
+
+		m_bloomDownsampleBuffer.update(m_bloomDownsampleData.get());
+		m_deviceContext->CSSetConstantBuffers(0, 1, m_bloomDownsampleBuffer.GetAddressOf());
+
+		// - Dispatch
+		texWidth = (UINT)std::ceil((mipWidth / 16.f) + 0.5f);
+		texHeight = (UINT)std::ceil((mipHeight / 16.f) + 0.5f);
+		m_deviceContext->Dispatch(texWidth, texHeight, 1);
+
+		// - Unbind Shader Resource Views and Unordered Access View
+		m_deviceContext->CSSetShaderResources(0, 1, m_shaderResourcesNullptr);
+		m_deviceContext->CSSetUnorderedAccessViews(0, 2, m_unorderedAccessesNullptr, &cOffset);
+	}
+
+	// Upsample
+	// - Setup
+	m_bloomUpsampleShader.setShaders();
+	m_deviceContext->CSSetShaderResources(0, 1, &m_bloomBuffers[Base].srv);
+
+	// - Loop through Mip Chain
+	flipper = true;
+	for (size_t i = NR_OF_BLOOM_MIPS; i > 0; --i)
+	{
+		mipLevel = (UINT)i - 1;
+
+		// - Send Ouput Texture and Last Result Texture, ignored by shader in the first pass
+		if (flipper)
+		{
+			m_deviceContext->CSSetShaderResources(1, 1, &m_bloomBuffers[FirstPingPong].srv);
+			m_deviceContext->CSSetUnorderedAccessViews(0, 1, m_bloomMipUAVs[SecondPingPong][mipLevel].GetAddressOf(), &cOffset);
+		}
+		else
+		{
+			m_deviceContext->CSSetShaderResources(1, 1, &m_bloomBuffers[SecondPingPong].srv);
+			m_deviceContext->CSSetUnorderedAccessViews(0, 1, m_bloomMipUAVs[FirstPingPong][mipLevel].GetAddressOf(), &cOffset);
+		}
+		flipper = !flipper;
+
+		// - Update Constant Buffer
+		mipWidth = (float)(m_clientWidth >> mipLevel);
+		mipHeight = (float)(m_clientHeight >> mipLevel);
+
+		m_bloomUpsampleData->mipDimensions = XMFLOAT2(1.f / mipWidth, 1.f / mipHeight);
+		m_bloomUpsampleData->mipLevel = (float)mipLevel;
+
+		m_bloomUpsampleBuffer.update(m_bloomUpsampleData.get());
+		m_deviceContext->CSSetConstantBuffers(0, 1, m_bloomUpsampleBuffer.GetAddressOf());
+
+		// - Dispatch
+		texWidth = (UINT)std::ceil((mipWidth / 16.f) + 0.5f);
+		texHeight = (UINT)std::ceil((mipHeight / 16.f) + 0.5f);
+		m_deviceContext->Dispatch(texWidth, texHeight, 1);
+
+		// - Unbind Shader Resource Views and Unordered Access View
+		m_deviceContext->CSSetShaderResources(1, 1, &m_shaderResourceNullptr);
+		m_deviceContext->CSSetUnorderedAccessViews(0, 1, &m_unorderedAccessNullptr, &cOffset);
+	}
 }
 
 void RenderHandler::initCamera()
@@ -537,10 +744,9 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_shadowInstance.initialize(m_device.Get(), m_deviceContext.Get(), SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
 	
 	// Skybox
-	m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"TableMountain1Cubemap2.dds", L"TableMountain1Irradiance.dds");
+	m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"TableMountain1Cubemap.dds", L"TableMountain1Irradiance.dds");
 	// - Render Cubemap Previews
 	m_deviceContext->RSSetState(m_defaultRasterizerState.Get());
-	m_deviceContext->PSSetSamplers(0, 1, m_defaultSamplerState.GetAddressOf());
 	m_skybox.cubemapPreviewsRenderSetup();
 	m_deviceContext->Draw(4, 0);
 
@@ -573,6 +779,9 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	// Blur
 	initSSAOBlurPass(m_clientWidth, m_clientHeight, m_SSAOInstance.getSSAORenderTexture().format);
 	
+	// Bloom
+	initBloomPass((UINT)winRect.right, (UINT)winRect.bottom);
+
 	// Particles
 	m_particleSystem.Initialize(m_device.Get(), m_deviceContext.Get(), L"flare.dds", 10);
 
@@ -589,6 +798,22 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_selectionAnimationData.colorOpacity = 0.f;
 	PS_COLOR_ANIMATION_BUFFER* selectionAnimationData = new PS_COLOR_ANIMATION_BUFFER(m_selectionAnimationData);
 	m_selectionCBuffer.initialize(m_device.Get(), m_deviceContext.Get(), selectionAnimationData, BufferType::CONSTANT);
+
+	// HDR Tonemapping
+	shaderFiles.vs = L"FullscreenQuadVS.hlsl";
+	shaderFiles.ps = L"HDRtoSDR_PS.hlsl";
+	m_tonemapShaders.initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS);
+	m_tonemapConstantBuffer.initialize(m_device.Get(), m_deviceContext.Get(), &m_tonemapConstantData, BufferType::CONSTANT);
+}
+
+UINT RenderHandler::getClientWidth() const
+{
+	return m_clientWidth;
+}
+
+UINT RenderHandler::getClientHeight() const
+{
+	return m_clientHeight;
 }
 
 void RenderHandler::updateCamera(XMVECTOR position, XMVECTOR rotation)
@@ -597,7 +822,7 @@ void RenderHandler::updateCamera(XMVECTOR position, XMVECTOR rotation)
 	m_skybox.updateVP(m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
 	//m_HBAOInstance.updateViewMatrix(m_camera.getViewMatrix());
 	m_SSAOInstance.updateViewMatrix(m_camera.getViewMatrix());
-	m_shadowInstance.buildLightMatrix(m_camera.getCameraPositionF3());
+	//m_shadowInstance.buildLightMatrix(m_camera.getCameraPositionF3());
 }
 
 RenderObjectKey RenderHandler::newRenderObject(std::string modelName, ShaderStates shaderState)
@@ -763,22 +988,24 @@ RenderObjectKey RenderHandler::setShaderState(RenderObjectKey key, ShaderStates 
 	default:
 		break;
 	}
-	return RenderObjectKey();
+	return key;
 }
 
 void RenderHandler::modelTextureUIUpdate(RenderObjectKey key)
 {
-
-	switch (key.objectType)
+	if (key.isValid())
 	{
-	case PHONG:
-		m_renderObjects[key]->materialUIUpdate();
-		break;
-	case PBR:
-		m_renderObjectsPBR[key]->materialUIUpdate();
-		break;
-	default:
-		break;
+		switch (key.objectType)
+		{
+		case PHONG:
+			m_renderObjects[key]->materialUIUpdate();
+			break;
+		case PBR:
+			m_renderObjectsPBR[key]->materialUIUpdate();
+			break;
+		default:
+			break;
+		}
 	}
 }
 
@@ -949,9 +1176,14 @@ void RenderHandler::updateShaderState(ShaderStates shaderState)
 void RenderHandler::updatePassShaders()
 {
 	m_lightPassShaders.updateShaders();
+	m_tonemapShaders.updateShaders();
 	//m_HBAOInstance.updateShaders();
 	m_SSAOInstance.updateShaders();
 	m_edgePreservingBlurCS.updateShaders();
+
+	m_bloomDownsampleShader.updateShaders();
+	m_bloomUpsampleShader.updateShaders();
+
 	m_skybox.updatePreviewShaders();
 	m_skybox.cubemapPreviewsRenderSetup();
 	m_deviceContext->Draw(4, 0);
@@ -975,13 +1207,59 @@ void RenderHandler::UIRenderPipelineTexturesWindow()
 	//ImGui::Image(m_gBuffer.renderTextures[GBufferType::DEPTH].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
 	//ImGui::Image(m_shadowInstance.getShadowMapSRVNoneConst(), ImVec2((float)m_clientWidth / 4.f, (float)m_clientWidth / 4.f));
 	
-	ImGui::Image(m_blurPingPongSRV.Get(), ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	// SSAO
+	//ImGui::Image(m_blurPingPongSRV.Get(), ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
 	if (m_ssaoToggle)
 		ImGui::Image(m_SSAOInstance.getSSAORenderTexture().srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
 	else
 		ImGui::Image(m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
-	
 	//m_SSAOInstance.updateUI();
+	
+	// Bloom
+	ImGui::Image(m_bloomBuffers[Base].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+
+	if (NR_OF_BLOOM_MIPS % 2 == 0)
+		ImGui::Image(m_bloomBuffers[FirstPingPong].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	else
+		ImGui::Image(m_bloomBuffers[SecondPingPong].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	
+	ImGui::End();
+}
+
+float ACESFilmicTonemapping(float x, float A, float B, float C, float D, float E, float F)
+{
+	return (((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - (E / F));
+}
+
+float ACESFilmicTonemappingPlot(void* dataPtr, int index)
+{
+	PS_TONEMAP_CBUFFER* data = (PS_TONEMAP_CBUFFER*)dataPtr;
+	float HDR = index / (float)256 * 12.0f;
+	return ACESFilmicTonemapping(HDR, data->ACESss, data->ACESls, data->ACESla, data->ACESts, data->ACEStn, data->ACEStd) /
+		ACESFilmicTonemapping(data->LinearWhite, data->ACESss, data->ACESls, data->ACESla, data->ACESts, data->ACEStn, data->ACEStd);
+}
+
+void RenderHandler::UITonemappingWindow()
+{
+	ImGui::Begin("Tonemapping");
+
+	ImGui::DragFloat("Exposure", &m_tonemapConstantData.Exposure, 0.01f, -10.0f, 10.0f);
+	ImGui::DragFloat("Gamma", &m_tonemapConstantData.Gamma, 0.01f, 0.01f, 5.0f);
+
+	ImGui::PlotLines("ACES Filmic Tonemapping", &ACESFilmicTonemappingPlot, &m_tonemapConstantData, 256, 0, nullptr, 0.0f, 1.0f, ImVec2(0, 250));
+	ImGui::DragFloat("Shoulder Strength", &m_tonemapConstantData.ACESss, 0.01f, 0.01f, 5.0f);
+	ImGui::DragFloat("Linear Strength", &m_tonemapConstantData.ACESls, 0.01f, 0.0f, 100.0f);
+	ImGui::DragFloat("Linear Angle", &m_tonemapConstantData.ACESla, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Toe Strength", &m_tonemapConstantData.ACESts, 0.01f, 0.01f, 1.0f);
+	ImGui::DragFloat("Toe Numerator", &m_tonemapConstantData.ACEStn, 0.01f, 0.0f, 10.0f);
+	ImGui::DragFloat("Toe Denominator", &m_tonemapConstantData.ACEStd, 0.01f, 0.0f, 10.0f);
+	ImGui::DragFloat("Linear White", &m_tonemapConstantData.LinearWhite, 0.01f, 1.0f, 120.0f);
+
+	if (ImGui::Button("Reset"))
+		m_tonemapConstantData = PS_TONEMAP_CBUFFER();
+
+	m_tonemapConstantBuffer.update(&m_tonemapConstantData);
+
 	ImGui::End();
 }
 
@@ -998,7 +1276,7 @@ void RenderHandler::UIssaoSettings()
 			ImGui::Indent(16.0f);
 			ImGui::PushItemWidth(-40.f);
 			if (ImGui::DragFloat("Sigma", &m_ssaoBlurSigma, 0.1f, 1.f, 5.f))
-				calculateBlurWeights(m_blurConstantData, MAX_BLUR_RADIUS, m_ssaoBlurSigma);
+				calculateBlurWeights(m_blurConstantData.get(), MAX_BLUR_RADIUS, m_ssaoBlurSigma);
 
 			ImGui::PopItemWidth();
 			ImGui::Unindent(16.0f);
@@ -1010,6 +1288,29 @@ void RenderHandler::UIssaoSettings()
 	}
 	else
 		m_ssaoToggle = false;
+}
+
+void RenderHandler::UIbloomSettings()
+{
+	if (ImGui::CollapsingHeader("Bloom", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		m_bloomToggle = true;
+		ImGui::Indent(16.0f);
+
+		ImGui::PushItemWidth(-68.f);
+		if (ImGui::DragFloat("Threshold", &m_bloomThreshold, 0.1f, 0.f, 10.f))
+			m_bloomDownsampleData->threshold = XMFLOAT4(m_bloomThreshold, m_bloomThreshold - m_bloomKnee, m_bloomKnee * 2, 0.25f / m_bloomKnee);
+		ImGui::PopItemWidth();
+
+		ImGui::PushItemWidth(-95.f);
+		if (ImGui::DragFloat("Knee Softness", &m_bloomKnee, 0.01f, 0.00001f, 10.f))
+			m_bloomDownsampleData->threshold = XMFLOAT4(m_bloomThreshold, m_bloomThreshold - m_bloomKnee, m_bloomKnee * 2, 0.25f / m_bloomKnee);
+		ImGui::PopItemWidth();
+			
+		ImGui::Unindent(16.0f);
+	}
+	else
+		m_bloomToggle = false;
 }
 
 void RenderHandler::UIEnviormentPanel()
@@ -1026,23 +1327,33 @@ void RenderHandler::UIEnviormentPanel()
 		_bstr_t nameCStr(m_skybox.getSkyboxFileName().c_str());
 		ImGui::Image(m_skybox.getSkyboxPreviewSRV(), ImVec2(imageSize, imageSize));
 		ImGui::SameLine(imageOffset);
-		if (ImGui::Button((const char*)nameCStr))
+		ImGui::BeginGroup();
 		{
-			m_fileDialog.Open();
-			m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
-			m_loadNewCubemapType = CubemapType::Skybox;
+			if (ImGui::Button((const char*)nameCStr))
+			{
+				m_fileDialog.Open();
+				m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+				m_loadNewCubemapType = CubemapType::Skybox;
+			}
+			m_lightManager.enviormentSpecContributionUI();
 		}
+		ImGui::EndGroup();
 
 		ImGui::Text("Irradiance Cubemap");
 		nameCStr = m_skybox.getIrradianceFileName().c_str();
 		ImGui::Image(m_skybox.getIrradiancePreviewSRV(), ImVec2(imageSize, imageSize));
 		ImGui::SameLine(imageOffset);
-		if (ImGui::Button((const char*)nameCStr))
+		ImGui::BeginGroup();
 		{
-			m_fileDialog.Open();
-			m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
-			m_loadNewCubemapType = CubemapType::Irradiance;
+			if (ImGui::Button((const char*)nameCStr))
+			{
+				m_fileDialog.Open();
+				m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+				m_loadNewCubemapType = CubemapType::Irradiance;
+			}
+			m_lightManager.enviormentDiffContributionUI();
 		}
+		ImGui::EndGroup();
 
 		m_fileDialog.Display();
 		if (m_fileDialog.HasSelected())
@@ -1077,6 +1388,7 @@ void RenderHandler::UIEnviormentPanel()
 void RenderHandler::render()
 {
 	// Clear Frame
+	m_deviceContext->ClearRenderTargetView(m_hdrRTV.rtv, clearColor);
 	m_deviceContext->ClearRenderTargetView(m_outputRTV.Get(), clearColor);
 	m_deviceContext->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
@@ -1085,11 +1397,15 @@ void RenderHandler::render()
 		m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].rtv,
 		m_gBuffer.renderTextures[GBufferType::EMISSIVE_SHADOWMASK].rtv,
 		m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION].rtv
-	};
+	}; 
 
 	for (int i = 0; i < GBufferType::GB_NUM - 2; i++)
 		m_deviceContext->ClearRenderTargetView(renderTargets[i], clearColorBlack);
 	m_deviceContext->ClearRenderTargetView(renderTargets[GBufferType::GB_NUM - 2], clearColorWhite); // Clear Shadow Mask
+
+	for (UINT i = 0; i < NR_OF_BLOOM_BUFFERS; i++)
+		for (UINT j = 0; j < NR_OF_BLOOM_MIPS; j++)
+			m_deviceContext->ClearUnorderedAccessViewFloat(m_bloomMipUAVs[i][j].Get(), clearColorBlack);
 
 	// Render Shadow Map
 	if (m_shadowMappingEnabled)
@@ -1101,9 +1417,6 @@ void RenderHandler::render()
 		for (auto& object : m_renderObjectsPBR)
 			object.second->render(true);
 	}
-	
-	// Set Render Target
-	m_deviceContext->OMSetRenderTargets(1, m_outputRTV.GetAddressOf(), m_depthStencilView.Get());
 
 	// Set Viewport
 	m_deviceContext->RSSetViewports(1, &m_viewport);
@@ -1115,7 +1428,6 @@ void RenderHandler::render()
 	float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	UINT sampleMask = 0xffffffff;
 	m_deviceContext->OMSetBlendState(m_blendStateBlend.Get(), blendFactor, sampleMask);
-	m_deviceContext->PSSetSamplers(0, 1, m_defaultSamplerState.GetAddressOf());
 	if (m_wireframeMode)
 		m_deviceContext->RSSetState(m_wireframeRasterizerState.Get());
 	else
@@ -1127,7 +1439,7 @@ void RenderHandler::render()
 	// Draw
 	
 	// - PHONG
-	m_deviceContext->PSSetShaderResources(3, 1, m_shadowInstance.getShadowMapSRV()); // 6th register slot in PBR Pixel Shader
+	m_deviceContext->PSSetShaderResources(3, 1, m_shadowInstance.getShadowMapSRV()); // 3th register slot in PHONG Pixel Shader
 	m_shaderStates[ShaderStates::PHONG].setShaders();
 	for (auto &object : m_renderObjects)
 		object.second->render(true);
@@ -1160,8 +1472,8 @@ void RenderHandler::render()
 	// Light Pass
 	lightPass();
 
-	// Re-Set Render Target
-	m_deviceContext->OMSetRenderTargets(1, m_outputRTV.GetAddressOf(), m_depthStencilView.Get());
+	// Re-Set Render Target with Deph Buffer
+	m_deviceContext->OMSetRenderTargets(1, &m_hdrRTV.rtv, m_depthStencilView.Get());
 
 	// Skybox
 	m_skybox.render();
@@ -1201,8 +1513,25 @@ void RenderHandler::render()
 		// - Arrows
 		m_modelSelectionHandler.renderArrows();
 	}
-	m_deviceContext->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
+
+	// Bloom
+	if (m_bloomToggle)
+		bloomPass();
+
+	// Tonemapping
 	m_deviceContext->OMSetRenderTargets(1, m_outputRTV.GetAddressOf(), nullptr);
+	m_tonemapShaders.setShaders();
+	m_deviceContext->PSSetShaderResources(0, 1, &m_hdrRTV.srv);
+	if (NR_OF_BLOOM_MIPS % 2 == 0)
+		m_deviceContext->PSSetShaderResources(1, 1, &m_bloomBuffers[FirstPingPong].srv);
+	else
+		m_deviceContext->PSSetShaderResources(1, 1, &m_bloomBuffers[SecondPingPong].srv);
+
+	m_deviceContext->PSSetConstantBuffers(0, 1, m_tonemapConstantBuffer.GetAddressOf());
+	m_deviceContext->Draw(4, 0);
+
+	// Unbind
+	m_deviceContext->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 	m_deviceContext->PSSetShaderResources(0, 5, m_shaderResourcesNullptr);
 
 	// ImGUI

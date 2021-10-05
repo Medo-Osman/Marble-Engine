@@ -19,17 +19,17 @@ private:
 	std::vector<UINT> m_indices;
 
 	// Meshes
-	std::vector<Mesh<VertexPosNormTexTan>> m_meshes;
+	std::vector<Mesh<VertexPosNormTexTan>*> m_meshes;
 
 	// Helper Functions
-	Mesh<VertexPosNormTexTan> processMesh(aiMesh* mesh, const aiScene* scene)
+	Mesh<VertexPosNormTexTan>* processMesh(aiMesh* mesh, const aiScene* scene)
 	{
 		std::vector<VertexPosNormTexTan> vertices;
 		std::vector<UINT> indices;
 
 		int indexOffset = (int)m_vertices.size(); // Vertex offset for indices index
 		m_vertices.reserve(m_vertices.size() + mesh->mNumVertices);
-		m_indices.reserve(m_indices.size() + mesh->mNumFaces * 3);
+		m_indices.reserve(m_indices.size() + mesh->mNumFaces * (unsigned int)3);
 
 		// Vertices
 		for (UINT i = 0; i < mesh->mNumVertices; i++)
@@ -111,27 +111,44 @@ private:
 		else
 			material.shininess /= 4.f; // Assimps scales by * 4, this reverses it
 		materialPBR.roughness = std::pow(1 - material.shininess, 2.f);
+		//materialPBR.roughness = 0.f;
 
 
 		// Material Textures
 		TexturePaths texturePaths;
-		texturePaths.diffusePath = L"";
-		texturePaths.normalPath = L"";
-		texturePaths.specularPath = L"";
-		texturePaths.displacementPath = L"";
+		TexturePathsPBR texturePathsPBR;
 
 		aiString texturePath;
 
 		if (aMaterial->GetTextureCount(aiTextureType_DIFFUSE) > 0 && aMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.diffusePath = charToWchar(texturePath.C_Str()).c_str();
+			texturePaths.diffusePath = texturePathsPBR.albedoPath = charToWchar(texturePath.C_Str()).c_str();
 
-		if (aMaterial->GetTextureCount(aiTextureType_HEIGHT) > 0 && aMaterial->GetTexture(aiTextureType_HEIGHT, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.normalPath = charToWchar(texturePath.C_Str()).c_str();
+		if (aMaterial->GetTextureCount(aiTextureType_NORMALS) > 0 && aMaterial->GetTexture(aiTextureType_NORMALS, 0, &texturePath) == AI_SUCCESS)
+			texturePaths.normalPath = texturePathsPBR.normalPath = charToWchar(texturePath.C_Str()).c_str();
 
 		if (aMaterial->GetTextureCount(aiTextureType_SPECULAR) > 0 && aMaterial->GetTexture(aiTextureType_SPECULAR, 0, &texturePath) == AI_SUCCESS)
 			texturePaths.specularPath = charToWchar(texturePath.C_Str()).c_str();
+
+		if (aMaterial->GetTextureCount(aiTextureType_METALNESS) > 0 && aMaterial->GetTexture(aiTextureType_METALNESS, 0, &texturePath) == AI_SUCCESS)
+			texturePathsPBR.metallicPath = charToWchar(texturePath.C_Str()).c_str();
+
+		if (aMaterial->GetTextureCount(aiTextureType_SHININESS) > 0 && aMaterial->GetTexture(aiTextureType_SHININESS, 0, &texturePath) == AI_SUCCESS)
+			texturePathsPBR.roughnessPath = charToWchar(texturePath.C_Str()).c_str();
 		
-		return Mesh<VertexPosNormTexTan>(m_device, m_deviceContext, vertices, indices, material, texturePaths, mesh->mName.C_Str());
+		aiString fileBaseColor, fileMetallicRoughness;
+		aMaterial->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &fileBaseColor);
+		aMaterial->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &fileMetallicRoughness);
+
+		if (fileMetallicRoughness.length > 0)
+		{
+			texturePathsPBR.metallicPath = charToWchar(fileMetallicRoughness.C_Str()).c_str();
+			texturePathsPBR.roughnessPath = charToWchar(fileMetallicRoughness.C_Str()).c_str();
+		}
+
+		Mesh<VertexPosNormTexTan>* finalMesh = new Mesh<VertexPosNormTexTan>(m_device, m_deviceContext, vertices, indices, material, texturePaths, mesh->mName.C_Str());
+		finalMesh->setTextures(texturePathsPBR);
+
+		return finalMesh;
 	}
 	void processNodes(aiNode* node, const aiScene* scene)
 	{
@@ -221,8 +238,9 @@ public:
 			material.diffuse = XMFLOAT4(0.13f, .25f, 0.004f, 1.f); // Forest Green
 			material.specular = XMFLOAT4(.1f, .1f, 0.1f, 1.f);
 			material.shininess = 32.f;
-			m_meshes.push_back(Mesh<VertexPosNormTexTan>(m_device, m_deviceContext, vertices, indices, material, TexturePaths(), "Plane"));
-			m_meshes.back().setName(id + "_Default");
+			auto* finalMesh = new Mesh<VertexPosNormTexTan>(m_device, m_deviceContext, vertices, indices, material, TexturePaths(), "Plane");
+			m_meshes.push_back(finalMesh);
+			m_meshes.back()->setName(id + "_Default");
 		}
 		else
 			if (!loadModel(modelName))
@@ -279,41 +297,41 @@ public:
 	void setShaderState(ShaderStates shaderState)
 	{
 		for (size_t i = 0; i < m_meshes.size(); i++)
-			m_meshes[i].setShaderState(shaderState);
+			m_meshes[i]->setShaderState(shaderState);
 	}
 	// - PHONG
 	void setMaterial(PS_MATERIAL_BUFFER material)
 	{
 		for (size_t i = 0; i < m_meshes.size(); i++)
-			m_meshes[i].setMaterial(material);
+			m_meshes[i]->setMaterial(material);
 	}
 
 	void setMaterialWithID(PS_MATERIAL_BUFFER material, int id)
 	{
-		m_meshes[id].setMaterial(material);
+		m_meshes[id]->setMaterial(material);
 	}
 
 	void setTexture(TexturePaths textures)
 	{
 		for (size_t i = 0; i < m_meshes.size(); i++)
-			m_meshes[i].setTextures(textures);
+			m_meshes[i]->setTextures(textures);
 	}
 	// - PBR
 	void setMaterial(PS_MATERIAL_PBR_BUFFER material)
 	{
 		for (size_t i = 0; i < m_meshes.size(); i++)
-			m_meshes[i].setMaterial(material);
+			m_meshes[i]->setMaterial(material);
 	}
 
 	void setMaterialWithID(PS_MATERIAL_PBR_BUFFER material, int id)
 	{
-		m_meshes[id].setMaterial(material);
+		m_meshes[id]->setMaterial(material);
 	}
 
 	void setTexture(TexturePathsPBR textures)
 	{
 		for (size_t i = 0; i < m_meshes.size(); i++)
-			m_meshes[i].setTextures(textures);
+			m_meshes[i]->setTextures(textures);
 	}
 
 	// UI Update
@@ -324,7 +342,7 @@ public:
 			for (size_t i = 0; i < m_meshes.size(); i++)
 			{
 				ImGui::PushID(std::string(std::to_string(i) + m_name).c_str());
-				m_meshes[i].updateUI();
+				m_meshes[i]->updateUI();
 				ImGui::PopID();
 			}
 		}
@@ -335,7 +353,7 @@ public:
 	void render()
 	{
 		for (size_t i = 0; i < m_meshes.size(); i++)
-			m_meshes[i].render();
+			m_meshes[i]->render();
 	}
 };
 

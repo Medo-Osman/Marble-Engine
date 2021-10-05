@@ -25,6 +25,7 @@ cbuffer materialBuffer : register(b0)
     float matRoughness;
     float matEmissiveStrength;
     int materialTextured;
+    int emissiveTextured;
 };
 
 // Textures
@@ -38,13 +39,15 @@ Texture2D AmbientOcclusionTexture   : register(t5);
 Texture2D ShadowMapTexture          : register(t6);
 
 // Samplers
-SamplerState            sampState       : register(s0);
-SamplerComparisonState  shadowSampler   : register(s1);
+SamplerState            sampState       : register(s1); // Imgui uses slot 0, use 1 for default
+SamplerComparisonState  shadowSampler   : register(s2);
 
 // Functions
 float3 computeNormal(PS_IN input)
 {
     float3 normalTex = normalize(NormalTexture.Sample(sampState, input.texCoord).xyz * 2 - 1);
+    //normalTex.z *= -1;
+    //normalTex.y *= -1;
     
     float3 normal = input.normal;
     float3 tangent = normalize(input.tangent - dot(input.tangent, normal) * normal);
@@ -99,36 +102,43 @@ PS_OUT main(PS_IN input)
     // Ambient Occlusion
     float ambientOcclusion = 1.0;
     // Emissive
-    float3 emissive = albedo * matEmissiveStrength;
+    float3 emissive;
     
     // Normal Map Calculation
     [flatten]
     if (materialTextured)
     {
-        albedo *= AlbedoTexture.Sample(sampState, input.texCoord).rgb;
+        float4 albedoTex = AlbedoTexture.Sample(sampState, input.texCoord);
+        clip(albedoTex.a < 0.1f ? -1 : 1);
+        albedo *= albedoTex.rgb;
         normal = computeNormal(input);
-        roughness = RoughnessTexture.Sample(sampState, input.texCoord).r;
+        roughness = RoughnessTexture.Sample(sampState, input.texCoord).g;
         metallic = MetallicTexture.Sample(sampState, input.texCoord).r;
         ambientOcclusion = AmbientOcclusionTexture.Sample(sampState, input.texCoord).r;
-        emissive = EmissiveTexture.Sample(sampState, input.texCoord).rgb * matEmissiveStrength;
     }
     
-    // Shadow Mask
-    float shadowFactor = computeShadowFactor(input);
+    [flatten]
+    if (emissiveTextured)
+        emissive = EmissiveTexture.Sample(sampState, input.texCoord).rgb * matEmissiveStrength;
+    else
+        emissive = albedo * matEmissiveStrength;
     
-    PS_OUT output;
+    // Shadow Mask
+        float shadowFactor = computeShadowFactor(input);
+    
+        PS_OUT output;
     
     // Albedo, Metallic
-    output.albedoMetallicRT = float4(albedo, metallic);
+        output.albedoMetallicRT = float4(albedo, metallic);
     
     // Normal, Roughness
-    output.normalRoughnessRT = float4(normal, roughness);
+        output.normalRoughnessRT = float4(normal, roughness);
     
     // Emissive, Ambient Occlusion
-    output.emissiveShadowMaskRT = float4(emissive, shadowFactor);
+        output.emissiveShadowMaskRT = float4(emissive, shadowFactor);
     
     // Shadow Mask
-    output.ambientOcclusionRT = float4(ambientOcclusion, ambientOcclusion, ambientOcclusion, 1.f);
+        output.ambientOcclusionRT = float4(ambientOcclusion, ambientOcclusion, ambientOcclusion, 1.f);
     
-    return output;
-}
+        return output;
+    }

@@ -15,7 +15,7 @@ struct PixelShaderOuput
 
 TextureCube skyboxTexture : register(t0);
 TextureCube irradianceTexture : register(t1);
-SamplerState sampState : SAMPLER : register(s0);
+SamplerState sampState : SAMPLER : register(s1); // Imgui uses slot 0, use 1 for default
 
 PixelShaderOuput main(PixelShaderInput input)
 {

@@ -68,88 +68,94 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			}
 			if (vsBlob)
 				vsBlob->Release();
+			OutputDebugStringA("Error, Vertex shaders could not be compiled!");
+			//assert(SUCCEEDED(hr) && "Error, Vertex shaders could not be created!");
+		}
+		else
+		{
+			if (m_vertexShader.Get())
+				m_vertexShader.ReleaseAndGetAddressOf();
+
+			hr = m_device->CreateVertexShader(
+				vsBlob->GetBufferPointer(),
+				vsBlob->GetBufferSize(),
+				nullptr,
+				&m_vertexShader
+			);
+
 			assert(SUCCEEDED(hr) && "Error, Vertex shaders could not be created!");
-		}
 
-		hr = m_device->CreateVertexShader(
-			vsBlob->GetBufferPointer(),
-			vsBlob->GetBufferSize(),
-			nullptr,
-			&m_vertexShader
-		);
-
-		assert(SUCCEEDED(hr) && "Error, Vertex shaders could not be created!");
-
-		// Vertex Layout
-		if (layoutType == LayoutType::POS_NOR_TEX) {
-			hr = device->CreateInputLayout(
-				VertexPosNormTexDesc,
-				VertexPosNormTexElementCount,
-				vsBlob->GetBufferPointer(),
-				vsBlob->GetBufferSize(),
-				&m_layout
-			);
+			// Vertex Layout
+			if (layoutType == LayoutType::POS_NOR_TEX) {
+				hr = device->CreateInputLayout(
+					VertexPosNormTexDesc,
+					VertexPosNormTexElementCount,
+					vsBlob->GetBufferPointer(),
+					vsBlob->GetBufferSize(),
+					&m_layout
+				);
+			}
+			else if (layoutType == LayoutType::POS_TEX_FINDEX) {
+				hr = device->CreateInputLayout(
+					VertexPosTexFrustumIndexDesc,
+					VertexPosTexFrustumIndexElementCount,
+					vsBlob->GetBufferPointer(),
+					vsBlob->GetBufferSize(),
+					&m_layout
+				);
+			}
+			else if (layoutType == LayoutType::POS_TEX)
+			{
+				hr = device->CreateInputLayout(
+					VertexPosTexDesc,
+					VertexPosTexElementCount,
+					vsBlob->GetBufferPointer(),
+					vsBlob->GetBufferSize(),
+					&m_layout
+				);
+			}
+			else if (layoutType == LayoutType::POS_COL)
+			{
+				hr = device->CreateInputLayout(
+					VertexPosColDesc,
+					VertexPosColElementCount,
+					vsBlob->GetBufferPointer(),
+					vsBlob->GetBufferSize(),
+					&m_layout
+				);
+			}
+			else if (layoutType == LayoutType::POS)
+			{
+				hr = device->CreateInputLayout(
+					VertexPosDesc,
+					VertexPosElementCount,
+					vsBlob->GetBufferPointer(),
+					vsBlob->GetBufferSize(),
+					&m_layout
+				);
+			}
+			else if (layoutType == LayoutType::POS_NOR_TEX_TAN)
+			{
+				hr = device->CreateInputLayout(
+					VertexPosNormTexTanDesc,
+					VertexPosNormTexTanElementCount,
+					vsBlob->GetBufferPointer(),
+					vsBlob->GetBufferSize(),
+					&m_layout
+				);
+			}
+			else if (layoutType == LayoutType::PARTICLE)
+			{
+				hr = device->CreateInputLayout(
+					VertexParticleDesc,
+					VertexParticleElementCount,
+					vsBlob->GetBufferPointer(),
+					vsBlob->GetBufferSize(),
+					&m_layout
+				);
+			}
+			assert(SUCCEEDED(hr) && "Error, Input layout could not be created!");
 		}
-		else if (layoutType == LayoutType::POS_TEX_FINDEX) {
-			hr = device->CreateInputLayout(
-				VertexPosTexFrustumIndexDesc,
-				VertexPosTexFrustumIndexElementCount,
-				vsBlob->GetBufferPointer(),
-				vsBlob->GetBufferSize(),
-				&m_layout
-			);
-		}
-		else if (layoutType == LayoutType::POS_TEX)
-		{
-			hr = device->CreateInputLayout(
-				VertexPosTexDesc,
-				VertexPosTexElementCount,
-				vsBlob->GetBufferPointer(),
-				vsBlob->GetBufferSize(),
-				&m_layout
-			);
-		}
-		else if (layoutType == LayoutType::POS_COL)
-		{
-			hr = device->CreateInputLayout(
-				VertexPosColDesc,
-				VertexPosColElementCount,
-				vsBlob->GetBufferPointer(),
-				vsBlob->GetBufferSize(),
-				&m_layout
-			);
-		}
-		else if (layoutType == LayoutType::POS)
-		{
-			hr = device->CreateInputLayout(
-				VertexPosDesc,
-				VertexPosElementCount,
-				vsBlob->GetBufferPointer(),
-				vsBlob->GetBufferSize(),
-				&m_layout
-			);
-		}
-		else if (layoutType == LayoutType::POS_NOR_TEX_TAN)
-		{
-			hr = device->CreateInputLayout(
-				VertexPosNormTexTanDesc,
-				VertexPosNormTexTanElementCount,
-				vsBlob->GetBufferPointer(),
-				vsBlob->GetBufferSize(),
-				&m_layout
-			);
-		}
-		else if (layoutType == LayoutType::PARTICLE)
-		{
-			hr = device->CreateInputLayout(
-				VertexParticleDesc,
-				VertexParticleElementCount,
-				vsBlob->GetBufferPointer(),
-				vsBlob->GetBufferSize(),
-				&m_layout
-			);
-		}
-		assert(SUCCEEDED(hr) && "Error, Input layout could not be created!");
 	}
 
 
@@ -183,17 +189,23 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			}
 			if (hsBlob)
 				hsBlob->Release();
-			assert(SUCCEEDED(hr));
+			OutputDebugStringA("Error, Hull shaders could not be compiled!");
+			//assert(SUCCEEDED(hr) && "Error, Hull shaders could not be created!");
 		}
+		else
+		{
+			if (m_hullShader.Get())
+				m_hullShader.ReleaseAndGetAddressOf();
 
-		hr = m_device->CreateHullShader(
-			hsBlob->GetBufferPointer(),
-			hsBlob->GetBufferSize(),
-			nullptr,
-			&m_hullShader
-		);
-		assert(SUCCEEDED(hr) && "Error, Hull shaders could not be created!");
-		hsBlob->Release();
+			hr = m_device->CreateHullShader(
+				hsBlob->GetBufferPointer(),
+				hsBlob->GetBufferSize(),
+				nullptr,
+				&m_hullShader
+			);
+			assert(SUCCEEDED(hr) && "Error, Hull shaders could not be created!");
+			hsBlob->Release();
+		}
 	}
 
 
@@ -227,17 +239,23 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			}
 			if (dsBlob)
 				dsBlob->Release();
-			assert(SUCCEEDED(hr));
+			OutputDebugStringA("Error, Domain shaders could not be compiled!");
+			//assert(SUCCEEDED(hr) && "Error, Domain shaders could not be created!");
 		}
+		else
+		{
+			if (m_domainShader.Get())
+				m_domainShader.ReleaseAndGetAddressOf();
 
-		hr = m_device->CreateDomainShader(
-			dsBlob->GetBufferPointer(),
-			dsBlob->GetBufferSize(),
-			nullptr,
-			&m_domainShader
-		);
-		assert(SUCCEEDED(hr) && "Error, Domain shaders could not be created!");
-		dsBlob->Release();
+			hr = m_device->CreateDomainShader(
+				dsBlob->GetBufferPointer(),
+				dsBlob->GetBufferSize(),
+				nullptr,
+				&m_domainShader
+			);
+			assert(SUCCEEDED(hr) && "Error, Domain shaders could not be created!");
+			dsBlob->Release();
+		}
 	}
 
 
@@ -271,33 +289,39 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			}
 			if (gsBlob)
 				gsBlob->Release();
-			assert(SUCCEEDED(hr));
-		}
-
-		/*if (streamOutput)
-		{
-			m_device->CreateGeometryShaderWithStreamOutput(
-				gsBlob->GetBufferPointer(),
-				gsBlob->GetBufferSize(),
-				VertexParticleSoDecl,
-				VertexParticleElementCount,
-				NULL,
-				0,
-				0,
-				nullptr,
-				&m_geometryShader);
+			OutputDebugStringA("Error, Geometry shaders could not be compiled!");
+			//assert(SUCCEEDED(hr) && "Error, Geometry shaders could not be created!");
 		}
 		else
-		{*/
-			hr = m_device->CreateGeometryShader(
-				gsBlob->GetBufferPointer(),
-				gsBlob->GetBufferSize(),
-				nullptr,
-				&m_geometryShader);
-		//}
+		{
+			if (m_geometryShader.Get())
+				m_geometryShader.ReleaseAndGetAddressOf();
 
-		assert(SUCCEEDED(hr) && "Error, Geometry shaders could not be created!");
-		gsBlob->Release();
+			/*if (streamOutput)
+			{
+				m_device->CreateGeometryShaderWithStreamOutput(
+					gsBlob->GetBufferPointer(),
+					gsBlob->GetBufferSize(),
+					VertexParticleSoDecl,
+					VertexParticleElementCount,
+					NULL,
+					0,
+					0,
+					nullptr,
+					&m_geometryShader);
+			}
+			else
+			{*/
+				hr = m_device->CreateGeometryShader(
+					gsBlob->GetBufferPointer(),
+					gsBlob->GetBufferSize(),
+					nullptr,
+					&m_geometryShader);
+			//}
+
+			assert(SUCCEEDED(hr) && "Error, Geometry shaders could not be created!");
+			gsBlob->Release();
+		}
 	}
 
 
@@ -331,17 +355,23 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			}
 			if (psBlob)
 				psBlob->Release();
-			assert(false);
+			OutputDebugStringA("Error, Pixel shaders could not be compiled!");
+			//assert(SUCCEEDED(hr) && "Error, Pixel shaders could not be created!");
 		}
+		else
+		{
+			if (m_pixelShader.Get())
+				m_pixelShader.ReleaseAndGetAddressOf();
 
-		hr = m_device->CreatePixelShader(
-			psBlob->GetBufferPointer(),
-			psBlob->GetBufferSize(),
-			nullptr,
-			&m_pixelShader
-		);
-		assert(SUCCEEDED(hr) && "Error, Pixel shaders could not be created!");
-		psBlob->Release();
+			hr = m_device->CreatePixelShader(
+				psBlob->GetBufferPointer(),
+				psBlob->GetBufferSize(),
+				nullptr,
+				&m_pixelShader
+			);
+			assert(SUCCEEDED(hr) && "Error, Pixel shaders could not be created!");
+			psBlob->Release();
+		}
 	}
 
 
@@ -375,40 +405,28 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			}
 			if (csBlob)
 				csBlob->Release();
-			assert(SUCCEEDED(hr));
+			OutputDebugStringA("Error, Compute shaders could not be compiled!");
+			//assert(SUCCEEDED(hr) && "Error, Compute shaders could not be created!");
 		}
+		else
+		{
+			if (m_computeShader.Get())
+				m_computeShader.ReleaseAndGetAddressOf();
 
-		hr = m_device->CreateComputeShader(
-			csBlob->GetBufferPointer(),
-			csBlob->GetBufferSize(),
-			nullptr,
-			&m_computeShader
-		);
-		assert(SUCCEEDED(hr) && "Error, Compute shaders could not be created!");
-		csBlob->Release();
+			hr = m_device->CreateComputeShader(
+				csBlob->GetBufferPointer(),
+				csBlob->GetBufferSize(),
+				nullptr,
+				&m_computeShader
+			);
+			assert(SUCCEEDED(hr) && "Error, Compute shaders could not be created!");
+			csBlob->Release();
+		}
 	}
 }
 
 void Shaders::updateShaders()
 {
-	if (m_vertexShader.Get())
-		m_vertexShader.ReleaseAndGetAddressOf();
-
-	if (m_hullShader.Get())
-		m_hullShader.ReleaseAndGetAddressOf();
-
-	if (m_domainShader.Get())
-		m_domainShader.ReleaseAndGetAddressOf();
-	
-	if (m_geometryShader.Get())
-		m_geometryShader.ReleaseAndGetAddressOf();
-
-	if (m_pixelShader.Get())
-		m_pixelShader.ReleaseAndGetAddressOf();
-
-	if (m_computeShader.Get())
-		m_computeShader.ReleaseAndGetAddressOf();
-
 	initialize(m_device, m_deviceContext, m_files, m_layoutType);
 }
 

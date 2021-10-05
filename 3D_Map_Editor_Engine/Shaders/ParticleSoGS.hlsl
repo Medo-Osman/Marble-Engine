@@ -24,7 +24,7 @@ cbuffer cbPerFrame
 };
 
 Texture1D randomTexture     : TEXTURE : register(t0);
-SamplerState sampState      : SAMPLER : register(s0);
+SamplerState sampState      : SAMPLER : register(s1); // Imgui uses slot 0, use 1 for default
 
 float3 RandUnitVec3(float offset)
 {

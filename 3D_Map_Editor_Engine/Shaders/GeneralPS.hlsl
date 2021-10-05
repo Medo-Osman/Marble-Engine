@@ -74,8 +74,8 @@ Texture2D normalTexture     : TEXTURE : register(t2);
 Texture2D shadowMap         : TEXTURE : register(t3);
 
 // Samplers
-SamplerState sampState                  : SAMPLER : register(s0);
-SamplerComparisonState shadowSampler    : SAMPLER : register(s1);
+SamplerState            sampState           : SAMPLER : register(s1); // Imgui uses slot 0, use 1 for default
+SamplerComparisonState  shadowSampler       : SAMPLER : register(s2);
 
 // Light Calculation Components
 float4 doSpecular(float3 color, float3 posToCameraVector, float3 direction, float3 normal)

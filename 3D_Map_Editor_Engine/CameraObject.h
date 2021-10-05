@@ -23,7 +23,7 @@ public:
 	CameraObject();
 
 	// Initialize
-	void initialize(float mouseSensitivity, XMVECTOR startPosition = XMVectorSet(0.f, 5.f, -5.f, 1.f));
+	void initialize(float mouseSensitivity, XMVECTOR startPosition = XMVectorSet(0.f, 5.f, -1.f, 1.f));
 
 	// Getters
 	XMFLOAT3 getPositionF3() const;

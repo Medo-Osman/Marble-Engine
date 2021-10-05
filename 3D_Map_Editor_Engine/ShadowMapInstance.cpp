@@ -137,8 +137,9 @@ void ShadowMapInstance::initialize(ID3D11Device* device, ID3D11DeviceContext* de
 
 	// World Bounding Sphere
 	m_worldBoundingSphere.Center = { 0.f, 0.f, 0.f };
-	m_worldBoundingSphere.Radius = 100.f;
-	m_zOffset = -m_worldBoundingSphere.Radius;
+	m_worldBoundingSphere.Radius = 70.f;
+	//m_zOffset = -m_worldBoundingSphere.Radius;
+	m_zOffset = 0;
 
 	// Constant Buffers
 	m_lightMatrixCBuffer.initialize(device, deviceContext, nullptr, BufferType::CONSTANT);
@@ -155,15 +156,18 @@ void ShadowMapInstance::buildLightMatrix(Light directionalLight, XMFLOAT3 center
 
 	// Light View Matrix
 	XMVECTOR lightDirection = XMLoadFloat4(&directionalLight.direction);
-	XMVECTOR lightPosition = (-2.f * m_worldBoundingSphere.Radius * lightDirection) + XMLoadFloat3(&m_worldBoundingSphere.Center);
-	XMVECTOR lookAt = XMLoadFloat3(&m_worldBoundingSphere.Center);
-	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+	XMVECTOR position = XMLoadFloat3(&m_worldBoundingSphere.Center);
+	position = XMVectorSetW(position, 1.f);
+	XMVECTOR lightPosition = (-2.f * m_worldBoundingSphere.Radius * lightDirection) + position;
+	
+	XMVECTOR lookAt = position;
+	XMVECTOR up = DirectX::XMVectorSet(0.f, 1.f, 0.f, 0.f);
 
 	lightMatrices->lightViewMatrix = XMMatrixTranspose(XMMatrixLookAtLH(lightPosition, lookAt, up));
 
 	// Transform World Bounding Sphere to Light Local View Space
 	XMFLOAT3 worldSphereCenterLightSpace;
-	XMStoreFloat3(&worldSphereCenterLightSpace, XMVector3TransformCoord(lookAt, lightMatrices->lightViewMatrix));
+	XMStoreFloat3(&worldSphereCenterLightSpace, DirectX::XMVector3TransformCoord(lookAt, lightMatrices->lightViewMatrix));
 
 	// Construct Orthographic Frustum in Light View Space
 	float l = worldSphereCenterLightSpace.x - m_worldBoundingSphere.Radius;
@@ -213,6 +217,7 @@ void ShadowMapInstance::buildLightMatrix(XMFLOAT3 centerPosition)
 	// Light View Matrix
 	XMVECTOR lightDirection = XMLoadFloat4(&m_directionalLight.direction);
 	XMVECTOR lightPosition = (-2.0f * m_worldBoundingSphere.Radius * lightDirection) + XMLoadFloat3(&m_worldBoundingSphere.Center);
+	
 	XMVECTOR lookAt = XMLoadFloat3(&m_worldBoundingSphere.Center);
 	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
 
@@ -270,7 +275,7 @@ void ShadowMapInstance::bindViewsAndRenderTarget()
 
 	m_deviceContext->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 	m_deviceContext->VSSetConstantBuffers(1, 1, m_lightMatrixCBuffer.GetAddressOf());
-	m_deviceContext->PSSetSamplers(1, 1, m_comparisonSampler.GetAddressOf());
+	m_deviceContext->PSSetSamplers(2, 1, m_comparisonSampler.GetAddressOf());
 
 	m_shadowMapShaders.setShaders();
 }

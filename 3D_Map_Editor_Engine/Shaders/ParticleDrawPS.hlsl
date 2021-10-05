@@ -10,7 +10,7 @@ struct PS_IN
 Texture2DArray textureArray : TEXTURE : register(t0);
 
 // Samplers
-SamplerState sampState      : SAMPLER : register(s0);
+SamplerState sampState : SAMPLER : register(s1); // Imgui uses slot 0, use 1 for default
 
 // PS Main
 float4 main(PS_IN input) : SV_TARGET

@@ -61,8 +61,8 @@ Texture2D DepthTexture : register(t0);
 Texture2D NormalRoughnessTexture : register(t1);
 Texture2D<float3> DitherTexture : register(t2); // dither texture contains: x = cos(angle), y = -sin(angle), z = jitter
 
-SamplerState depthNormalSampler: register(s2);
-SamplerState randomSampler : register(s3);
+SamplerState depthNormalSampler: register(s3);
+SamplerState randomSampler : register(s4);
 
 
 

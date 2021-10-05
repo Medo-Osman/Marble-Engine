@@ -27,6 +27,8 @@ private:
 
 	float m_gameObjectSectionHeight = 500.f;
 	float m_lightSectionHeight = 195.f;
+	float m_sectionSeperatorHeight = 25.f;
+	float m_splitterButtonPadding = 10.f;
 	ID3D11Resource* m_defaultModelThumbnail;
 	std::vector<std::pair<std::string, bool>> m_modelNames; // string = Name, bool = is Directory
 	std::vector<bool> m_modelNameHoveringState;

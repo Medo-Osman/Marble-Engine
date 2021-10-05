@@ -28,7 +28,8 @@ struct Light
 {
     XMFLOAT4	position;
     XMFLOAT4    direction;
-    XMFLOAT4    color;
+    XMFLOAT3    color;
+    float       intensity = 1.f;
     float       spotAngle;
     XMFLOAT3    attenuation;
     float       range;
@@ -43,7 +44,9 @@ struct PS_LIGHT_BUFFER
 {
     Light lights[LIGHT_CAP];
     UINT nrOfLights;
-    XMFLOAT3 pad;
+    float enviormentDiffContribution = 0.5f;
+    float enviormentSpecContribution = 0.f;
+    float pad;
 };
 
 struct PS_COLOR_ANIMATION_BUFFER
@@ -71,4 +74,43 @@ struct CS_BLUR_CBUFFER
     BOOL direction;
     XMFLOAT2 pad;
     alignas(16) float weights[MAX_BLUR_RADIUS]; // BLUR_RADIUS + 1 * 4 bytes
+};
+
+struct CS_DOWNSAMPLE_CBUFFER
+{
+    XMFLOAT4 threshold; // x = threshold, y = threshold - knee, z = knee * 2, w = 0.25 / knee
+    XMFLOAT2 mipDimensions;
+    float mipLevel;
+    float pad;
+};
+
+struct CS_UPSAMPLE_CBUFFER
+{
+    XMFLOAT2 mipDimensions;
+    float mipLevel;
+    float pad;
+};
+
+struct PS_TONEMAP_CBUFFER
+{
+    // Should be expressed as a relative expsure value (-2, -1, 0, +1, +2 )
+    float Exposure = 0.0f;
+
+    // Gamma, 2.2 by default
+    float Gamma = 2.2f;
+
+    // ACES Filmic
+    // See: https://www.slideshare.net/ozlael/hable-john-uncharted2-hdr-lighting/142
+    float ACESss = 0.5f; // Shoulder strength
+    float ACESls = 0.1f; // Linear strength
+    float ACESla = 0.01f; // Linear angle
+    float ACESts = 0.55f; // Toe strength
+    float ACEStn = 0.02f; // Toe Numerator
+    float ACEStd = 0.3f; // Toe denominator
+
+    // Note ACEStn/ACEStd = Toe angle.
+    float LinearWhite = 12.0f;
+
+    // Padding
+    XMFLOAT3 pad;
 };

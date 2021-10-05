@@ -13,7 +13,6 @@ cbuffer blurBuffer : register(b0)
     float2 pad;
     float4 weights[MAX_BLUR_RADIUS / 4]; // Saved as float4 because float packing behaviour
 }
-//static float4 weights[2] = { float4(0.227027, 0.1945946, 0.1216216, 0.054054), float4(0.016216, 0, 0, 0) };
 
 float ndcDepthToViewDepth(float depth)
 {

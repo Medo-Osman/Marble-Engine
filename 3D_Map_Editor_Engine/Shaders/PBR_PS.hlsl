@@ -76,8 +76,8 @@ TextureCube SpecularIBLMap : register(t8);
 
 
 // Samplers
-SamplerState            sampState       : SAMPLER : register(s0);
-SamplerComparisonState  shadowSampler   : SAMPLER : register(s1);
+SamplerState            sampState       : SAMPLER : register(s1); // Imgui uses slot 0, use 1 for default
+SamplerComparisonState  shadowSampler   : SAMPLER : register(s2);
 
 // Const Variables
 static const float PI = 3.14159265359;

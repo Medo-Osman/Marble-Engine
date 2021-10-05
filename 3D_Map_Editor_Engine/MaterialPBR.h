@@ -23,7 +23,7 @@ struct PS_MATERIAL_PBR_BUFFER
 	float roughness = 0.f;
 	float emissiveStrength = 0.f;
 	BOOL materialTextured = true;
-	int pad = 0;
+	BOOL emissiveTextured = false;
 };
 
 /*
@@ -82,8 +82,8 @@ private:
 		}
 		else
 		{
-			m_albedoTexture = ResourceHandler::getInstance().getTexture(L"DefaultWhite.bmp");
-			m_albedoTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, L"DefaultWhite.bmp");
+			m_albedoTexture = ResourceHandler::getInstance().getTexture(L"DefaultWhite.jpg");
+			m_albedoTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, L"DefaultWhite.jpg");
 		}
 
 		if (texturePaths.normalPath != L"")
@@ -126,11 +126,11 @@ private:
 		{
 			m_emissiveTexture = ResourceHandler::getInstance().getTexture(texturePaths.emissivePath.c_str());
 			m_emissiveTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, texturePaths.emissivePath.c_str());
-			m_materialData.materialTextured = true;
+			m_materialData.emissiveTextured = true;
 		}
 		else
 		{
-			m_emissiveTexture = ResourceHandler::getInstance().getTexture(L"DefaultBlack.bmp");
+			m_emissiveTexture = ResourceHandler::getInstance().getTexture(L"DefaultWhite.jpg");
 			m_emissiveTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, L"DefaultBlack.bmp");
 		}
 
@@ -142,8 +142,8 @@ private:
 		}
 		else
 		{
-			m_ambientOcclusionTexture = ResourceHandler::getInstance().getTexture(L"DefaultWhite.bmp");
-			m_ambientOcclusionTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, L"DefaultWhite.bmp");
+			m_ambientOcclusionTexture = ResourceHandler::getInstance().getTexture(L"DefaultWhite.jpg");
+			m_ambientOcclusionTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, L"DefaultWhite.jpg");
 		}
 
 		if (texturePaths.displacementPath != L"")
@@ -328,7 +328,7 @@ public:
 					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
 					m_texTypeToLoad = PBRTexturesTypes::METALLIC;
 				}
-				if (ImGui::DragFloat("Value", &m_materialData.metallic, 0.01f))
+				if (ImGui::DragFloat("Value", &m_materialData.metallic, 0.01f, 0.f, 1.f))
 				{
 					PS_MATERIAL_PBR_BUFFER* materialData = new PS_MATERIAL_PBR_BUFFER(m_materialData);
 					m_materialCBuffer.update(&materialData);
@@ -359,7 +359,7 @@ public:
 					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
 					m_texTypeToLoad = PBRTexturesTypes::ROUGHNESS;
 				}
-				if (ImGui::DragFloat("Value", &m_materialData.roughness, 0.01f))
+				if (ImGui::DragFloat("Value", &m_materialData.roughness, 0.01f, 0.f, 1.f))
 				{
 					PS_MATERIAL_PBR_BUFFER* materialData = new PS_MATERIAL_PBR_BUFFER(m_materialData);
 					m_materialCBuffer.update(&materialData);
@@ -384,13 +384,15 @@ public:
 				}
 				ImGui::SameLine(imageOffset);
 				ImGui::BeginGroup();
+				UIUseTextureCheckbox(m_materialData.emissiveTextured);
+				ImGui::SameLine(30);
 				if (ImGui::Button((const char*)nameCStr))
 				{
 					m_fileDialog.Open();
 					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
 					m_texTypeToLoad = PBRTexturesTypes::EMISSIVE;
 				}
-				if (ImGui::DragFloat("Strength", &m_materialData.emissiveStrength, 0.1f))
+				if (ImGui::DragFloat("Strength", &m_materialData.emissiveStrength, 0.1f, 0.f))
 				{
 					PS_MATERIAL_PBR_BUFFER* materialData = new PS_MATERIAL_PBR_BUFFER(m_materialData);
 					m_materialCBuffer.update(&materialData);

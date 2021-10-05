@@ -35,7 +35,7 @@ public:
         m_projectionMatrix = nullptr;
         m_lightData.nrOfLights = 0;
     }
-	~LightManager() {}
+    ~LightManager() {}
 
     // Initialize
     void initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, XMMATRIX* viewMatrix, XMMATRIX* projectionMatrix)
@@ -65,16 +65,18 @@ public:
         if (newLight.type == POINT_LIGHT || newLight.type == SPOT_LIGHT)
         {
             // Add Render Object
-            m_renderObjects.push_back(std::make_pair( m_lightData.nrOfLights - 1, new RenderObject() ));
+            m_renderObjects.push_back(std::make_pair(m_lightData.nrOfLights - 1, new RenderObject()));
             m_renderObjects.back().second->initialize(m_device, m_deviceContext, (int)m_renderObjects.size(), "sphere.obj");
             TexturePaths textures;
             textures.diffusePath = L"circle_pattern.png";
             m_renderObjects.back().second->setTextures(textures);
             PS_MATERIAL_BUFFER material;
-            material.ambient = newLight.color;
-            material.diffuse = newLight.color;
-            material.specular = newLight.color;
-            material.emissive = newLight.color;
+            XMFLOAT4 col = XMFLOAT4(newLight.color.x, newLight.color.y, newLight.color.z, 1.f);
+            material.ambient = col;
+            material.diffuse = col;
+            material.specular = col;
+            col = XMFLOAT4(col.x * 2, col.y * 2, col.z * 2, 1.f);
+            material.emissive = col;
             m_renderObjects.back().second->setMaterial(material);
         }
 
@@ -86,7 +88,7 @@ public:
         std::vector<Light> lights;
         for (size_t i = 0; i < m_lightData.nrOfLights; i++)
             lights.push_back(m_lightData.lights[i]);
-        
+
         m_lightData.nrOfLights--;
         lights.erase(lights.begin() + id);
         if (m_lightData.lights[id].type == POINT_LIGHT || m_lightData.lights[id].type == SPOT_LIGHT)
@@ -106,7 +108,7 @@ public:
         {
             m_lightData.lights[i] = lights[i];
         }
-        
+
         update();
     }
 
@@ -123,6 +125,21 @@ public:
     void disableLight(UINT index)
     {
         m_lightData.lights[index].enabled = false;
+    }
+
+    void enviormentDiffContributionUI()
+    {
+        ImGui::PushItemWidth(-90.f);
+        if (ImGui::SliderFloat("Contribution##Diff", &m_lightData.enviormentDiffContribution, 0.f, 1.f))
+            update();
+        ImGui::PopItemWidth();
+    }
+    void enviormentSpecContributionUI()
+    {
+        ImGui::PushItemWidth(-90.f);
+        if (ImGui::SliderFloat("Contribution##Spec", &m_lightData.enviormentSpecContribution, 0.f, 1.f))
+            update();
+        ImGui::PopItemWidth();
     }
 
     void update()
@@ -155,11 +172,11 @@ public:
                 textures.diffusePath = L"circle_pattern.png";
                 m_renderObjects.back().second->setTextures(textures);
                 PS_MATERIAL_BUFFER material;
-                XMFLOAT4 ligthColor = m_lightData.lights[i].color;
-                material.ambient = ligthColor;
-                material.diffuse = ligthColor;
-                material.specular = ligthColor;
-                material.emissive = ligthColor;
+                XMFLOAT4 col = XMFLOAT4(m_lightData.lights[i].color.x, m_lightData.lights[i].color.y, m_lightData.lights[i].color.z, 1.f);
+                material.ambient = col;
+                material.diffuse = col;
+                material.specular = col;
+                material.emissive = col;
                 m_renderObjects.back().second->setMaterial(material);
 
                 XMMATRIX worldMatrix = XMMatrixScalingFromVector(XMVectorSet(.01f, .01f, .01f, 0.f));

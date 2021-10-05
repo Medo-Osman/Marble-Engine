@@ -31,7 +31,7 @@ void GameState::loadModelList(std::string path)
 				if (i != std::string::npos) 
 				{
 					fileExtension = name.substr(i + 1, name.length() - i);
-					if (fileExtension == "obj" || fileExtension == "FBX" || fileExtension == "fbx" || fileExtension == "glb")
+					if (fileExtension == "obj" || fileExtension == "FBX" || fileExtension == "fbx" || fileExtension == "glb" || fileExtension == "gltf")
 					{
 						modelNames.push_back(name);
 					}
@@ -64,9 +64,9 @@ void GameState::setImGuiStyles()
 	style.WindowRounding = 2.0f;
 	style.FramePadding = ImVec2(5, 5);
 	style.FrameRounding = 2.0f;
-	style.ItemSpacing = ImVec2(0, 5);
-	/*style.ItemInnerSpacing = ImVec2(8, 6);
-	style.IndentSpacing = 25.0f;
+	style.ItemSpacing = ImVec2(5, 5);
+	style.ItemInnerSpacing = ImVec2(5, 5);
+	/*style.IndentSpacing = 25.0f;
 	style.ScrollbarSize = 15.0f;
 	style.ScrollbarRounding = 9.0f;
 	style.GrabMinSize = 5.0f;
@@ -118,15 +118,14 @@ void GameState::setImGuiStyles()
 	//style.Colors[ImGuiCol_ModalWindowDarkening] = ImVec4(1.00f, 0.98f, 0.95f, 0.73f);
 }
 
-void DrawSplitter(int split_vertically, float thickness, float* size0, float* size1, float min_size0, float min_size1, float size = -1.f)
+void DrawSplitter(bool split_vertically, float thickness, float* size0, float* size1, float min_size0, float min_size1, float size = -1.f, float buttonPadding = 0.f)
 {
 	ImVec2 backup_pos = ImGui::GetCursorPos();
 	if (split_vertically)
-		ImGui::SetCursorPosY(backup_pos.y + *size0);
+		ImGui::SetCursorPosY(backup_pos.y + *size0 + buttonPadding);
 	else
-		ImGui::SetCursorPosX(backup_pos.x + *size0);
-
-	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+		ImGui::SetCursorPosX(backup_pos.x + *size0 + buttonPadding);
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.16f, 0.29f, 0.478f, 0.8f));
 	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0)); // We don't draw while active/pressed because as we move the panes the splitter button will be 1 frame late
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.6f, 0.6f, 0.8f, 0.60f));
 	ImGui::Button("##Splitter", ImVec2(!split_vertically ? thickness : size, split_vertically ? thickness : size));
@@ -180,6 +179,11 @@ void GameState::initialize(Settings settings)
 	// - Styles
 	setImGuiStyles();
 
+	// - Game objects and Lighting window
+	float windowContentHeight = m_renderHandler->getClientHeight() - 70.f; // ImGui window header and border heights
+	m_gameObjectSectionHeight = windowContentHeight * 0.7f ;
+	m_lightSectionHeight = windowContentHeight - m_gameObjectSectionHeight - m_sectionSeperatorHeight - m_splitterButtonPadding;
+
 	// - Model List
 	loadModelList();
 
@@ -190,14 +194,14 @@ void GameState::initialize(Settings settings)
 	m_gameObjects.back()->setScale(XMVectorSet(1000.f, 1000.f, 1000.f, 1.f));
 	PS_MATERIAL_PBR_BUFFER groundMat;
 	groundMat.albedo = XMFLOAT3(1.f, 1.f, 1.f);
-	groundMat.metallic = 1.f;
-	groundMat.roughness = 0.01f;
+	groundMat.metallic = 0.5f;
+	groundMat.roughness = 1.f;
 	groundMat.materialTextured = false;
 	m_gameObjects.back()->setMaterial(groundMat);
 
 	// PBR Test
-	m_gameObjects.push_back(new GameObject());
-	m_gameObjects.back()->initialize("Cerberus_by_Andrew_Maximov\\Cerberus_LP.FBX", m_gameObjects.size(), ShaderStates::PBR);
+	/*m_gameObjects.push_back(new GameObject());
+	m_gameObjects.back()->initialize("Cerberus_by_Andrew_Maximov\\Cerberus_LP.FBX", (UINT)m_gameObjects.size(), ShaderStates::PBR);
 	m_gameObjects.back()->setScale(XMVectorSet(0.1f, 0.1f, 0.1f, 1.f));
 	m_gameObjects.back()->setRotation(XMVectorSet(XM_PIDIV2, 0.f, 0.f, 1.f));
 	m_gameObjects.back()->setPosition(XMVectorSet(-3.1f, 5.9f, 0.f, 1.f));
@@ -207,7 +211,7 @@ void GameState::initialize(Settings settings)
 	pbrTextures.metallicPath = L"Cerberus_M.tga";
 	pbrTextures.roughnessPath = L"Cerberus_R.tga";
 	pbrTextures.ambientOcclusionPath = L"Cerberus_AO.tga";
-	m_gameObjects.back()->setTextures(pbrTextures);
+	m_gameObjects.back()->setTextures(pbrTextures);*/
 
 	// Map Handler
 	m_mapHandler.initialize("map1.txt", (UINT)m_gameObjects.size(), true);
@@ -217,7 +221,7 @@ void GameState::initialize(Settings settings)
 
 	// Lights
 	Light light;
-	//// Point Light 0
+	// Point Light 0
 	//light.position = XMFLOAT4(-10.f, 5.f, 0.f, 1.f);
 	//light.color = XMFLOAT4(1.f, 0.f, 0.f, 0.f);
 	//light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
@@ -228,31 +232,32 @@ void GameState::initialize(Settings settings)
 	//m_lights.push_back(new Light(light));
 	//m_renderHandler->addLight(light);
 
-	//// Point Light 1
-	//light.position = XMFLOAT4(0.f, 10.f, -10.f, 1.f);
-	//light.color = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-	//light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
-	//light.range = 30.f;
-	//light.type = POINT_LIGHT;
-	//light.enabled = true;
-	//light.isCastingShadow = false;
-	//m_lights.push_back(new Light(light));
-	//m_renderHandler->addLight(light);
+	// Point Light 1
+	light.position = XMFLOAT4(0.f, 10.f, -10.f, 1.f);
+	light.color = XMFLOAT3(1.f, 1.f, 1.f);
+	light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
+	light.range = 30.f;
+	light.type = POINT_LIGHT;
+	light.enabled = true;
+	light.isCastingShadow = false;
+	m_lights.push_back(new Light(light));
+	m_renderHandler->addLight(light);
 
-	//// Point Light 2
-	//light.position = XMFLOAT4(0.f, 10.f, 10.f, 1.f);
-	//light.color = XMFLOAT4(0.f, 1.f, 0.f, 1.f);
-	//light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
-	//light.range = 40.f;
-	//light.type = POINT_LIGHT;
-	//light.enabled = true;
-	//light.isCastingShadow = false;
-	//m_lights.push_back(new Light(light));
-	//m_renderHandler->addLight(light);
+	// Point Light 2
+	/*light.position = XMFLOAT4(0.f, 10.f, 10.f, 1.f);
+	light.color = XMFLOAT4(0.f, 1.f, 0.f, 1.f);
+	light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
+	light.range = 40.f;
+	light.type = POINT_LIGHT;
+	light.enabled = true;
+	light.isCastingShadow = false;
+	m_lights.push_back(new Light(light));
+	m_renderHandler->addLight(light);*/
 
 	// Directional Light
-	light.direction = XMFLOAT4(-0.2f, -0.2f, -0.5f, 0.0f);
-	light.color = XMFLOAT4(1.f, .7f, .5f, 1.f);
+	light.direction = XMFLOAT4(0.05f, -0.4f, 0.f, 0.f);
+	light.color = XMFLOAT3(1.f, 0.7f, 0.5f);
+	light.intensity = 3.f;
 	light.type = DIRECTIONAL_LIGHT;
 	light.enabled = true;
 	light.isCastingShadow = true;
@@ -468,10 +473,10 @@ void GameState::controls(float dt)
 		if (InputHandler::getInstance().keyIsPressed(KeyCodes::D))
 			m_camera.addForce(Direction::RIGHT, dt);
 
-		if (InputHandler::getInstance().keyIsPressed(KeyCodes::Space))
+		if (InputHandler::getInstance().keyIsPressed(KeyCodes::E))
 			m_camera.addForce(Direction::UP, dt);
 
-		if (InputHandler::getInstance().keyIsPressed(KeyCodes::LeftShift))
+		if (InputHandler::getInstance().keyIsPressed(KeyCodes::Q))
 			m_camera.addForce(Direction::DOWN, dt);
 
 		if (InputHandler::getInstance().keyIsPressed(KeyCodes::R)) // Update PBR Shaders
@@ -530,6 +535,7 @@ void GameState::update(float dt)
 	{
 		ImGui::Checkbox(" Wireframe Mode", RenderHandler::getInstance()->getWireframeModePtr());
 		RenderHandler::getInstance()->UIssaoSettings();
+		RenderHandler::getInstance()->UIbloomSettings();
 		ImGui::PushItemWidth(-1);
 		ImGui::PopItemWidth();
 		ImGui::Checkbox(" Window Resize", &m_windowResizeFlag);
@@ -630,10 +636,15 @@ void GameState::update(float dt)
 
 	// GameObject Menu
 	ImGui::Begin("Objects", NULL, windowFlags);
+
+	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.16f, 0.29f, 0.478f, 0.8f));
+	ImGui::BeginChildFrame(994999, ImVec2(ImGui::GetWindowSize().x, 25.f));
 	ImGui::Text("Game Objects");
+	ImGui::EndChildFrame();
+	ImGui::PopStyleColor();
 
 	ImGui::PushStyleColor(ImGuiCol_Border, imguiStyle.Colors[ImGuiCol_ChildBg]);
-	DrawSplitter(10, 20.f, &m_gameObjectSectionHeight, &m_lightSectionHeight, 100.f, 100.f);
+	DrawSplitter(true, m_sectionSeperatorHeight, &m_gameObjectSectionHeight, &m_lightSectionHeight, 100.f, 100.f, -1.f, m_splitterButtonPadding);
 	ImGui::BeginChild("Game Objects", ImVec2(ImGui::GetWindowSize().x, m_gameObjectSectionHeight), true, ImGuiWindowFlags_HorizontalScrollbar);
 	for (size_t i = 0; i < m_gameObjects.size(); i++)
 	{
@@ -668,14 +679,23 @@ void GameState::update(float dt)
 	}
 	ImGui::EndChild();
 
-	// Light Menu
+	// Lighting Menu
+	// - Label
+	ImGui::Dummy(ImVec2(0.0f, m_splitterButtonPadding / 2.f));
+	ImGui::Indent(5.0f);
 	ImGui::Text("Lighting");
+	ImGui::Unindent(5.0f);
+	ImGui::Dummy(ImVec2(0.0f, m_splitterButtonPadding / 2.f));
 
+	// - Group
 	ImGui::BeginChild("Lights", ImVec2(ImGui::GetWindowSize().x, m_lightSectionHeight), true);
+
+	// - - Enviorment
 	RenderHandler::getInstance()->UIEnviormentPanel();
 	ImGui::Separator();
 	ImGui::NewLine();
 
+	// - - Light List
 	ImGui::Text("Lights");
 	for (size_t i = 0; i < m_lights.size(); i++)
 	{
@@ -696,12 +716,20 @@ void GameState::update(float dt)
 		else
 		{
 			ImGui::PopStyleVar();
-			if (ImGui::ColorEdit4("Color##2f", &m_lights[i]->color.x, ImGuiColorEditFlags_Float))
+			if (ImGui::ColorEdit3("Color##2f", &m_lights[i]->color.x, ImGuiColorEditFlags_Float))
+				m_renderHandler->updateLight(m_lights[i], (int)i);
+
+			if (ImGui::DragFloat("Intensity", &m_lights[i]->intensity, 0.01f, 0.f, 100.f))
 				m_renderHandler->updateLight(m_lights[i], (int)i);
 
 			if (m_lights[i]->type != DIRECTIONAL_LIGHT)
+			{
 				if (ImGui::DragFloat3("Position", &m_lights[i]->position.x, 0.1f))
 					m_renderHandler->updateLight(m_lights[i], (int)i);
+
+				if (ImGui::DragFloat("Range", &m_lights[i]->range, 0.01f, 0.f, 100.f))
+					m_renderHandler->updateLight(m_lights[i], (int)i);
+			}
 
 			if (m_lights[i]->type == DIRECTIONAL_LIGHT)
 			{
@@ -734,7 +762,8 @@ void GameState::update(float dt)
 	ImGui::End();
 
 	// Render Texture Window, for Debug
-	//m_renderHandler->UIRenderShadowMap();
+	m_renderHandler->UIRenderShadowMap();
+	m_renderHandler->UITonemappingWindow();
 	m_renderHandler->UIRenderPipelineTexturesWindow();
 
 	ImGui::ShowDemoWindow(); // For debugging

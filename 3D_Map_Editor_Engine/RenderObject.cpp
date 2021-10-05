@@ -82,9 +82,9 @@ void RenderObject::updateWCPBuffer(XMMATRIX worldMatrix, XMMATRIX viewMatrix, XM
 	VS_WVP_CBUFFER* wvpData = new VS_WVP_CBUFFER();
 	wvpData->wvp = XMMatrixTranspose(worldMatrix * viewMatrix * ProjMatrix);
 	wvpData->worldMatrix = XMMatrixTranspose(worldMatrix);
+
 	wvpData->normalMatrix = DirectX::XMMatrixInverse(nullptr, worldMatrix);
-	wvpData->normalMatrix = wvpData->normalMatrix;
-	wvpData->normalMatrix = XMMatrixTranspose(wvpData->normalMatrix/* * viewMatrix*/);
+	//wvpData->normalMatrix = XMMatrixTranspose(wvpData->normalMatrix/* * viewMatrix*/); // Normals wrong when mesh is rotated.
 
 	m_wvpCBuffer.update(&wvpData);
 }

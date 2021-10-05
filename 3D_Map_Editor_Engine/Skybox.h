@@ -275,7 +275,8 @@ public:
 		m_deviceContext->VSSetConstantBuffers(0, 1, m_vpCBuffer.GetAddressOf());
 
 		// Set Texture
-		m_deviceContext->PSSetShaderResources(0, 1, m_skyboxTextureSRV.GetAddressOf());
+		//m_deviceContext->PSSetShaderResources(0, 1, m_skyboxTextureSRV.GetAddressOf());
+		// Already set to slot 6 as SpecularIBLMap
 
 		// Render
 		m_cubeMesh->render();

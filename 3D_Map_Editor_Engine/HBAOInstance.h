@@ -102,8 +102,8 @@ public:
         hr = device->CreateSamplerState(&samplerStateDesc, &m_depthNormalSamplerState);
         assert(SUCCEEDED(hr) && "Error, failed to create random sampler state!");
 
-        m_deviceContext->PSSetSamplers(2, 1, m_depthNormalSamplerState.GetAddressOf());
-        m_deviceContext->PSSetSamplers(3, 1, m_randomSamplerState.GetAddressOf());
+        m_deviceContext->PSSetSamplers(3, 1, m_depthNormalSamplerState.GetAddressOf());
+        m_deviceContext->PSSetSamplers(4, 1, m_randomSamplerState.GetAddressOf());
 
         // Constant Buffers
         // - HBAO Buffer Sample Directions

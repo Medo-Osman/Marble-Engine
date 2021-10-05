@@ -39,14 +39,13 @@ Texture2D NormalTexture     : TEXTURE : register(t2);
 Texture2D ShadowMapTexture  : TEXTURE : register(t3);
 
 // Samplers
-SamplerState            sampState       : SAMPLER : register(s0);
-SamplerComparisonState  shadowSampler   : SAMPLER : register(s1);
+SamplerState            sampState       : SAMPLER : register(s1); // Imgui uses slot 0, use 1 for default
+SamplerComparisonState  shadowSampler   : SAMPLER : register(s2);
 
 // Functions
 float3 computeNormal(PS_IN input)
 {
     float3 normalTex = normalize(NormalTexture.Sample(sampState, input.texCoord).xyz * 2 - 1);
-    
     float3 normal = input.normal;
     float3 tangent = normalize(input.tangent);
     float3 bitangent = normalize(input.biTangent);

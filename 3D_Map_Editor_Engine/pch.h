@@ -45,12 +45,14 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <assimp/pbrmaterial.h>
 
 // ImGUI
 #include <imGUI/imgui.h>
-#include <imGUI/imfilebrowser.h>
 #include <imGUI/imgui_impl_win32.h>
 #include <imGUI/imgui_impl_dx11.h>
+#include <imGUI/imgui_internal.h>
+#include <imGUI/imfilebrowser.h>
 
 // DirectX Helpers
 #include "VertexTypeList.h"
