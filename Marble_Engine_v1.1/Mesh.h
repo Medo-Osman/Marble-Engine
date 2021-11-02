@@ -25,7 +25,7 @@ private:
 	Material m_material;
 	MaterialPBR m_materialPBR;
 
-public: 
+public:
 	Mesh(ID3D11Device* device, ID3D11DeviceContext* deviceContext, std::vector<T>& vertices, std::vector<UINT>& indices, PS_MATERIAL_BUFFER material, TexturePaths texturePaths, std::string name = "")
 	{
 		m_deviceContext = deviceContext;

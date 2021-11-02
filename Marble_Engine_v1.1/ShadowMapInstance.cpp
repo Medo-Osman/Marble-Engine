@@ -137,33 +137,73 @@ void ShadowMapInstance::initialize(ID3D11Device* device, ID3D11DeviceContext* de
 
 	// World Bounding Sphere
 	m_worldBoundingSphere.Center = { 0.f, 0.f, 0.f };
-	m_worldBoundingSphere.Radius = 70.f;
+	m_worldBoundingSphere.Radius = 40.f;
 	//m_zOffset = -m_worldBoundingSphere.Radius;
 	m_zOffset = 0;
 
 	// Constant Buffers
 	m_lightMatrixCBuffer.initialize(device, deviceContext, nullptr, BufferType::CONSTANT);
+	m_invLightVpMatrixCBuffer.initialize(device, deviceContext, nullptr, BufferType::CONSTANT);
 	m_shadowTextureMatrixCBuffer.initialize(device, deviceContext, nullptr, BufferType::CONSTANT);
 }
 
-void ShadowMapInstance::buildLightMatrix(Light directionalLight, XMFLOAT3 centerPosition)
+Light ShadowMapInstance::getLight() const
 {
-	VS_SHADOW_C_BUFFER* lightMatrices = new VS_SHADOW_C_BUFFER();
+	return m_directionalLight;
+}
+
+XMMATRIX ShadowMapInstance::getInvLightViewMatrix() const
+{
+	return m_invLightViewMatrix;
+}
+
+XMMATRIX ShadowMapInstance::getInvLightProjectionMatrix() const
+{
+	return m_invLightProjectionMatrix;
+}
+
+XMVECTOR ShadowMapInstance::getLightPosition() const
+{
+	return m_lightPosition;
+}
+
+XMVECTOR ShadowMapInstance::getLightDirection() const
+{
+	return XMLoadFloat4(&m_directionalLight.direction);
+}
+
+XMVECTOR ShadowMapInstance::getLightRotation() const
+{
+	return XMLoadFloat3(&m_lightRotationRad);
+}
+
+float ShadowMapInstance::getLightShadowRadius() const
+{
+	return m_worldBoundingSphere.Radius;
+}
+
+void ShadowMapInstance::buildLightMatrix(Light directionalLight, XMFLOAT3 rotationRad, XMFLOAT3 centerPosition)
+{
 	m_directionalLight = directionalLight;
 	m_worldBoundingSphere.Center = centerPosition;
 	m_worldBoundingSphere.Center.z += m_zOffset;
 	m_worldBoundingSphere.Center.y = 0;
 
+	m_lightRotationRad = rotationRad;
+
 	// Light View Matrix
+	VS_SHADOW_C_BUFFER* lightMatrices = new VS_SHADOW_C_BUFFER();
+	VS_SHADOW_C_BUFFER* invLightMatrices = new VS_SHADOW_C_BUFFER();
 	XMVECTOR lightDirection = XMLoadFloat4(&directionalLight.direction);
 	XMVECTOR position = XMLoadFloat3(&m_worldBoundingSphere.Center);
 	position = XMVectorSetW(position, 1.f);
-	XMVECTOR lightPosition = (-2.f * m_worldBoundingSphere.Radius * lightDirection) + position;
+	m_lightPosition = (-4.f * m_worldBoundingSphere.Radius * lightDirection) + position;
 	
 	XMVECTOR lookAt = position;
 	XMVECTOR up = DirectX::XMVectorSet(0.f, 1.f, 0.f, 0.f);
 
-	lightMatrices->lightViewMatrix = XMMatrixTranspose(XMMatrixLookAtLH(lightPosition, lookAt, up));
+	lightMatrices->lightViewMatrix = XMMatrixTranspose(XMMatrixLookAtLH(m_lightPosition, lookAt, up));
+	invLightMatrices->lightViewMatrix = XMMatrixInverse(nullptr, lightMatrices->lightViewMatrix);
 
 	// Transform World Bounding Sphere to Light Local View Space
 	XMFLOAT3 worldSphereCenterLightSpace;
@@ -172,13 +212,16 @@ void ShadowMapInstance::buildLightMatrix(Light directionalLight, XMFLOAT3 center
 	// Construct Orthographic Frustum in Light View Space
 	float l = worldSphereCenterLightSpace.x - m_worldBoundingSphere.Radius;
 	float b = worldSphereCenterLightSpace.y - m_worldBoundingSphere.Radius;
-	float n = worldSphereCenterLightSpace.z - m_worldBoundingSphere.Radius;
+	//float n = worldSphereCenterLightSpace.z - m_worldBoundingSphere.Radius;
+	float n = 0.f;
 	float r = worldSphereCenterLightSpace.x + m_worldBoundingSphere.Radius;
 	float t = worldSphereCenterLightSpace.y + m_worldBoundingSphere.Radius;
-	float f = worldSphereCenterLightSpace.z + m_worldBoundingSphere.Radius;
+	//float f = worldSphereCenterLightSpace.z + m_worldBoundingSphere.Radius;
+	float f = m_worldBoundingSphere.Radius * 6.f;
 
 	// Local Projection Matrix
 	lightMatrices->lightProjectionMatrix = XMMatrixTranspose(XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f));
+	invLightMatrices->lightProjectionMatrix = XMMatrixInverse(nullptr, lightMatrices->lightProjectionMatrix);
 
 	// Shadow Texture Space Transformation
 	XMMATRIX textureSpaceMatrix
@@ -190,21 +233,20 @@ void ShadowMapInstance::buildLightMatrix(Light directionalLight, XMFLOAT3 center
 	);
 	XMMATRIX* textureTransformMatrix = new XMMATRIX(lightMatrices->lightViewMatrix * lightMatrices->lightProjectionMatrix * XMMatrixTranspose(textureSpaceMatrix));
 
-
 	//lightMatrices->lightProjectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1.0f, 0.1f, 100.f);
-
 	//// Point light at (20, 15, 20), pointed at the origin. POV up-vector is along the y-axis.
 	//XMVECTOR position = { 0.f, 0.f, -1.0f, 1.0f };
 	//XMVECTOR lookAt = { 0.0f, 0.0f, 1.0f, 0.0f };
 	//XMVECTOR up = { 0.0f, 1.0f, 0.0f, 0.0f };
 	//lookAt += position;
-
 	//lightMatrices->lightViewMatrix = XMMatrixLookAtLH(position, lookAt, up);
-
 	//lightMatrices->textureTransformMatrix = XMMatrixIdentity();
+
+	XMMATRIX inverseVpMatrix = XMMatrixInverse(nullptr, lightMatrices->lightViewMatrix) * XMMatrixInverse(nullptr, lightMatrices->lightProjectionMatrix);
 
 	// Update data
 	m_lightMatrixCBuffer.update(&lightMatrices);
+	m_invLightVpMatrixCBuffer.update(&inverseVpMatrix);
 	m_shadowTextureMatrixCBuffer.update(&textureTransformMatrix);
 }
 
@@ -213,15 +255,19 @@ void ShadowMapInstance::buildLightMatrix(XMFLOAT3 centerPosition)
 	m_worldBoundingSphere.Center = centerPosition;
 	m_worldBoundingSphere.Center.z += m_zOffset;
 	m_worldBoundingSphere.Center.y = 0;
-	VS_SHADOW_C_BUFFER* lightMatrices = new VS_SHADOW_C_BUFFER();
+
 	// Light View Matrix
+	VS_SHADOW_C_BUFFER* lightMatrices = new VS_SHADOW_C_BUFFER();
+	VS_SHADOW_C_BUFFER* invLightMatrices = new VS_SHADOW_C_BUFFER();
 	XMVECTOR lightDirection = XMLoadFloat4(&m_directionalLight.direction);
-	XMVECTOR lightPosition = (-2.0f * m_worldBoundingSphere.Radius * lightDirection) + XMLoadFloat3(&m_worldBoundingSphere.Center);
+	XMVECTOR position = XMLoadFloat3(&m_worldBoundingSphere.Center);
+	position = XMVectorSetW(position, 1.f);
+	m_lightPosition = (-2.f * m_worldBoundingSphere.Radius * lightDirection) + position;
 	
 	XMVECTOR lookAt = XMLoadFloat3(&m_worldBoundingSphere.Center);
 	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
 
-	lightMatrices->lightViewMatrix = XMMatrixTranspose(XMMatrixLookAtLH(lightPosition, lookAt, up));
+	lightMatrices->lightViewMatrix = XMMatrixTranspose(XMMatrixLookAtLH(m_lightPosition, lookAt, up));
 
 	// Transform World Bounding Sphere to Light Local View Space
 	XMFLOAT3 worldSphereCenterLightSpace;
@@ -237,9 +283,17 @@ void ShadowMapInstance::buildLightMatrix(XMFLOAT3 centerPosition)
 
 	// Local Projection Matrix
 	lightMatrices->lightProjectionMatrix = XMMatrixTranspose(XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f));
-	
+	invLightMatrices->lightProjectionMatrix = XMMatrixInverse(nullptr, lightMatrices->lightProjectionMatrix);
+	XMMATRIX inverseVpMatrix = XMMatrixInverse(nullptr, lightMatrices->lightViewMatrix) * XMMatrixInverse(nullptr, lightMatrices->lightProjectionMatrix);
+
 	// Update data
 	m_lightMatrixCBuffer.update(&lightMatrices);
+	m_invLightVpMatrixCBuffer.update(&inverseVpMatrix);
+}
+
+void ShadowMapInstance::updateLight(Light directionalLight) // Does not update matrices
+{
+	m_directionalLight = directionalLight;
 }
 
 ID3D11ShaderResourceView* const* ShadowMapInstance::getShadowMapSRV()
@@ -262,10 +316,20 @@ void ShadowMapInstance::clearShadowMap()
 	m_deviceContext->ClearDepthStencilView(m_shadowMapDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 }
 
+void ShadowMapInstance::bindInverseVpMatrixVS()
+{
+	m_deviceContext->VSSetConstantBuffers(1, 1, m_invLightVpMatrixCBuffer.GetAddressOf()); // for Displacement/Volumetric Sun Scattering
+}
+
+void ShadowMapInstance::bindLightMatrixPS()
+{
+	m_deviceContext->PSSetConstantBuffers(2, 1, m_lightMatrixCBuffer.GetAddressOf());
+}
+
 void ShadowMapInstance::bindViewsAndRenderTarget()
 {
 	ID3D11ShaderResourceView* shaderResourceNullptr = nullptr;
-	this->m_deviceContext->PSSetShaderResources(3, 1, &shaderResourceNullptr);
+	m_deviceContext->PSSetShaderResources(3, 1, &shaderResourceNullptr);
 
 	m_deviceContext->OMSetRenderTargets(1, m_rendertarget, m_shadowMapDSV.Get());
 	m_deviceContext->ClearDepthStencilView(m_shadowMapDSV.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);

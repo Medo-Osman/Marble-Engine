@@ -15,7 +15,7 @@ private:
 	std::vector<GameObject*> m_gameObjects;
 
 	// Lights
-	std::vector<Light*> m_lights;
+	std::vector<std::pair<Light*, LightHelper>> m_lights;
 
 	// Camera
 	CameraObject m_camera;

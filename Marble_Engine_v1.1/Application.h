@@ -29,6 +29,7 @@ private:
 
 	// Renderer
 	RenderHandler* m_renderer;
+	bool m_renderToggle = true;
 
 	// Functions
 	bool initRawMouseDevice();
@@ -53,6 +54,7 @@ public:
 
 	// Setters
 	void setClipCursor(bool clipCursor);
+	void setRenderToggle(bool renderToggle);
 
 	// Applicaiton Loop
 	void applicationLoop();

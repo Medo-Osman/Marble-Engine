@@ -64,11 +64,12 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			if (errorBlob)
 			{
 				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				OutputDebugStringA("\n");
 				errorBlob->Release();
 			}
 			if (vsBlob)
 				vsBlob->Release();
-			OutputDebugStringA("Error, Vertex shaders could not be compiled!");
+			OutputDebugStringA("Error, Vertex shaders could not be compiled!\n");
 			//assert(SUCCEEDED(hr) && "Error, Vertex shaders could not be created!");
 		}
 		else
@@ -185,11 +186,12 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			if (errorBlob)
 			{
 				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				OutputDebugStringA("\n");
 				errorBlob->Release();
 			}
 			if (hsBlob)
 				hsBlob->Release();
-			OutputDebugStringA("Error, Hull shaders could not be compiled!");
+			OutputDebugStringA("Error, Hull shaders could not be compiled!\n");
 			//assert(SUCCEEDED(hr) && "Error, Hull shaders could not be created!");
 		}
 		else
@@ -235,11 +237,12 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			if (errorBlob)
 			{
 				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				OutputDebugStringA("\n");
 				errorBlob->Release();
 			}
 			if (dsBlob)
 				dsBlob->Release();
-			OutputDebugStringA("Error, Domain shaders could not be compiled!");
+			OutputDebugStringA("Error, Domain shaders could not be compiled!\n");
 			//assert(SUCCEEDED(hr) && "Error, Domain shaders could not be created!");
 		}
 		else
@@ -285,11 +288,12 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			if (errorBlob)
 			{
 				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				OutputDebugStringA("\n");
 				errorBlob->Release();
 			}
 			if (gsBlob)
 				gsBlob->Release();
-			OutputDebugStringA("Error, Geometry shaders could not be compiled!");
+			OutputDebugStringA("Error, Geometry shaders could not be compiled!\n");
 			//assert(SUCCEEDED(hr) && "Error, Geometry shaders could not be created!");
 		}
 		else
@@ -351,11 +355,12 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			if (errorBlob)
 			{
 				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				OutputDebugStringA("\n");
 				errorBlob->Release();
 			}
 			if (psBlob)
 				psBlob->Release();
-			OutputDebugStringA("Error, Pixel shaders could not be compiled!");
+			OutputDebugStringA("Error, Pixel shaders could not be compiled!\n");
 			//assert(SUCCEEDED(hr) && "Error, Pixel shaders could not be created!");
 		}
 		else
@@ -401,11 +406,12 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			if (errorBlob)
 			{
 				OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+				OutputDebugStringA("\n");
 				errorBlob->Release();
 			}
 			if (csBlob)
 				csBlob->Release();
-			OutputDebugStringA("Error, Compute shaders could not be compiled!");
+			OutputDebugStringA("Error, Compute shaders could not be compiled!\n");
 			//assert(SUCCEEDED(hr) && "Error, Compute shaders could not be created!");
 		}
 		else
@@ -427,7 +433,7 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 
 void Shaders::updateShaders()
 {
-	initialize(m_device, m_deviceContext, m_files, m_layoutType);
+	initialize(m_device, m_deviceContext, m_files, m_layoutType, m_topology);
 }
 
 void Shaders::setShaders()

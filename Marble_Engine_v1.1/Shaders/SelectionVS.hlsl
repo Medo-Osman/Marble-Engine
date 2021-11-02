@@ -12,7 +12,7 @@ struct VS_OUT
     float4 position     : SV_POSITION;
 };
 
-cbuffer constantBuffer : register(b0)
+cbuffer WVPBuffer : register(b0)
 {
     matrix wvpMatrix;
     matrix worldMatrix;

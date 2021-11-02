@@ -77,7 +77,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			return 0;
-
 		case WM_PAINT:
 		{
 			PAINTSTRUCT ps;
@@ -118,6 +117,21 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 			break;
 		}*/
+		case WM_SIZE:
+		{
+
+			switch (wParam) {
+			case SIZE_MINIMIZED:
+				Application::getInstance().setRenderToggle(false);
+				OutputDebugStringA("Window Minimized\n");
+				break;
+			case SIZE_RESTORED:
+				Application::getInstance().setRenderToggle(true);
+				OutputDebugStringA("Window Restored\n");
+				break;
+			}
+			break;
+		}
 		case WM_LBUTTONDOWN:
 		{
 			int x = LOWORD(lParam);
@@ -288,6 +302,11 @@ void Application::setClipCursor(bool clipCursor)
 	}
 }
 
+void Application::setRenderToggle(bool renderToggle)
+{
+	m_renderToggle = renderToggle;
+}
+
 void Application::applicationLoop()
 {
 	MSG msg = { };
@@ -315,7 +334,8 @@ void Application::applicationLoop()
 			}
 
 			// Render
-			RenderHandler::getInstance()->render(m_deltaTime);
+			if (m_renderToggle)
+				RenderHandler::getInstance()->render(m_deltaTime);
 		}
 	}
 }

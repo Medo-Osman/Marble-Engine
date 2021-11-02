@@ -41,6 +41,10 @@ private:
 
 	// Light
 	Light m_directionalLight;
+	XMVECTOR m_lightPosition;
+	XMFLOAT3 m_lightRotationRad;
+	XMMATRIX m_invLightViewMatrix;
+	XMMATRIX m_invLightProjectionMatrix;
 
 	// World Bounding Sphere
 	BoundingSphere m_worldBoundingSphere;
@@ -48,6 +52,7 @@ private:
 
 	// Constant Buffers
 	Buffer<VS_SHADOW_C_BUFFER> m_lightMatrixCBuffer;
+	Buffer<XMMATRIX> m_invLightVpMatrixCBuffer; // Used for Volumetric Sun Scattering
 	Buffer<XMMATRIX> m_shadowTextureMatrixCBuffer;
 
 public:
@@ -57,15 +62,27 @@ public:
 	// Initialize
 	void initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, UINT width, UINT height);
 
+	// Getters
+	Light getLight() const;
+	XMMATRIX getInvLightViewMatrix() const;
+	XMMATRIX getInvLightProjectionMatrix() const;
+	XMVECTOR getLightPosition() const;
+	XMVECTOR getLightDirection() const;
+	XMVECTOR getLightRotation() const;
+	float getLightShadowRadius() const;
+
 	// Update
-	void buildLightMatrix(Light directionalLight, XMFLOAT3 centerPosition = XMFLOAT3(0.f, 0.f, 0.f));
+	void buildLightMatrix(Light directionalLight, XMFLOAT3 rotationRad, XMFLOAT3 centerPosition = XMFLOAT3(0.f, 0.f, 0.f));
 	void buildLightMatrix(XMFLOAT3 centerPosition = XMFLOAT3(0.f, 0.f, 0.f));
+	void updateLight(Light directionalLight);
 
 	// Render
 	ID3D11ShaderResourceView* const* getShadowMapSRV();
 	ID3D11ShaderResourceView* getShadowMapSRVNoneConst();
 	ID3D11Buffer* const* getShadowMatrixConstantBuffer() const;
 	void clearShadowMap();
+	void bindInverseVpMatrixVS();
+	void bindLightMatrixPS();
 	void bindViewsAndRenderTarget();
 };
 

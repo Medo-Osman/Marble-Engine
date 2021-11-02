@@ -18,7 +18,7 @@ struct VS_OUT
     float2 texCoord         : TEXCOORD;
 };
 
-cbuffer constantBuffer : register(b0)
+cbuffer WVPBuffer : register(b0)
 {
     matrix wvpMatrix;
     matrix worldMatrix;

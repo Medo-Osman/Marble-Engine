@@ -217,8 +217,8 @@ void RenderHandler::initDepthStencilBuffer()
 	D3D11_DEPTH_STENCIL_DESC dsDesc;
 	ZeroMemory(&dsDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
 	dsDesc.DepthEnable = true;
-	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK::D3D11_DEPTH_WRITE_MASK_ALL;
-	dsDesc.DepthFunc = D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS_EQUAL;
+	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	dsDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
 
 	// Stencil test parameters
 	dsDesc.StencilEnable = true;
@@ -240,9 +240,15 @@ void RenderHandler::initDepthStencilBuffer()
 	// Create Depth Stencil State
 	hr = m_device->CreateDepthStencilState(&dsDesc, &m_depthStencilState);
 	assert(SUCCEEDED(hr) && "Error, failed to create depth stencil state!");
+	
+	// Create Read Only Depth Stencil State
+	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	hr = m_device->CreateDepthStencilState(&dsDesc, &m_readOnlyDepthStencilState);
+	assert(SUCCEEDED(hr) && "Error, failed to create depth stencil state!");
 
 	// Create Disabled Depth Stencil State
 	dsDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
 	hr = m_device->CreateDepthStencilState(&dsDesc, &m_disabledDepthStencilState);
 	assert(SUCCEEDED(hr) && "Error, failed to create disabled depth stencil state!");
 }
@@ -262,12 +268,25 @@ void RenderHandler::initRenderStates()
 	rasterizerDesc.MultisampleEnable = false;
 	rasterizerDesc.AntialiasedLineEnable = false;
 
+	// Default
 	HRESULT hr = m_device->CreateRasterizerState(&rasterizerDesc, &m_defaultRasterizerState);
 	assert(SUCCEEDED(hr) && "Error, failed to create default rasterizer state!");
-
+	
+	// Wireframe
 	rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
 	hr = m_device->CreateRasterizerState(&rasterizerDesc, &m_wireframeRasterizerState);
 	assert(SUCCEEDED(hr) && "Error, failed to create wireframe rasterizer state!");
+
+	// Cull None
+	rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+	rasterizerDesc.CullMode = D3D11_CULL_NONE;
+	hr = m_device->CreateRasterizerState(&rasterizerDesc, &m_cullOffRasterizerState);
+	assert(SUCCEEDED(hr) && "Error, failed to create cull none rasterizer state!");
+
+	// Cull None Wireframe
+	rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
+	hr = m_device->CreateRasterizerState(&rasterizerDesc, &m_cullOffWireframeRasterizerState);
+	assert(SUCCEEDED(hr) && "Error, failed to create cull none rasterizer state!");
 
 	// Sampler State Setup
 	D3D11_SAMPLER_DESC samplerStateDesc;
@@ -302,8 +321,10 @@ void RenderHandler::initRenderStates()
 	hr = m_device->CreateSamplerState(&samplerStateDesc, &m_defaultBorderSamplerState);
 	assert(SUCCEEDED(hr) && "Error, failed to create default border sampler state!");
 	m_deviceContext->CSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
+	m_deviceContext->DSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
+	m_deviceContext->HSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
 
-	// Blend State
+	// Blend States
 	D3D11_BLEND_DESC blendStateDesc;
 	ZeroMemory(&blendStateDesc, sizeof(D3D11_BLEND_DESC));
 
@@ -311,15 +332,22 @@ void RenderHandler::initRenderStates()
 	blendStateDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
 	blendStateDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
 	blendStateDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-	blendStateDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blendStateDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ZERO;
 	blendStateDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
 	blendStateDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	blendStateDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-
 	m_device->CreateBlendState(&blendStateDesc, m_blendStateNoBlend.GetAddressOf());
 
+	blendStateDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	blendStateDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
+	blendStateDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendStateDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ZERO;
+	blendStateDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	blendStateDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendStateDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	m_device->CreateBlendState(&blendStateDesc, m_blendStateAdditiveBlend.GetAddressOf());
+
 	blendStateDesc.RenderTarget[0].BlendEnable = false;
-	//blendStateDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
 	blendStateDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_COLOR;
 	blendStateDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
 	blendStateDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
@@ -380,6 +408,105 @@ void RenderHandler::initSSAOBlurPass(UINT width, UINT height, DXGI_FORMAT format
 	assert(SUCCEEDED(hr) && "Error, blur pass ping pong unordered access view could not be created!");
 
 	texture->Release();
+}
+
+void RenderHandler::initVolumetricSunPass()
+{
+	// Mesh
+	//std::vector<VertexPosNormTexTan> vertices;
+	//std::vector<UINT> indices;
+
+	//int gridDimension = (int)m_shadowInstance.getLightShadowRadius();
+	////int gridDimension = 20;
+
+	//float du = 1.0f / (float)gridDimension;
+	//float dv = 1.0f / (float)gridDimension;
+	//float centerOffset = 0.5f;//du / 2.f; if not uniform
+	//float scaling = 2.f;
+
+	//// - Vertices
+	//for (int j = 0; j <= gridDimension; ++j)
+	//{
+	//	for (int i = 0; i <= gridDimension; ++i)
+	//	{
+	//		VertexPosNormTexTan vertex;
+	//		float x = ((float)i * du - centerOffset) * scaling;
+	//		float y = ((float)j * dv - centerOffset) * scaling;
+	//		vertex.position = XMFLOAT3(-x, y, 0.0f); // X is reversed to account for shadow map perspective shift
+	//		vertex.normal = XMFLOAT3(0.0f, 0.0f, 1.0f);
+	//		vertex.texCoord = XMFLOAT2(1.f - (i * du), 1.f - (j * dv)); // Reverse to get the right cutout Shadowmap perspective
+
+	//		vertices.push_back(vertex);
+	//	}
+	//}
+	//// - - Add Cap
+	//VertexPosNormTexTan vertex;
+	//vertex.position = XMFLOAT3(-centerOffset * scaling		, -centerOffset * scaling, 0.0f);
+	//vertex.texCoord = XMFLOAT2(0, 0);
+	//vertices.push_back(vertex);
+
+	//vertex.position = XMFLOAT3((1 - centerOffset) * scaling	, -centerOffset * scaling, 0.0f);
+	//vertices.push_back(vertex);
+	//
+	//vertex.position = XMFLOAT3(-centerOffset * scaling		, (1 - centerOffset) * scaling, 0.0f);
+	//vertices.push_back(vertex);
+	//
+	//vertex.position = XMFLOAT3((1 - centerOffset) * scaling	, (1 - centerOffset) * scaling, 0.0f);
+	//vertices.push_back(vertex);
+
+	//// - Indices
+	//for (int j = 0; j < gridDimension; ++j)
+	//{
+	//	for (int i = 0; i < gridDimension; ++i)
+	//	{
+	//		int row1 = j * (gridDimension + 1);
+	//		int row2 = (j + 1) * (gridDimension + 1);
+
+	//		// Row 1
+	//		indices.push_back(row1 + i);
+	//		indices.push_back(row1 + i + 1);
+
+	//		// Row2
+	//		indices.push_back(row2 + i);
+	//		indices.push_back(row2 + i + 1);
+
+	//		//// triangle 1
+	//		//indices.push_back(row1 + i);
+	//		//indices.push_back(row1 + i + 1);
+	//		//indices.push_back(row2 + i + 1);
+
+	//		//// triangle 2
+	//		//indices.push_back(row1 + i);
+	//		//indices.push_back(row2 + i + 1);
+	//		//indices.push_back(row2 + i);
+	//	}
+	//}
+
+	//// - - Add Cap
+	//indices.push_back(vertices.size() - 4);
+	//indices.push_back(vertices.size() - 3);
+	//indices.push_back(vertices.size() - 2);
+	//indices.push_back(vertices.size() - 1);
+
+	//// - Create Mesh
+	//m_lightVolumeMesh = std::make_unique<Mesh<VertexPosNormTexTan>>(m_device.Get(), m_deviceContext.Get(), vertices, indices, PS_MATERIAL_BUFFER(), TexturePaths(), "Volumetric Sun Scattering Mesh");
+
+	// Constant Buffer
+	m_lightVolumeWvpCBuffer.initialize(m_device.Get(), m_deviceContext.Get(), nullptr, BufferType::CONSTANT);
+	m_lightVolumeTessCBuffer.initialize(m_device.Get(), m_deviceContext.Get(), nullptr, BufferType::CONSTANT);
+	m_sunLightCBuffer.initialize(m_device.Get(), m_deviceContext.Get(), nullptr, BufferType::CONSTANT);
+
+	// Shaders
+	ShaderFiles sf;
+	sf.vs = L"FullscreenQuadVS.hlsl";
+	/*sf.hs = L"VolumetricSunHS.hlsl";
+	sf.ds = L"VolumetricSunDS.hlsl";*/
+	sf.ps = L"VolumetricSunPS.hlsl";
+	m_volumetricSunShaders.initialize(m_device.Get(), m_deviceContext.Get(), sf, LayoutType::POS);
+
+	// Render Target
+	m_volumetricAccumulationRTV.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	initRenderTarget(m_volumetricAccumulationRTV, m_clientWidth, m_clientHeight);
 }
 
 void RenderHandler::initBloomPass(UINT width, UINT height)
@@ -595,11 +722,16 @@ void RenderHandler::lightPass()
 	// Set Output Render Target
 	m_deviceContext->OMSetRenderTargets(1, &m_hdrRTV.rtv, nullptr);
 
-	// Set Camera Buffer
+	// Constant Buffer
+	
+	// - Camera Buffer
 	m_deviceContext->PSSetConstantBuffers(0, 1, m_camera.getConstantBuffer());
 
-	// Set Lights
+	// - Lights Buffer
 	m_deviceContext->PSSetConstantBuffers(1, 1, m_lightManager.GetAddressOf());
+
+	// - Shadow Buffer, For Volumetric Sun Scattering
+	m_shadowInstance.bindLightMatrixPS();
 
 	// Set G-Buffer Shader Resource views
 	ID3D11ShaderResourceView* gBufferSRVs[] =
@@ -608,17 +740,20 @@ void RenderHandler::lightPass()
 		m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].srv,
 		m_gBuffer.renderTextures[GBufferType::EMISSIVE_SHADOWMASK].srv,
 		m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION].srv,
-		m_gBuffer.renderTextures[GBufferType::DEPTH].srv
+		m_gBuffer.renderTextures[GBufferType::DEPTH].srv,
+		m_volumetricAccumulationRTV.srv
 	};
 	
 	if (m_ssaoToggle)
 		gBufferSRVs[GBufferType::AMBIENT_OCCLUSION] = m_SSAOInstance.getSSAORenderTexture().srv;
+	
+	UINT srvIndex = GBufferType::GB_NUM + 1;
 
-	m_deviceContext->PSSetShaderResources(0, GBufferType::GB_NUM, gBufferSRVs);
-	UINT srvIndex = GBufferType::GB_NUM; // 4
+	m_deviceContext->PSSetShaderResources(0, srvIndex, gBufferSRVs);
 
 	// Set Specular radiance and Diffuse irradiance maps
-	m_skybox.setSkyboxTextures(srvIndex + 1, srvIndex);
+	srvIndex++;
+	m_skybox.setSkyboxTextures(srvIndex, srvIndex - 1);
 
 	// Set Light Pass Shaders
 	m_lightPassShaders.setShaders();
@@ -627,7 +762,7 @@ void RenderHandler::lightPass()
 	m_deviceContext->Draw(4, 0);
 
 	// Unbind Shader Resource Views
-	m_deviceContext->PSSetShaderResources(0, GBufferType::GB_NUM, m_shaderResourcesNullptr);
+	m_deviceContext->PSSetShaderResources(0, srvIndex, m_shaderResourcesNullptr);
 }
 
 void RenderHandler::downsamplePass()
@@ -685,6 +820,45 @@ void RenderHandler::blurSSAOPass()
 	m_deviceContext->CSSetUnorderedAccessViews(0, 1, &m_unorderedAccessNullptr, &cOffset);
 }
 
+void RenderHandler::volumetricSunPass()
+{
+	// Set Accumulation Render Target
+	m_deviceContext->OMSetRenderTargets(1, &m_volumetricAccumulationRTV.rtv, nullptr);
+
+	// Shader
+	m_volumetricSunShaders.setShaders();
+
+	// Constant Buffer
+	
+	// - Light Inverse Matrix
+	m_shadowInstance.bindInverseVpMatrixVS();
+
+	// - Sun Light Data
+	DS_SUN_DATA_CBUFFER sunData;
+	Light sunLight = m_shadowInstance.getLight();
+	sunData.sunDirection = XMFLOAT3(sunLight.direction.x, sunLight.direction.y, sunLight.direction.z);
+	sunData.sunIntensity = sunLight.intensity;
+	sunData.sunColor = sunLight.color;
+	m_sunLightCBuffer.update(&sunData);
+	m_deviceContext->PSSetConstantBuffers(5, 1, m_sunLightCBuffer.GetAddressOf());
+
+	// - Camera Data
+	m_deviceContext->PSSetConstantBuffers(0, 1, m_camera.getConstantBuffer());
+
+	// Textures
+
+	// - Depth Texture
+	m_deviceContext->PSSetShaderResources(0, 1, &m_gBuffer.renderTextures[GBufferType::DEPTH].srv);
+	// - Shadow Map
+	m_deviceContext->PSSetShaderResources(6, 1, m_shadowInstance.getShadowMapSRV());
+
+	// Draw Fullscreen Quad
+	m_deviceContext->Draw(4, 0);
+
+	// Reset
+	m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, nullptr);
+}
+
 void RenderHandler::bloomPass()
 {
 	UINT cOffset = -1;
@@ -724,7 +898,7 @@ void RenderHandler::bloomPass()
 	texWidth = (UINT)std::ceil((m_clientWidth / 16.f) + 0.5f);
 	texHeight = (UINT)std::ceil((m_clientHeight / 16.f) + 0.5f);
 	m_deviceContext->Dispatch(texWidth, texHeight, 1);
-
+	 
 	// - Unbind Shader Resource Views and Unordered Access View
 	m_deviceContext->CSSetShaderResources(0, 1, m_shaderResourcesNullptr);
 	m_deviceContext->CSSetUnorderedAccessViews(0, 2, m_unorderedAccessesNullptr, &cOffset);
@@ -921,6 +1095,9 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	// Blur
 	initSSAOBlurPass(m_clientWidth, m_clientHeight, m_SSAOInstance.getSSAORenderTexture().format);
 	
+	// Volumetric Sun Scattering
+	initVolumetricSunPass();
+
 	// Bloom
 	initBloomPass((UINT)winRect.right, (UINT)winRect.bottom);
 
@@ -928,6 +1105,7 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_particleSystem.Initialize(m_device.Get(), m_deviceContext.Get(), L"flare.dds", 10);
 
 	// Selection
+	
 	// - Handler
 	m_modelSelectionHandler.initialize(m_device.Get(), m_deviceContext.Get(), m_camera.getViewMatrixPtr(), m_camera.getProjectionMatrixPtr());
 	
@@ -1154,13 +1332,14 @@ void RenderHandler::modelTextureUIUpdate(RenderObjectKey key)
 	}
 }
 
-int RenderHandler::addLight(Light newLight, bool usedForShadowMapping)
+int RenderHandler::addLight(Light newLight, XMFLOAT3 rotationRad, bool usedForShadowMapping)
 {
 	if (m_lightManager.addLight(newLight))
 	{
 		m_lightManager.update();
 		if (usedForShadowMapping && newLight.type == DIRECTIONAL_LIGHT)
-			m_shadowInstance.buildLightMatrix(newLight, m_camera.getCameraPositionF3());
+			m_shadowInstance.buildLightMatrix(newLight, rotationRad);
+			//m_shadowInstance.buildLightMatrix(newLight, rotationRad, m_camera.getCameraPositionF3());
 
 		return m_lightManager.getNrOfLights(); // Used as a ID
 	}
@@ -1175,9 +1354,12 @@ void RenderHandler::removeLight(int id)
 void RenderHandler::updateLight(Light* light, int id)
 {
 	m_lightManager.updateLight(light, id);
+
+	if (light->isCastingShadow)
+		m_shadowInstance.updateLight(*light);
 }
 
-void RenderHandler::changeShadowMappingLight(Light* light, bool disableShadowCasting)
+void RenderHandler::changeShadowMappingLight(Light* light, XMFLOAT3 rotationRad, bool disableShadowCasting)
 {
 	if (disableShadowCasting)
 	{
@@ -1190,7 +1372,7 @@ void RenderHandler::changeShadowMappingLight(Light* light, bool disableShadowCas
 		XMVECTOR normDirection = XMLoadFloat4(&light->direction);
 		XMVector4Normalize(normDirection);
 		XMStoreFloat4(&light->direction, normDirection);
-		m_shadowInstance.buildLightMatrix(*light, m_camera.getCameraPositionF3());
+		m_shadowInstance.buildLightMatrix(*light, rotationRad/*, m_camera.getCameraPositionF3()*/);
 	}
 }
 
@@ -1329,6 +1511,8 @@ void RenderHandler::updatePassShaders()
 	/*m_bloomDownsampleShader.updateShaders();
 	m_bloomUpsampleShader.updateShaders();*/
 
+	m_volumetricSunShaders.updateShaders();
+
 	/*m_skybox.updatePreviewShaders();
 	m_skybox.cubemapPreviewsRenderSetup();
 	m_deviceContext->Draw(4, 0);*/
@@ -1345,28 +1529,27 @@ void RenderHandler::UIRenderPipelineTexturesWindow()
 {
 	ImGui::Begin("Render Pipeline Textures");
 	
-	static ImVec4 color_multipler(1, 1, 1, 100);
-	ImGui::Image(m_gBuffer.renderTextures[GBufferType::ALBEDO_METALLIC].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
-	ImGui::Image(m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
-	ImGui::Image(m_gBuffer.renderTextures[GBufferType::EMISSIVE_SHADOWMASK].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
-	//ImGui::Image(m_gBuffer.renderTextures[GBufferType::DEPTH].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
-	//ImGui::Image(m_shadowInstance.getShadowMapSRVNoneConst(), ImVec2((float)m_clientWidth / 4.f, (float)m_clientWidth / 4.f));
+	ImGui::Image(m_gBuffer.renderTextures[GBufferType::ALBEDO_METALLIC].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+	ImGui::Image(m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+	ImGui::Image(m_gBuffer.renderTextures[GBufferType::EMISSIVE_SHADOWMASK].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+	//ImGui::Image(m_gBuffer.renderTextures[GBufferType::DEPTH].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 	
 	// SSAO
-	//ImGui::Image(m_blurPingPongSRV.Get(), ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
 	if (m_ssaoToggle)
-		ImGui::Image(m_SSAOInstance.getSSAORenderTexture().srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+		ImGui::Image(m_SSAOInstance.getSSAORenderTexture().srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 	else
-		ImGui::Image(m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
-	//m_SSAOInstance.updateUI();
+		ImGui::Image(m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 	
 	// Bloom
-	ImGui::Image(m_bloomBuffers[Base].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+	ImGui::Image(m_bloomBuffers[Base].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 
 	if (NR_OF_BLOOM_MIPS % 2 == 0)
-		ImGui::Image(m_bloomBuffers[FirstPingPong].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+		ImGui::Image(m_bloomBuffers[FirstPingPong].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 	else
-		ImGui::Image(m_bloomBuffers[SecondPingPong].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f), color_multipler);
+		ImGui::Image(m_bloomBuffers[SecondPingPong].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+	
+	// Volumetric Sun Accumulation
+	ImGui::Image(m_volumetricAccumulationRTV.srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 	
 	ImGui::End();
 }
@@ -1464,6 +1647,22 @@ void RenderHandler::UIssaoSettings()
 void RenderHandler::UIadaptiveExposureSettings()
 {
 	ImGui::Checkbox("Adaptive Exposure", &m_adaptiveExposureToggle);
+}
+
+void RenderHandler::UIVolumetricSunSettings()
+{
+	if (ImGui::Checkbox("Volumetric Sun", &m_volumetricSunToggle))
+		m_lightManager.setVolumetricSunScattering(m_volumetricSunToggle);
+
+	if (ImGui::Checkbox("Fog", &m_fogToggle))
+		m_lightManager.setFog(m_fogToggle);
+	
+	/*if (m_volumetricSunToggle)
+	{
+		ImGui::Indent(16.0f);
+		ImGui::Checkbox("Wireframe Mesh", &m_volumetricSunWireframeToggle);
+		ImGui::Unindent(16.0f);
+	}*/
 }
 
 void RenderHandler::UIbloomSettings()
@@ -1582,6 +1781,9 @@ void RenderHandler::render(float dt)
 		m_deviceContext->ClearRenderTargetView(renderTargets[i], clearColorBlack);
 	m_deviceContext->ClearRenderTargetView(renderTargets[GBufferType::GB_NUM - 2], clearColorWhite); // Clear Shadow Mask
 
+	// - Volumetric Accumulation 
+	m_deviceContext->ClearRenderTargetView(m_volumetricAccumulationRTV.rtv, clearColorBlack);
+
 	// - Bloom Textures
 	for (UINT i = 0; i < NR_OF_BLOOM_BUFFERS; i++)
 		for (UINT j = 0; j < NR_OF_BLOOM_MIPS; j++)
@@ -1611,7 +1813,7 @@ void RenderHandler::render(float dt)
 	m_deviceContext->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 
 	// Set Default Render States
-	float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	UINT sampleMask = 0xffffffff;
 	m_deviceContext->OMSetBlendState(m_blendStateBlend.Get(), blendFactor, sampleMask);
 	if (m_wireframeMode)
@@ -1640,7 +1842,9 @@ void RenderHandler::render(float dt)
 	for (auto& object : m_renderObjectsPBR)
 		object.second->render(true);
 
-	m_deviceContext->RSSetState(m_defaultRasterizerState.Get());
+	// Volumetric Sun Scattering
+	if (m_volumetricSunToggle)
+		volumetricSunPass();
 
 	// SSAO
 	if (m_ssaoToggle)
@@ -1679,9 +1883,9 @@ void RenderHandler::render(float dt)
 		m_deviceContext->PSSetShaderResources(0, 1, &nullSRV);
 		m_deviceContext->PSSetConstantBuffers(4, 1, m_selectionCBuffer.GetAddressOf());
 		
-		float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		/*float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 		UINT sampleMask = 0xffffffff;
-		m_deviceContext->OMSetBlendState(m_blendStateNoBlend.Get(), blendFactor, sampleMask);
+		m_deviceContext->OMSetBlendState(m_blendStateNoBlend.Get(), blendFactor, sampleMask);*/
 		
 		// Render Wireframe
 		switch (m_selectedObjectKey.objectType)

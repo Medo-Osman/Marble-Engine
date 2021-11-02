@@ -147,22 +147,22 @@ void GameObject::update(float dt)
 		ImGui::DragFloat3("Rotation", &m_movementComponent->rotation.m128_f32[0], 0.1f);
 		ImGui::DragFloat3("Position", &m_movementComponent->position.m128_f32[0], 0.1f);
 	}
-	if (ImGui::CollapsingHeader("Other Component"))
-	{
-		ImGui::Checkbox("Audio Component", &m_audioComponent);
-		ImGui::Checkbox("Looping", &m_loopingAudio);
-		ImGui::InputText("Name", m_audioFileName, 5);
-		//ImGui::SameLine();
-		ImGui::DragFloat("Volume", &m_volumeAudio, 0.1f);
+	//if (ImGui::CollapsingHeader("Other Component"))
+	//{
+	//	ImGui::Checkbox("Audio Component", &m_audioComponent);
+	//	ImGui::Checkbox("Looping", &m_loopingAudio);
+	//	ImGui::InputText("Name", m_audioFileName, 5);
+	//	//ImGui::SameLine();
+	//	ImGui::DragFloat("Volume", &m_volumeAudio, 0.1f);
 
-		ImGui::Text("____________________________");
+	//	ImGui::Text("____________________________");
 
-		ImGui::Checkbox("Audio Component", &m_audioComponent);
-		ImGui::Checkbox("Looping", &m_loopingAudio);
-		ImGui::InputText("Name", m_audioFileName, 5);
-		//ImGui::SameLine();
-		ImGui::DragFloat("Volume", &m_volumeAudio, 0.1f);
-	}
+	//	ImGui::Checkbox("Audio Component", &m_audioComponent);
+	//	ImGui::Checkbox("Looping", &m_loopingAudio);
+	//	ImGui::InputText("Name", m_audioFileName, 5);
+	//	//ImGui::SameLine();
+	//	ImGui::DragFloat("Volume", &m_volumeAudio, 0.1f);
+	//}
 	if (ImGui::BeginCombo("Shader State", ShaderStatesNames[m_shaderType]))
 	{
 		for (int n = 0; n < (int)ShaderStates::NUM; n++)

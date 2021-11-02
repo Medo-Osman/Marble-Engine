@@ -4,7 +4,12 @@
 #define POINT_LIGHT 0
 #define SPOT_LIGHT 1
 #define DIRECTIONAL_LIGHT 2
-const float MAX_REFLECTION_LOD = 6.0;
+static const float PI = 3.14159265359;
+static const float MAX_REFLECTION_LOD = 6.0;
+
+// - Fog
+static const float FOG_DENSITIY = 0.004;
+static const float HEIGHT_FACTOR = 0.05f;
 
 // Pixel
 struct PS_IN
@@ -40,6 +45,14 @@ cbuffer lightBuffer : register(b1)
     uint nrOfLights;
     float enviormentDiffContribution;
     float enviormentSpecContribution;
+    bool volumetricSunScattering;
+    bool fog;
+};
+
+cbuffer shadowBuffer : register(b2)
+{
+    matrix shadowViewMatrix;
+    matrix shadowProjectionMatrix;
 };
 
 // Textures
@@ -48,15 +61,15 @@ Texture2D NormalRoughnessTexture : register(t1);
 Texture2D EmissiveShadowMaskTexture : register(t2);
 Texture2D AmbientOcclusionTexture : register(t3);
 Texture2D DepthTexture : register(t4);
+Texture2D VolumetricSunTexture : register(t5);
 
-TextureCube IrradianceMap : register(t5);
-TextureCube SpecularIBLMap : register(t6);
+TextureCube IrradianceMap : register(t6);
+TextureCube SpecularIBLMap : register(t7);
 
 // Sampler
 SamplerState sampState : register(s1); // Imgui uses slot 0, use 1 for default
 
 // Functions
-static const float PI = 3.14159265359;
 float Pow5(float x)
 {
     float xSq = x * x;
@@ -107,6 +120,50 @@ float GeometrySmith(float3 N, float3 V, float3 L, float roughness)
     return ggx1 * ggx2;
 }
 
+float3 getUppsampledVolumetricScattering(float2 texCoord)
+{
+    int2 screenCoordinates = (int2)(texCoord * float2(1584.f, 861.f));
+    int2 downscaledCoordinates = screenCoordinates * .5f;
+    float upSampledDepth = DepthTexture.Load(int3(screenCoordinates, 0)).x;
+
+    float3 color = 0.0f.xxx;
+    float totalWeight = 0.0f;
+
+    // Select the closest downscaled pixels.
+
+    int xOffset = screenCoordinates.x % 2 == 0 ? -1 : 1;
+    int yOffset = screenCoordinates.y % 2 == 0 ? -1 : 1;
+
+    int2 offsets[] =
+    {
+        int2(0, 0),
+        int2(0, yOffset),
+        int2(xOffset, 0),
+        int2(xOffset, yOffset)
+    };
+
+    for (int i = 0; i < 4; i++)
+    {
+
+        float3 downscaledColor = VolumetricSunTexture.Load(int3(downscaledCoordinates + offsets[i], 0));
+
+        float downscaledDepth = DepthTexture.Load(int3(downscaledCoordinates + offsets[i], 1));
+
+        float currentWeight = 1.0f;
+        currentWeight *= max(0.0f, 1.0f - (0.05f) * abs(downscaledDepth - upSampledDepth));
+
+        color += downscaledColor * currentWeight;
+        totalWeight += currentWeight;
+
+    }
+
+    float3 volumetricLight;
+    const float epsilon = 0.0001f;
+    volumetricLight.xyz = color / (totalWeight + epsilon);
+
+    return float4(volumetricLight.xyz, 1.0f);
+}
+
 // Main
 half4 main(PS_IN input) : SV_TARGET
 {
@@ -139,6 +196,7 @@ half4 main(PS_IN input) : SV_TARGET
     float ambientOcclusion = AmbientOcclusionTexture.Sample(sampState, input.TexCoord).r;
     
     float3 finalColor;
+    float3 fogColor = float3(1.f, 0.9f, 1.f);
     
     if (length(emissive) == 0.f)
     {
@@ -161,27 +219,31 @@ half4 main(PS_IN input) : SV_TARGET
                 case DIRECTIONAL_LIGHT:
                 {
                     float3 direction = normalize(lights[i].direction.xyz);
-                    float intensity = max(dot(N, direction), 0);
                     float3 radiance = lights[i].color.xyz * lights[i].intensity;
-                
-                    // cook-torrance brdf
-                    float NDF = DistributionGGX(N, intensity, roughness);
-                    float G = GeometrySmith(N, V, -direction, roughness);
-                    float3 F = fresnelSchlick(max(dot(intensity, V), 0.0), F0);
+                    
+                    float3 L = normalize(-direction);
+                    float3 H = normalize(V + L);
+        
+                    float NDF = DistributionGGX(N, H, roughness);
+                    float G = GeometrySmith(N, V, L, roughness);
+                    float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
         
                     float3 kS = F;
                     float3 kD = float3(1.f, 1.f, 1.f) - kS;
                     kD *= 1.0 - metallic;
         
                     float3 numerator = NDF * G * F;
-                    float denominator = 4.0 * max(NDotV, 0.0) * max(dot(N, -direction), 0.0);
-                    float3 specular = numerator / max(denominator, 0.001f);
-        
-                    // add to outgoing radiance Lo
-                    float NdotL = max(dot(N, -direction), 0.0);
-                    float3 directionalLightContribution = (1 * albedo / PI + specular) * radiance * NdotL;
+                    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+                    float3 specular = numerator / denominator;
+            
+                    float NdotL = max(dot(N, L), 0.0);
+                    float3 directionalLightContribution = (kD * albedo / PI + specular) * radiance * NdotL;
+                    
                     if (lights[i].isCastingShadow)
+                    {
                         directionalLightContribution *= emissiveShadowMask.a;
+                        fogColor = lights[i].color;
+                    }
                     
                     Lo += directionalLightContribution;
                 }
@@ -302,15 +364,25 @@ half4 main(PS_IN input) : SV_TARGET
         finalColor = (ambient + Lo) * ambientOcclusion;
     }
     else
-    {
         finalColor = emissive;
+    
+    // Volumetric Sun Scattering
+    if (volumetricSunScattering)
+        finalColor += VolumetricSunTexture.Sample(sampState, input.TexCoord);
+        //finalColor += getUppsampledVolumetricScattering(input.TexCoord); //VolumetricSunTexture.Sample(sampState, input.TexCoord);
+
+    // Fog
+    if (fog)
+    {
+        float3 fogOrigin = cameraPosition.xyz;
+        float3 fogDirection = normalize(WorldPos - fogOrigin);
+        float fogDepth = distance(WorldPos, fogOrigin);
+    
+        float fogFactor =   HEIGHT_FACTOR * exp(-fogOrigin.y * FOG_DENSITIY) *
+                            (1.f - exp(-fogDepth * fogDirection.y * FOG_DENSITIY)) / fogDirection.y;
+    
+        finalColor = lerp(finalColor, fogColor, saturate(fogFactor));
     }
-    //finalColor = float3(z, z, z);
-    //finalColor = float3(ambientOcclusion, ambientOcclusion, ambientOcclusion);
-    //finalColor = float3(roughness, roughness, roughness);
-    //finalColor = float3(metallic, metallic, metallic);
-    //finalColor = WorldPos;
-    //finalColor = ShadowMaskTexture.Sample(sampState, input.TexCoord).rgb;
-   
+    
     return half4(finalColor, 1.f);
 }

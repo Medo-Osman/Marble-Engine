@@ -9,7 +9,7 @@ struct VertexShaderOutput
     float3 localPos : POSITION;
 };
 
-cbuffer constantBuffer : register(b0)
+cbuffer WVPBuffer : register(b0)
 {
     matrix vpMatrix; // Includes only rotation if world is multiplied
 };

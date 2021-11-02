@@ -13,6 +13,7 @@ private:
 	XMFLOAT3 m_oldVelocity;
 	XMFLOAT3 m_acceleration;
 	float m_accelMultiplier = 1.f;
+	float m_accelSpeedUpMultiplier = 1.f;
 	XMFLOAT3 m_deceleration;
 	float m_decelMultiplier = 1.f;
 	float m_maxSpeed;
@@ -122,6 +123,10 @@ public:
 	{
 		return m_acceleration;
 	}
+	float getAccelMultiplier() const
+	{
+		return m_accelMultiplier;
+	}
 	BoundingBox* getAABBPtr()
 	{
 		return m_aabb;
@@ -148,6 +153,10 @@ public:
 	void setAcceleration(XMFLOAT3 newAcceleration)
 	{
 		m_acceleration = newAcceleration;
+	}
+	void setAccelMultiplier(float newMultiplier)
+	{
+		m_accelMultiplier = newMultiplier;
 	}
 	void setIsJumping(bool isJumping)
 	{

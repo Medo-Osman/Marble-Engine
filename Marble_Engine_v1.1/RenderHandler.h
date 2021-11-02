@@ -76,6 +76,7 @@ private:
     ComPtr< ID3D11DepthStencilView > m_depthStencilView;
     ComPtr< ID3D11Texture2D > m_depthStencilBuffer;
     ComPtr< ID3D11DepthStencilState > m_depthStencilState;
+    ComPtr< ID3D11DepthStencilState > m_readOnlyDepthStencilState;
     ComPtr< ID3D11DepthStencilState > m_disabledDepthStencilState;
 
     // Render States
@@ -83,6 +84,8 @@ private:
     ComPtr< ID3D11SamplerState > m_defaultBorderSamplerState;
     ComPtr< ID3D11RasterizerState > m_defaultRasterizerState;
     ComPtr< ID3D11RasterizerState > m_wireframeRasterizerState;
+    ComPtr< ID3D11RasterizerState > m_cullOffRasterizerState;
+    ComPtr< ID3D11RasterizerState > m_cullOffWireframeRasterizerState;
     bool m_wireframeMode;
 
     // Shadow Mapping
@@ -107,6 +110,20 @@ private:
     // Down Sampling
     Shaders m_downsampleCS;
     RenderTexture m_halfResTexture;
+
+    // Volumetric Sun Scattering
+    bool m_volumetricSunToggle = true;
+    bool m_volumetricSunWireframeToggle = false;
+    std::unique_ptr<Mesh<VertexPosNormTexTan>> m_lightVolumeMesh;
+    Shaders m_volumetricSunShaders;
+    RenderTexture m_volumetricAccumulationRTV;
+
+    Buffer< VS_WVP_CBUFFER > m_lightVolumeWvpCBuffer;
+    Buffer< DS_TESSELLATION_CBUFFER > m_lightVolumeTessCBuffer;
+    Buffer< DS_SUN_DATA_CBUFFER > m_sunLightCBuffer;
+    
+    // Fog
+    bool m_fogToggle = true;
 
     // Bloom
     // - Pass
@@ -154,6 +171,7 @@ private:
     // Blend State
     ComPtr< ID3D11BlendState > m_blendStateNoBlend;
     ComPtr< ID3D11BlendState > m_blendStateBlend;
+    ComPtr< ID3D11BlendState > m_blendStateAdditiveBlend;
 
     // Shader States
     std::vector<Shaders> m_shaderStates;
@@ -167,7 +185,7 @@ private:
     // Null Pointer Views
     ID3D11RenderTargetView* m_renderTargetNullptr = nullptr;
     ID3D11ShaderResourceView* m_shaderResourceNullptr = nullptr;
-    ID3D11ShaderResourceView* m_shaderResourcesNullptr[5] = { m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr };
+    ID3D11ShaderResourceView* m_shaderResourcesNullptr[7] = { m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr, m_shaderResourceNullptr };
     ID3D11UnorderedAccessView* m_unorderedAccessNullptr = nullptr;
     ID3D11UnorderedAccessView* m_unorderedAccessesNullptr[5] = { m_unorderedAccessNullptr, m_unorderedAccessNullptr, m_unorderedAccessNullptr, m_unorderedAccessNullptr, m_unorderedAccessNullptr };
 
@@ -208,6 +226,7 @@ private:
     void initDepthStencilBuffer();
     void initRenderStates();
     void initSSAOBlurPass(UINT width, UINT height, DXGI_FORMAT format);
+    void initVolumetricSunPass();
     void initBloomPass(UINT width, UINT height);
     void initAdaptiveExposurePass();
 
@@ -218,6 +237,7 @@ private:
     void lightPass();
     void downsamplePass();
     void blurSSAOPass();
+    void volumetricSunPass();
     void bloomPass();
     void adaptiveExposurePass(float deltaTime);
 
@@ -253,10 +273,10 @@ public:
     void modelTextureUIUpdate(RenderObjectKey key);
 
     // Lights
-    int addLight(Light newLight, bool usedForShadowMapping = false);
+    int addLight(Light newLight, XMFLOAT3 rotationRad = XMFLOAT3(0, 0, 0), bool usedForShadowMapping = false);
     void removeLight(int id);
     void updateLight(Light* light, int id);
-    void changeShadowMappingLight(Light* light, bool disableShadowCasting = false);
+    void changeShadowMappingLight(Light* light, XMFLOAT3 rotationRad = XMFLOAT3(0,0,0), bool disableShadowCasting = false);
     
     // Render Modes
     bool* getWireframeModePtr();
@@ -283,6 +303,7 @@ public:
     void UITonemappingWindow();
     void UIssaoSettings();
     void UIadaptiveExposureSettings();
+    void UIVolumetricSunSettings();
     void UIbloomSettings();
     void UIEnviormentPanel();
 

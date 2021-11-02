@@ -27,11 +27,13 @@ public:
 
 	// Getters
 	XMFLOAT3 getPositionF3() const;
+	float getAccelMultiplier() const;
 
 	// Controlls
 	void rotate(int mouseX, int mouseY);
 	void resetPosAndRot();
-	void addForce(Direction direction, float dt);
+	void setAccelMultiplier(float accel);
+	void addForce(Direction direction, float dt, float multiplier = 1.f);
 
 	// Update
 	void update(float dt);

@@ -38,15 +38,22 @@ struct Light
     BOOL        isCastingShadow;
 };
 
+struct LightHelper
+{
+    XMFLOAT3 rotationDeg;
+};
+
 const UINT LIGHT_CAP = 40;
 
 struct PS_LIGHT_BUFFER
 {
     Light lights[LIGHT_CAP];
     UINT nrOfLights;
-    float enviormentDiffContribution = 0.03f;
+    float enviormentDiffContribution = 0.1f;
     float enviormentSpecContribution = 0.f;
-    float pad;
+    BOOL volumetricSunScattering = TRUE;
+    BOOL fog = TRUE;
+    XMFLOAT3 pad;
 };
 
 struct PS_COLOR_ANIMATION_BUFFER
@@ -131,4 +138,18 @@ struct PS_TONEMAP_CBUFFER
 
     // Padding
     XMFLOAT3 pad;
+};
+
+struct DS_TESSELLATION_CBUFFER
+{
+    float tessFactor;
+    XMFLOAT3 pad;
+};
+
+struct DS_SUN_DATA_CBUFFER
+{
+    XMFLOAT3 sunDirection;
+    float sunIntensity;
+    XMFLOAT3 sunColor;
+    float pad;
 };

@@ -26,6 +26,11 @@ XMFLOAT3 CameraObject::getPositionF3() const
 	return m_movementComponent->getPositionF3();
 }
 
+float CameraObject::getAccelMultiplier() const
+{
+	return m_physicsComponent->getAccelMultiplier();
+}
+
 void CameraObject::rotate(int mouseX, int mouseY)
 {
 	// Rotate Camera
@@ -63,9 +68,14 @@ void CameraObject::resetPosAndRot()
 	m_physicsComponent->setVelocity({ 0.f, 0.f, 0.f });
 }
 
-void CameraObject::addForce(Direction direction, float dt)
+void CameraObject::setAccelMultiplier(float accel)
 {
-	m_physicsComponent->addForceDir(direction, dt);
+	m_physicsComponent->setAccelMultiplier(accel);
+}
+
+void CameraObject::addForce(Direction direction, float dt, float multiplier)
+{
+	m_physicsComponent->addForceDir(direction, dt, multiplier);
 }
 
 void CameraObject::update(float dt)
