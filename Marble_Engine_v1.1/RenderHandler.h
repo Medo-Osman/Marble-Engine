@@ -172,6 +172,7 @@ private:
     ComPtr< ID3D11BlendState > m_blendStateNoBlend;
     ComPtr< ID3D11BlendState > m_blendStateBlend;
     ComPtr< ID3D11BlendState > m_blendStateAdditiveBlend;
+    ComPtr< ID3D11BlendState > m_blendStatePreMultipliedAlphaBlend;
 
     // Shader States
     std::vector<Shaders> m_shaderStates;
@@ -203,7 +204,7 @@ private:
     Timer m_timer;
 
     // Particles
-    ParticleSystem m_particleSystem;
+    std::map<std::string, ParticleSystem> m_particleSystems;
 
     // Model Selection
     ModelSelectionHandler m_modelSelectionHandler;
@@ -240,6 +241,7 @@ private:
     void volumetricSunPass();
     void bloomPass();
     void adaptiveExposurePass(float deltaTime);
+    void particlePass();
 
 public:
     RenderHandler(RenderHandler const&) = delete;
@@ -293,7 +295,8 @@ public:
     float selectionArrowPicking(UINT pointX, UINT pointY, char dimension);
 
     // Update
-    void update(float dt);
+    void update(double dt);
+    void resetParticles();
     void updateShaderState(ShaderStates shaderState);
     void updatePassShaders();
 
@@ -308,7 +311,7 @@ public:
     void UIEnviormentPanel();
 
     // Render
-    void render(float dt);
+    void render(double dt);
 };
 
 #endif // !RENDERHANDLER_H

@@ -71,7 +71,7 @@ public:
 	void setPosition(XMFLOAT3 newPosition);
 
 	// Update
-	void update(float dt);
+	void update(double dt);
 };
 
 #endif // !GAMEOBJECT_H

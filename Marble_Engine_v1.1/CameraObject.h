@@ -33,10 +33,10 @@ public:
 	void rotate(int mouseX, int mouseY);
 	void resetPosAndRot();
 	void setAccelMultiplier(float accel);
-	void addForce(Direction direction, float dt, float multiplier = 1.f);
+	void addForce(Direction direction, double dt, float multiplier = 1.f);
 
 	// Update
-	void update(float dt);
+	void update(double dt);
 	void updateUI();
 };
 

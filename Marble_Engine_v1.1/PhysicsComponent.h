@@ -229,9 +229,9 @@ public:
 	{
 		m_velocity.y *= m_deceleration.y * dt;
 	}
-	float decelerate(float source, float target, float smoothing, float dt)
+	float decelerate(float source, float target, float smoothing, double dt)
 	{
-		return lerpF(source, target, 1 - std::pow(smoothing, dt));
+		return lerpF(source, target, (float)(1.0 - std::pow(smoothing, dt)));
 	}
 
 	void jump(float accelerationMultipler, float dt)
@@ -304,7 +304,7 @@ public:
 		}
 	}
 
-	void updatePosition(float dt, bool isCamera = false)
+	void updatePosition(double dt, bool isCamera = false)
 	{
 		m_moveComp->position = XMVectorAdd(m_moveComp->position, XMLoadFloat3(&m_velocity));
 		m_aabb->Center = m_moveComp->getPositionF3();

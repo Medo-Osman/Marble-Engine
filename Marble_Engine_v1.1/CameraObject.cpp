@@ -73,12 +73,12 @@ void CameraObject::setAccelMultiplier(float accel)
 	m_physicsComponent->setAccelMultiplier(accel);
 }
 
-void CameraObject::addForce(Direction direction, float dt, float multiplier)
+void CameraObject::addForce(Direction direction, double dt, float multiplier)
 {
-	m_physicsComponent->addForceDir(direction, dt, multiplier);
+	m_physicsComponent->addForceDir(direction, (float)dt, multiplier);
 }
 
-void CameraObject::update(float dt)
+void CameraObject::update(double dt)
 {
 	m_physicsComponent->updatePosition(dt);
 	m_renderHandler->updateCamera(m_movementComponent->position, m_movementComponent->rotation);

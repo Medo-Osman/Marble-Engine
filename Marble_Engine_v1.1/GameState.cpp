@@ -291,7 +291,7 @@ void GameState::initialize(Settings settings)
 
 	// - Game objects and Lighting window
 	float windowContentHeight = m_renderHandler->getClientHeight() - 70.f; // ImGui window header and border heights
-	m_gameObjectSectionHeight = windowContentHeight * 0.7f ;
+	m_gameObjectSectionHeight = windowContentHeight * 0.6f ;
 	m_lightSectionHeight = windowContentHeight - m_gameObjectSectionHeight - m_sectionSeperatorHeight - m_splitterButtonPadding;
 
 	// - Model List
@@ -379,7 +379,7 @@ void GameState::initialize(Settings settings)
 	XMStoreFloat4(&light.direction, lightDir);
 
 	light.color = XMFLOAT3(1.f, 0.7f, 0.5f);
-	light.intensity = 3.f;
+	light.intensity = 1.0f;
 	light.type = DIRECTIONAL_LIGHT;
 	light.enabled = true;
 	light.isCastingShadow = true;
@@ -392,7 +392,7 @@ void GameState::initialize(Settings settings)
 			XMConvertToRadians(lightHelper.rotationDeg.z)),
 		light.isCastingShadow);
 
-	generateMaxRandomLights();
+	//generateMaxRandomLights();
 
 	// - Nanosuit
 	/*m_gameObjects.push_back(new GameObject());
@@ -460,7 +460,7 @@ void GameState::initialize(Settings settings)
 	m_camera.initialize(settings.mouseSensitivity);
 }
 
-void GameState::controls(float dt)
+void GameState::controls(double dt)
 {
 	if (!InputHandler::getInstance().keyBufferIsEmpty())
 	{
@@ -618,10 +618,13 @@ void GameState::controls(float dt)
 			//m_renderHandler->updatePassShaders();
 		if (InputHandler::getInstance().keyIsPressed(KeyCodes::T)) // Update light Shaders
 			m_renderHandler->updatePassShaders();
+		
+		if (InputHandler::getInstance().keyIsPressed(KeyCodes::C))
+			m_renderHandler->resetParticles();
 	}
 }
 
-void GameState::update(float dt)
+void GameState::update(double dt)
 {
 	// ImGUI
 	ImGui_ImplDX11_NewFrame();

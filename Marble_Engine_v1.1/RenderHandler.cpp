@@ -247,8 +247,9 @@ void RenderHandler::initDepthStencilBuffer()
 	assert(SUCCEEDED(hr) && "Error, failed to create depth stencil state!");
 
 	// Create Disabled Depth Stencil State
-	dsDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
-	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	ZeroMemory(&dsDesc, sizeof(dsDesc));
+	dsDesc.DepthEnable = false;
+	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
 	hr = m_device->CreateDepthStencilState(&dsDesc, &m_disabledDepthStencilState);
 	assert(SUCCEEDED(hr) && "Error, failed to create disabled depth stencil state!");
 }
@@ -308,6 +309,7 @@ void RenderHandler::initRenderStates()
 	hr = m_device->CreateSamplerState(&samplerStateDesc, &m_defaultWrapSamplerState);
 	assert(SUCCEEDED(hr) && "Error, failed to create default wrap sampler state!");
 	m_deviceContext->PSSetSamplers(1, 1, m_defaultWrapSamplerState.GetAddressOf()); // ImGui uses slot 0
+	m_deviceContext->GSSetSamplers(0, 1, m_defaultWrapSamplerState.GetAddressOf());
 
 	// - Border Sampler
 	samplerStateDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
@@ -338,14 +340,22 @@ void RenderHandler::initRenderStates()
 	blendStateDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	m_device->CreateBlendState(&blendStateDesc, m_blendStateNoBlend.GetAddressOf());
 
-	blendStateDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	blendStateDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
 	blendStateDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
 	blendStateDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-	blendStateDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ZERO;
+	blendStateDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
 	blendStateDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
 	blendStateDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	blendStateDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	m_device->CreateBlendState(&blendStateDesc, m_blendStateAdditiveBlend.GetAddressOf());
+	
+	blendStateDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blendStateDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	blendStateDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendStateDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_DEST_ALPHA;
+	blendStateDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	blendStateDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	m_device->CreateBlendState(&blendStateDesc, m_blendStatePreMultipliedAlphaBlend.GetAddressOf());
 
 	blendStateDesc.RenderTarget[0].BlendEnable = false;
 	blendStateDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_COLOR;
@@ -1029,6 +1039,41 @@ void RenderHandler::adaptiveExposurePass(float deltaTime)
 	m_deviceContext->CSSetUnorderedAccessViews(0, 2, m_unorderedAccessesNullptr, &cOffset);
 }
 
+void RenderHandler::particlePass()
+{
+	// Setup
+	float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	UINT sampleMask = 0xffffffff;
+	m_deviceContext->OMSetBlendState(m_blendStatePreMultipliedAlphaBlend.Get(), blendFactor, sampleMask);
+	m_deviceContext->RSSetState(m_cullOffRasterizerState.Get());
+	m_deviceContext->OMSetDepthStencilState(m_disabledDepthStencilState.Get(), 0);
+
+	m_deviceContext->OMSetRenderTargets(1, &m_hdrRTV.rtv, nullptr); // Unbind Depth Buffer
+	m_deviceContext->PSSetShaderResources(1, 1,&m_shaderResourceNullptr); // Unbind Normal Texture
+	m_deviceContext->GSSetShaderResources(1, 1, &m_gBuffer.renderTextures[GBufferType::DEPTH].srv); // Used for Particle Collision
+	m_deviceContext->GSSetShaderResources(2, 1, &m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].srv); // Used for Particle Collision
+
+	// Generate
+	for (auto& object : m_particleSystems)
+		object.second.generateParticles();
+
+	// Render Setup
+	m_deviceContext->OMSetDepthStencilState(m_readOnlyDepthStencilState.Get(), 0);
+
+	m_deviceContext->GSSetShaderResources(1, 2, m_shaderResourcesNullptr); // Unbind G-Buffer textures
+	m_deviceContext->OMSetRenderTargets(1, &m_hdrRTV.rtv, m_depthStencilView.Get()); // Bind Depth Buffer Back
+
+	// Render
+	for (auto& object : m_particleSystems)
+		object.second.renderParticles();
+
+	// Reset
+	m_deviceContext->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
+	m_deviceContext->OMSetRenderTargets(1, &m_hdrRTV.rtv, m_depthStencilView.Get());
+	m_deviceContext->RSSetState(m_defaultRasterizerState.Get());
+	m_deviceContext->OMSetBlendState(m_blendStateBlend.Get(), blendFactor, sampleMask);
+}
+
 void RenderHandler::initCamera()
 {
 	RECT winRect;
@@ -1060,7 +1105,8 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	
 	// Skybox
 	m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"TableMountain1Cubemap.dds", L"TableMountain1Irradiance.dds");
-	//m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"space_skybox.dds", L"dikhololo_night_sky_irradiance.dds");
+	//m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"dikhololo_night_skybox.dds", L"dikhololo_night_sky_irradiance.dds");
+	
 	// - Render Cubemap Previews
 	m_deviceContext->RSSetState(m_defaultRasterizerState.Get());
 	m_skybox.cubemapPreviewsRenderSetup();
@@ -1075,12 +1121,10 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	// - Phong
 	shaderFiles.vs = L"GeneralVS.hlsl";
 	shaderFiles.ps = L"GBufferPS.hlsl";
-	//shaderFiles.ps = L"GeneralPS.hlsl";
 	m_shaderStates[ShaderStates::PHONG].initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS_NOR_TEX_TAN);
 	// - PBR
 	shaderFiles.vs = L"GeneralVS.hlsl";
 	shaderFiles.ps = L"GBufferPBR_PS.hlsl";
-	//shaderFiles.ps = L"PBR_PS.hlsl";
 	m_shaderStates[ShaderStates::PBR].initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS_NOR_TEX_TAN);
 
 	// - Light pass Shaders
@@ -1102,7 +1146,25 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	initBloomPass((UINT)winRect.right, (UINT)winRect.bottom);
 
 	// Particles
-	m_particleSystem.Initialize(m_device.Get(), m_deviceContext.Get(), L"flare.dds", 10);
+	PARTICLE_STYLE particleStyle;
+	particleStyle.colorBegin = XMFLOAT3(1.f, .3f, .16f);
+	particleStyle.colorBias = 0.5f;
+	particleStyle.colorEnd = XMFLOAT3(0.f, 0.f, 0.f);
+	particleStyle.intensity = 1.f;
+	particleStyle.scaleVariationMax = 0.f;
+	particleStyle.rotationVariationMax = 0.f;
+	particleStyle.lifetime = 1.f;
+	particleStyle.useNoise = true;
+	particleStyle.emitDirection = XMFLOAT3(0.f, 20.f, 0.f);
+	particleStyle.emitInterval = 0.1f;
+
+	for (int i = 0; i < 4; i++)
+		m_particleSystems["fire" + std::to_string(i)].Initialize(m_device.Get(), m_deviceContext.Get(), L"fire_large_tex.png", 20, particleStyle);
+	
+	m_particleSystems["fire0"].setEmitPosition(XMFLOAT3(-8.85f, 4.8f, -23.7f));
+	m_particleSystems["fire1"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f, -23.7f));
+	m_particleSystems["fire2"].setEmitPosition(XMFLOAT3(-8.85f, 4.8f,  22.8f));
+	m_particleSystems["fire3"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f,  22.8f));
 
 	// Selection
 	
@@ -1470,15 +1532,17 @@ float RenderHandler::selectionArrowPicking(UINT pointX, UINT pointY, char dimens
 	return m_modelSelectionHandler.picking(rayOrigin, rayDirection, dimension);
 }
 
-void RenderHandler::update(float dt)
+void RenderHandler::update(double dt)
 {
+	//Sleep((1000.f / 60.f));
 	// Particles
-	m_particleSystem.update(dt, (float)m_timer.timeElapsed(), m_camera);
+	for (auto& object : m_particleSystems)
+		object.second.update(dt, (float)m_timer.timeElapsed(), m_camera);
 
 	// Selection
 	if (m_selectedObjectKey.valid)
 	{
-		m_selectionAnimationData.colorOpacity += (m_animationDirection * dt);
+		m_selectionAnimationData.colorOpacity += (m_animationDirection * (float)dt);
 		if (m_selectionAnimationData.colorOpacity >= .9f)
 		{
 			m_animationDirection = -1.f;
@@ -1495,6 +1559,12 @@ void RenderHandler::update(float dt)
 	}
 }
 
+void RenderHandler::resetParticles()
+{
+	for (auto& object : m_particleSystems)
+		object.second.reset();
+}
+
 void RenderHandler::updateShaderState(ShaderStates shaderState)
 {
 	m_shaderStates[shaderState].updateShaders();
@@ -1504,14 +1574,18 @@ void RenderHandler::updatePassShaders()
 {
 	m_lightPassShaders.updateShaders();
 	m_tonemapShaders.updateShaders();
+
+	for (auto& object : m_particleSystems)
+		object.second.updateShaders();
+
 	//m_HBAOInstance.updateShaders();
-	m_SSAOInstance.updateShaders();
+	//m_SSAOInstance.updateShaders();
 	//m_edgePreservingBlurCS.updateShaders();
 
 	/*m_bloomDownsampleShader.updateShaders();
 	m_bloomUpsampleShader.updateShaders();*/
 
-	m_volumetricSunShaders.updateShaders();
+	//m_volumetricSunShaders.updateShaders();
 
 	/*m_skybox.updatePreviewShaders();
 	m_skybox.cubemapPreviewsRenderSetup();
@@ -1760,7 +1834,7 @@ void RenderHandler::UIEnviormentPanel()
 	}
 }
 
-void RenderHandler::render(float dt)
+void RenderHandler::render(double dt)
 {
 	// Clear Frame
 	
@@ -1869,9 +1943,8 @@ void RenderHandler::render(float dt)
 	// Skybox
 	m_skybox.render();
 
-	// Draw Particles
-	/*m_deviceContext->OMSetDepthStencilState(m_disabledDepthStencilState.Get(), 0);
-	m_particleSystem.render();*/
+	// Particles
+	particlePass();
 
 	// Draw Selection Indicators
 	if (m_selectedObjectKey.valid)
@@ -1879,8 +1952,7 @@ void RenderHandler::render(float dt)
 		// - Wireframe
 		m_deviceContext->RSSetState(m_wireframeRasterizerState.Get()); // Wireframe On
 		m_selectionShaders.setShaders();
-		ID3D11ShaderResourceView* nullSRV = nullptr;
-		m_deviceContext->PSSetShaderResources(0, 1, &nullSRV);
+		m_deviceContext->PSSetShaderResources(0, 1, &m_shaderResourceNullptr);
 		m_deviceContext->PSSetConstantBuffers(4, 1, m_selectionCBuffer.GetAddressOf());
 		
 		/*float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -1907,7 +1979,7 @@ void RenderHandler::render(float dt)
 
 	// Adaptive Exposure
 	if (m_adaptiveExposureToggle)
-		adaptiveExposurePass(dt);
+		adaptiveExposurePass((float)dt);
 
 	// Bloom
 	if (m_bloomToggle)

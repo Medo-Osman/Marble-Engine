@@ -5,6 +5,8 @@
 #include "ResourceHandler.h"
 #include "Camera.h"
 
+enum ParticleType { EMITTER, PARTICLE};
+
 class ParticleSystem
 {
 private:
@@ -20,15 +22,14 @@ private:
     // on the first run, we need to use a different vertex buffer to initialize the system
     bool m_firstRun;
 
-    // Switching Buffers Bool
-    bool m_drawing;
-
     // How long the system has existed
     float m_age;
 
     // Constant Buffer
-    GS_PARTICLE_CBUFFER particleData;
-    Buffer<GS_PARTICLE_CBUFFER> particleCBuffer;
+    PARTICLE_CBUFFER m_particleData;
+    Buffer<PARTICLE_CBUFFER> m_particleCBuffer;
+    PARTICLE_STYLE m_particleStyleData;
+    Buffer<PARTICLE_STYLE> m_particleStyleCBuffer;
 
     // Shaders
     Shaders m_drawShaders;
@@ -43,29 +44,31 @@ private:
     Buffer<VertexParticle> m_streamOutVertexBuffer;
 
     // Textures
-    // a texture array to contain the sprites to be applied to the drawn particles
-    ID3D11ShaderResourceView* m_texArraySRV;
-    // a texture containing random floats, used to supply the shader with random values 
+    ID3D11ShaderResourceView* m_texture1SRV;
     ID3D11ShaderResourceView* m_randomTexSRV;
+    ID3D11ShaderResourceView* m_noiseTexSRV;
 
 public:
     ParticleSystem();
 
     // Initialization
-    void Initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, std::wstring texArrayPath, int maxParticles);
+    void Initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, std::wstring texArrayPath, int maxParticles, PARTICLE_STYLE styleData = PARTICLE_STYLE());
 
     // Getters
     float getAge() const { return m_age; }
 
     // Setters
     void setAge(float newAge) { m_age = newAge; }
+    void setEmitPosition(XMFLOAT3 newPosition);
 
     // Update
     void reset();
-    void update(float dt, float gameTime, Camera &camera);
+    void updateShaders();
+    void update(double dt, float gameTime, Camera &camera);
 
     // Render
-    void render();
+    void generateParticles();
+    void renderParticles();
 };
 
 #endif // !PARTICLESYSTEM_H

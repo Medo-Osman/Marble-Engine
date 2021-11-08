@@ -301,27 +301,27 @@ void Shaders::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContex
 			if (m_geometryShader.Get())
 				m_geometryShader.ReleaseAndGetAddressOf();
 
-			/*if (streamOutput)
+			if (streamOutput)
 			{
-				m_device->CreateGeometryShaderWithStreamOutput(
+				hr = m_device->CreateGeometryShaderWithStreamOutput(
 					gsBlob->GetBufferPointer(),
 					gsBlob->GetBufferSize(),
 					VertexParticleSoDecl,
 					VertexParticleElementCount,
-					NULL,
+					nullptr,
 					0,
-					0,
+					D3D11_SO_NO_RASTERIZED_STREAM,
 					nullptr,
 					&m_geometryShader);
 			}
 			else
-			{*/
+			{
 				hr = m_device->CreateGeometryShader(
 					gsBlob->GetBufferPointer(),
 					gsBlob->GetBufferSize(),
 					nullptr,
 					&m_geometryShader);
-			//}
+			}
 
 			assert(SUCCEEDED(hr) && "Error, Geometry shaders could not be created!");
 			gsBlob->Release();

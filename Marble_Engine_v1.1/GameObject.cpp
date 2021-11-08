@@ -136,7 +136,7 @@ void GameObject::setPosition(XMFLOAT3 newPosition)
 	m_movementComponent->position = XMLoadFloat3(&newPosition);
 }
 
-void GameObject::update(float dt)
+void GameObject::update(double dt)
 {
 	// ImGui
 	//ImGui::Text(getModelNameAndId().c_str());

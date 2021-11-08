@@ -98,14 +98,22 @@ public:
 			bufferDesc.CPUAccessFlags = 0;
 
 			// Subresource data
-			D3D11_SUBRESOURCE_DATA vertexData;
-			ZeroMemory(&vertexData, sizeof(D3D11_SUBRESOURCE_DATA));
-			vertexData.pSysMem = data;
-			vertexData.SysMemPitch = 0;
-			vertexData.SysMemSlicePitch = 0;
+			if (data != nullptr)
+			{
+				D3D11_SUBRESOURCE_DATA vertexData;
+				ZeroMemory(&vertexData, sizeof(D3D11_SUBRESOURCE_DATA));
+				vertexData.pSysMem = data;
+				vertexData.SysMemPitch = 0;
+				vertexData.SysMemSlicePitch = 0;
 
-			HRESULT hr = device->CreateBuffer(&bufferDesc, &vertexData, m_buffer.GetAddressOf());
-			assert(SUCCEEDED(hr) && "Error, failed to create Vertex buffer!");
+				HRESULT hr = device->CreateBuffer(&bufferDesc, &vertexData, m_buffer.GetAddressOf());
+				assert(SUCCEEDED(hr) && "Error, failed to create Vertex buffer!");
+			}
+			else
+			{
+				HRESULT hr = device->CreateBuffer(&bufferDesc, nullptr, m_buffer.GetAddressOf());
+				assert(SUCCEEDED(hr) && "Error, failed to create Vertex buffer!");
+			}
 		}
 		else if (bufferType == BufferType::INDEX)
 		{

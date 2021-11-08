@@ -100,30 +100,36 @@ const D3D11_INPUT_ELEMENT_DESC VertexPosNormTexTanDesc[] =
 
 struct VertexParticle
 {
-	XMFLOAT3 initialPos;
-	XMFLOAT3 initialVel;
+	XMFLOAT3 position;
+	XMFLOAT3 velocity;
 	XMFLOAT2 size;
+	float rotation; // radiance
 	float age;
 	UINT type;
+	UINT maxId;
 };
-static const unsigned int VertexParticleElementCount = 5;
+static const unsigned int VertexParticleElementCount = 7;
 
 const D3D11_INPUT_ELEMENT_DESC VertexParticleDesc[] =
 {
 	{ "POSITION",	0, DXGI_FORMAT_R32G32B32_FLOAT,		0, 0,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	{ "VELOCITY",	0, DXGI_FORMAT_R32G32B32_FLOAT,		0, 12,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	{ "SIZE",		0, DXGI_FORMAT_R32G32_FLOAT,		0, 24,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	{ "AGE",		0, DXGI_FORMAT_R32_FLOAT,			0, 32,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	{ "TYPE",		0, DXGI_FORMAT_R32_UINT,			0, 36,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	{ "ROTATION",	0, DXGI_FORMAT_R32_FLOAT,			0, 32,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	{ "AGE",		0, DXGI_FORMAT_R32_FLOAT,			0, 36,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	{ "TYPE",		0, DXGI_FORMAT_R32_UINT,			0, 40,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	{ "MAXID",		0, DXGI_FORMAT_R32_UINT,			0, 44,	D3D11_INPUT_PER_VERTEX_DATA, 0 },
 };
 
 const D3D11_SO_DECLARATION_ENTRY VertexParticleSoDecl[] =
 {
-	{ 0, "SV_POSITION", 0, 0, 4, 0 },
+	{ 0, "POSITION", 0, 0, 3, 0 },
 	{ 0, "VELOCITY", 0, 0, 3, 0 },
 	{ 0, "SIZE", 0, 0, 2, 0 },
+	{ 0, "ROTATION", 0, 0, 1, 0 },
 	{ 0, "AGE", 0, 0, 1, 0 },
 	{ 0, "TYPE", 0, 0, 1, 0 },
+	{ 0, "MAXID", 0, 0, 1, 0 },
 };
 
 #endif // !VERTEXTYPELIST_H

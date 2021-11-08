@@ -50,9 +50,9 @@ struct PS_LIGHT_BUFFER
     Light lights[LIGHT_CAP];
     UINT nrOfLights;
     float enviormentDiffContribution = 0.1f;
-    float enviormentSpecContribution = 0.f;
-    BOOL volumetricSunScattering = TRUE;
-    BOOL fog = TRUE;
+    float enviormentSpecContribution = 0.1f;
+    BOOL volumetricSunScattering = TRUE;//FALSE;
+    BOOL fog = TRUE;//FALSE;
     XMFLOAT3 pad;
 };
 
@@ -62,15 +62,30 @@ struct PS_COLOR_ANIMATION_BUFFER
     XMFLOAT3 pad;
 };
 
-struct GS_PARTICLE_CBUFFER
+struct PARTICLE_CBUFFER
 {
-    XMMATRIX viewProjectionMatrix;
+    XMMATRIX viewMatrix;
+    XMMATRIX projMatrix;
     XMFLOAT3 camPosition;
     float gameTime;
-    XMFLOAT3 emitPosition;
+    XMFLOAT3 emitPosition = XMFLOAT3(0.f, 2.f, 0.f);
     float deltaTime;
+    float maxParticles;
+    XMFLOAT3 pad;
+};
+
+struct PARTICLE_STYLE
+{
+    XMFLOAT3 colorBegin = XMFLOAT3(1.f, 1.f, 1.f);
+    float colorBias = 0.2f;
+    XMFLOAT3 colorEnd = XMFLOAT3(.9f, .9f, .9f);
+    float intensity = 1.f;
+    float scaleVariationMax = 0.2f;
+    float rotationVariationMax = XM_PIDIV4;//0.2f;
+    float lifetime = 1.f;
+    int useNoise = true;
     XMFLOAT3 emitDirection;
-    float pad;
+    float emitInterval;
 };
 
 const int MAX_BLUR_RADIUS = 15;
@@ -109,7 +124,7 @@ struct PS_HISTOGRAM_CBUFFER
 struct PS_HISTOGRAM_AVERAGING_CBUFFER
 {
     UINT pixelCount;
-    float minLogLuminance = -2.f; // min
+    float minLogLuminance = -1.5f; // min
     float logLuminanceRange = 20.f; // range
     float deltaTime;
     float tau = 0.3f;

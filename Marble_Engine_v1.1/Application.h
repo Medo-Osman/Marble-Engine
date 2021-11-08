@@ -22,7 +22,7 @@ private:
 
 	// Timer
 	Timer m_timer;
-	float m_deltaTime;
+	double m_deltaTime;
 
 	// Game
 	GameState m_game;

@@ -25,8 +25,8 @@ private:
 	bool m_windowResizeFlag;
 	bool m_enviormentPanelShow = true;
 
-	float m_gameObjectSectionHeight = 500.f;
-	float m_lightSectionHeight = 195.f;
+	float m_gameObjectSectionHeight = 420.f;
+	float m_lightSectionHeight = 275.f;
 	float m_sectionSeperatorHeight = 25.f;
 	float m_splitterButtonPadding = 10.f;
 	ID3D11Resource* m_defaultModelThumbnail;
@@ -59,8 +59,8 @@ public:
 	void initialize(Settings settings);
 
 	// Update
-	void controls(float dt);
-	void update(float dt);
+	void controls(double dt);
+	void update(double dt);
 };
 
 #endif // !GAMESTATE_H
