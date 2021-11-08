@@ -152,8 +152,8 @@ void DrawSplitter(bool split_vertically, float thickness, float* size0, float* s
 
 void GameState::generateMaxRandomLights()
 {
-	XMFLOAT3 posScale = XMFLOAT3(21, 15, 53);
-	XMFLOAT3 posBias = XMFLOAT3(-10.5f, 3, -26);
+	XMFLOAT3 posScale = XMFLOAT3(22, 13, 55);
+	XMFLOAT3 posBias = XMFLOAT3(-10.5f, 3, -25);
 
 	srand(12645);
 	auto randUint = []() -> uint32_t
@@ -366,7 +366,7 @@ void GameState::initialize(Settings settings)
 	m_renderHandler->addLight(light);*/
 
 	// Directional Light
-	lightHelper.rotationDeg = XMFLOAT3(-90.f, 0.f, 0.f);
+	lightHelper.rotationDeg = XMFLOAT3(-90.f, 14.f, 0.f);
 
 	XMVECTOR rotQuat = XMQuaternionRotationRollPitchYaw(
 		XMConvertToRadians(lightHelper.rotationDeg.x),
@@ -378,8 +378,8 @@ void GameState::initialize(Settings settings)
 	lightDir = XMQuaternionMultiply(lightDir, rotQuatInverse);
 	XMStoreFloat4(&light.direction, lightDir);
 
-	light.color = XMFLOAT3(1.f, 0.7f, 0.5f);
-	light.intensity = 1.0f;
+	light.color = XMFLOAT3(.64f, 0.767f, 1.f);
+	light.intensity = 0.5f;
 	light.type = DIRECTIONAL_LIGHT;
 	light.enabled = true;
 	light.isCastingShadow = true;
@@ -392,7 +392,7 @@ void GameState::initialize(Settings settings)
 			XMConvertToRadians(lightHelper.rotationDeg.z)),
 		light.isCastingShadow);
 
-	//generateMaxRandomLights();
+	generateMaxRandomLights();
 
 	// - Nanosuit
 	/*m_gameObjects.push_back(new GameObject());

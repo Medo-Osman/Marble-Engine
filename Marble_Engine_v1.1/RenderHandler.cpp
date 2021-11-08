@@ -1046,26 +1046,28 @@ void RenderHandler::particlePass()
 	UINT sampleMask = 0xffffffff;
 	m_deviceContext->OMSetBlendState(m_blendStatePreMultipliedAlphaBlend.Get(), blendFactor, sampleMask);
 	m_deviceContext->RSSetState(m_cullOffRasterizerState.Get());
-	m_deviceContext->OMSetDepthStencilState(m_disabledDepthStencilState.Get(), 0);
-
-	m_deviceContext->OMSetRenderTargets(1, &m_hdrRTV.rtv, nullptr); // Unbind Depth Buffer
 	m_deviceContext->PSSetShaderResources(1, 1,&m_shaderResourceNullptr); // Unbind Normal Texture
-	m_deviceContext->GSSetShaderResources(1, 1, &m_gBuffer.renderTextures[GBufferType::DEPTH].srv); // Used for Particle Collision
-	m_deviceContext->GSSetShaderResources(2, 1, &m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].srv); // Used for Particle Collision
 
-	// Generate
 	for (auto& object : m_particleSystems)
+	{
+		m_deviceContext->OMSetDepthStencilState(m_disabledDepthStencilState.Get(), 0);
+
+		m_deviceContext->OMSetRenderTargets(1, &m_hdrRTV.rtv, nullptr); // Unbind Depth Buffer
+		m_deviceContext->GSSetShaderResources(1, 1, &m_gBuffer.renderTextures[GBufferType::DEPTH].srv); // Used for Particle Collision
+		m_deviceContext->GSSetShaderResources(2, 1, &m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].srv); // Used for Particle Collision
+
+		// Generate
 		object.second.generateParticles();
 
-	// Render Setup
-	m_deviceContext->OMSetDepthStencilState(m_readOnlyDepthStencilState.Get(), 0);
+		// Render Setup
+		m_deviceContext->OMSetDepthStencilState(m_readOnlyDepthStencilState.Get(), 0);
 
-	m_deviceContext->GSSetShaderResources(1, 2, m_shaderResourcesNullptr); // Unbind G-Buffer textures
-	m_deviceContext->OMSetRenderTargets(1, &m_hdrRTV.rtv, m_depthStencilView.Get()); // Bind Depth Buffer Back
+		m_deviceContext->GSSetShaderResources(1, 2, m_shaderResourcesNullptr); // Unbind G-Buffer textures
+		m_deviceContext->OMSetRenderTargets(1, &m_hdrRTV.rtv, m_depthStencilView.Get()); // Bind Depth Buffer Back
 
-	// Render
-	for (auto& object : m_particleSystems)
+		// Render
 		object.second.renderParticles();
+	}
 
 	// Reset
 	m_deviceContext->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
@@ -1104,8 +1106,8 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_shadowInstance.initialize(m_device.Get(), m_deviceContext.Get(), SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
 	
 	// Skybox
-	m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"TableMountain1Cubemap.dds", L"TableMountain1Irradiance.dds");
-	//m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"dikhololo_night_skybox.dds", L"dikhololo_night_sky_irradiance.dds");
+	//m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"TableMountain1Cubemap.dds", L"TableMountain1Irradiance.dds");
+	m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"dikhololo_night_skybox.dds", L"dikhololo_night_sky_irradiance.dds");
 	
 	// - Render Cubemap Previews
 	m_deviceContext->RSSetState(m_defaultRasterizerState.Get());
@@ -1146,25 +1148,53 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	initBloomPass((UINT)winRect.right, (UINT)winRect.bottom);
 
 	// Particles
+
+	// - Fire
 	PARTICLE_STYLE particleStyle;
 	particleStyle.colorBegin = XMFLOAT3(1.f, .3f, .16f);
 	particleStyle.colorBias = 0.5f;
 	particleStyle.colorEnd = XMFLOAT3(0.f, 0.f, 0.f);
-	particleStyle.intensity = 1.f;
+	particleStyle.colorIntensity = 1.f;
 	particleStyle.scaleVariationMax = 0.f;
 	particleStyle.rotationVariationMax = 0.f;
 	particleStyle.lifetime = 1.f;
 	particleStyle.useNoise = true;
-	particleStyle.emitDirection = XMFLOAT3(0.f, 20.f, 0.f);
+	particleStyle.emitDirection = XMFLOAT3(0.f, 15.f, 0.f);
 	particleStyle.emitInterval = 0.1f;
+	particleStyle.randomizePosition = false;
+	particleStyle.randomizeDirection = false;
+	particleStyle.dieOnCollition = true;
+	particleStyle.fadeInAndOut = false;
+	particleStyle.idInterval = 5;
 
 	for (int i = 0; i < 4; i++)
-		m_particleSystems["fire" + std::to_string(i)].Initialize(m_device.Get(), m_deviceContext.Get(), L"fire_large_tex.png", 20, particleStyle);
+		m_particleSystems["fire" + std::to_string(i)].Initialize(m_device.Get(), m_deviceContext.Get(), L"spot_gradient_tex.png", 20, particleStyle, XMFLOAT3(0,0,0), XMFLOAT2(3.f, 3.f));
 	
 	m_particleSystems["fire0"].setEmitPosition(XMFLOAT3(-8.85f, 4.8f, -23.7f));
 	m_particleSystems["fire1"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f, -23.7f));
 	m_particleSystems["fire2"].setEmitPosition(XMFLOAT3(-8.85f, 4.8f,  22.8f));
 	m_particleSystems["fire3"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f,  22.8f));
+
+	// Air
+	particleStyle.colorBegin = XMFLOAT3(1.f, 0.7f, 0.5f);
+	particleStyle.colorBias = 0.f;
+	particleStyle.colorEnd = XMFLOAT3(0.5f, 0.35f, 0.25f);
+	particleStyle.colorIntensity = 1.f;
+	particleStyle.scaleVariationMax = 1.2f;
+	particleStyle.rotationVariationMax = 0.f;
+	particleStyle.lifetime = 4.f;
+	particleStyle.useNoise = false;
+	particleStyle.emitDirection = XMFLOAT3(0.f, 5.f, 0.f);
+	particleStyle.emitInterval = 0.01f;
+	particleStyle.randomizePosition = true;
+	particleStyle.randomizePosBounds = XMFLOAT3(20.f, 15.f, 40.f);
+	particleStyle.randomizeDirection = true;
+	particleStyle.dieOnCollition = false;
+	particleStyle.fadeInAndOut = true;
+	particleStyle.idInterval = 300.f;
+
+	m_particleSystems["air"].Initialize(m_device.Get(), m_deviceContext.Get(), L"spot_gradient_tex.png", 400, particleStyle, XMFLOAT3(0, 0, 0), XMFLOAT2(0.1f, 0.1f));
+	m_particleSystems["air"].setEmitPosition(XMFLOAT3(0.f, 10.f, 0.f));
 
 	// Selection
 	

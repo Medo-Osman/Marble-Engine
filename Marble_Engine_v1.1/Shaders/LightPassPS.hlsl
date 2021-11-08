@@ -165,7 +165,7 @@ float3 getUppsampledVolumetricScattering(float2 texCoord)
 }
 
 // Main
-half4 main(PS_IN input) : SV_TARGET
+float4 main(PS_IN input) : SV_TARGET
 {
     // G-Buffer Textures
     float4 albedoMetallic = AlbedoMetallicTexture.Sample(sampState, input.TexCoord);
@@ -384,5 +384,5 @@ half4 main(PS_IN input) : SV_TARGET
         finalColor = lerp(finalColor, fogColor, saturate(fogFactor));
     }
     
-    return half4(finalColor, 1.f);
+    return float4(finalColor, 1.f);
 }

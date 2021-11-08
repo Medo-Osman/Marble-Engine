@@ -37,13 +37,19 @@ cbuffer ParticleStyleCB : register(b1)
     float3 colorBegin;
     float colorBias;
     float3 colorEnd;
-    float intensity;
+    float colorIntensity;
     float scaleVariationMax;
     float rotationVariationMax;
     float lifetime;
     bool useNoise;
     float3 emitDirection;
     float emitInterval;
+    bool randomizePosition;
+    float3 randomizePosBounds;
+    bool randomizeDirection;
+    bool dieOnCollition;
+    bool fadeInAndOut;
+    uint idInterval;
 };
 
 // Texture

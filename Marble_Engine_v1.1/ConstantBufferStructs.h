@@ -50,7 +50,7 @@ struct PS_LIGHT_BUFFER
     Light lights[LIGHT_CAP];
     UINT nrOfLights;
     float enviormentDiffContribution = 0.1f;
-    float enviormentSpecContribution = 0.1f;
+    float enviormentSpecContribution = 0.f;
     BOOL volumetricSunScattering = TRUE;//FALSE;
     BOOL fog = TRUE;//FALSE;
     XMFLOAT3 pad;
@@ -79,13 +79,19 @@ struct PARTICLE_STYLE
     XMFLOAT3 colorBegin = XMFLOAT3(1.f, 1.f, 1.f);
     float colorBias = 0.2f;
     XMFLOAT3 colorEnd = XMFLOAT3(.9f, .9f, .9f);
-    float intensity = 1.f;
+    float colorIntensity = 1.f;
     float scaleVariationMax = 0.2f;
-    float rotationVariationMax = XM_PIDIV4;//0.2f;
+    float rotationVariationMax = XM_PIDIV4;
     float lifetime = 1.f;
-    int useNoise = true;
-    XMFLOAT3 emitDirection;
-    float emitInterval;
+    BOOL useNoise = true;
+    XMFLOAT3 emitDirection = XMFLOAT3(0.f, 1.f, 0.f);
+    float emitInterval = 0.1f;
+    BOOL randomizePosition = false;
+    XMFLOAT3 randomizePosBounds = XMFLOAT3(0.f, 0.f, 0.f);
+    BOOL randomizeDirection = false;
+    BOOL dieOnCollition = false;
+    BOOL fadeInAndOut = false;
+    UINT idInterval = 0; // Used to reset particle ID range
 };
 
 const int MAX_BLUR_RADIUS = 15;

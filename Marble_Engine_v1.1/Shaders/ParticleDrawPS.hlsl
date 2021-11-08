@@ -24,13 +24,19 @@ cbuffer ParticleStyleCB : register(b1)
     float3 colorBegin;
     float colorBias;
     float3 colorEnd;
-    float intensity;
+    float colorIntensity;
     float scaleVariationMax;
     float rotationVariationMax;
     float lifetime;
     bool useNoise;
     float3 emitDirection;
     float emitInterval;
+    bool randomizePosition;
+    float3 randomizePosBounds;
+    bool randomizeDirection;
+    bool dieOnCollition;
+    bool fadeInAndOut;
+    uint idInterval;
 };
 
 // Textures
@@ -66,7 +72,7 @@ float4 main(PS_IN input) : SV_TARGET
     
     // Straight Alpha Blend
     float texAlpha = color.a;
-    color *= texAlpha * intensity;
+    color *= texAlpha * colorIntensity;
     
     // Add Noise to Alpha
     texAlpha = saturate((texAlpha * noise) * 2.f);

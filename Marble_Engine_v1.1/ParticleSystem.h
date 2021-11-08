@@ -52,7 +52,7 @@ public:
     ParticleSystem();
 
     // Initialization
-    void Initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, std::wstring texArrayPath, int maxParticles, PARTICLE_STYLE styleData = PARTICLE_STYLE());
+    void Initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, std::wstring texArrayPath, int maxParticles, PARTICLE_STYLE styleData = PARTICLE_STYLE(), XMFLOAT3 position = XMFLOAT3(0.f, 2.f ,0.f), XMFLOAT2 size = XMFLOAT2(1.f, 1.f));
 
     // Getters
     float getAge() const { return m_age; }

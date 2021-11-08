@@ -19,7 +19,7 @@ ParticleSystem::ParticleSystem()
     m_randomTexSRV = nullptr;
 }
 
-void ParticleSystem::Initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, std::wstring texArrayPath, int maxParticles, PARTICLE_STYLE styleData)
+void ParticleSystem::Initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, std::wstring texArrayPath, int maxParticles, PARTICLE_STYLE styleData, XMFLOAT3 position, XMFLOAT2 size)
 {
     m_device = device;
     m_deviceContext = deviceContext;
@@ -81,9 +81,9 @@ void ParticleSystem::Initialize(ID3D11Device* device, ID3D11DeviceContext* devic
 
     // Vertex Buffers
     VertexParticle particle;
-    particle.position = XMFLOAT3(0, 2, 0);
+    particle.position = position;
     particle.velocity = XMFLOAT3(0, 0, 0);
-    particle.size = XMFLOAT2(3.f, 3.f);
+    particle.size = size;
     particle.rotation = 0.f;
     particle.age = 0.f;
     particle.type = ParticleType::EMITTER;

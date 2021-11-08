@@ -24,13 +24,19 @@ cbuffer ParticleStyleCB : register(b2)
     float3 colorBegin;
     float colorBias;
     float3 colorEnd;
-    float intensity;
+    float colorIntensity;
     float scaleVariationMax;
     float rotationVariationMax;
     float lifetime;
     bool useNoise;
     float3 emitDirection;
     float emitInterval;
+    bool randomizePosition;
+    float3 randomizePosBounds;
+    bool randomizeDirection;
+    bool dieOnCollition;
+    bool fadeInAndOut;
+    uint idInterval;
 };
 
 VS_OUT main(Particle input, uint vertexID : SV_VERTEXID)
@@ -44,7 +50,14 @@ VS_OUT main(Particle input, uint vertexID : SV_VERTEXID)
     
     // fade color with time
     float opacity = 1.0f - smoothstep(0.0f, 1.0f, age / lifetime);
-    output.color = float4(lerp(colorEnd, colorBegin, saturate(opacity - colorBias)), opacity);
+    
+    if (fadeInAndOut)
+    {
+        float gradient = abs(((age / lifetime) * 2.f) - 1.f);
+        output.color = float4(lerp(colorEnd, colorBegin, saturate(gradient - colorBias)), 1.f - gradient);
+    }
+    else
+        output.color = float4(lerp(colorEnd, colorBegin, saturate(opacity - colorBias)), opacity);
     
     output.size = input.size;
     output.type = input.type;
