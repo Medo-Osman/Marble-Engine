@@ -35,6 +35,7 @@ private:
 
     // Texture
     RenderTexture m_texture;
+    ID3D11RenderTargetView* m_renderTargetNullptr = nullptr;
 
     // Shader
     Shaders m_SSAOPassShaders;
@@ -134,7 +135,7 @@ private:
         for (size_t i = 0; i < len; ++i)
         {
             offsets1.push_back((float)i / len);
-            offsets2.push_back((float)i / len);
+            offsets2.push_back((float)i / len - 1);
         }
 
         unsigned seed = (unsigned)std::chrono::system_clock::now().time_since_epoch().count();
@@ -143,16 +144,15 @@ private:
         std::shuffle(offsets2.begin(), offsets2.end(), std::default_random_engine(seed));
 
         int i = 0;
-        int j = 0;
         for (int y = 0; y < ditherHeight; ++y)
         {
             for (int x = 0; x < ditherWidth; ++x)
             {
                 float r = offsets1[i];
                 float g = offsets2[i];
-                ++i;
 
-                data[j] = XMFLOAT4(std::round(r * 0xff), std::round(g * 0xff), 0, 1);
+                data[i] = XMFLOAT4(r, g, 1.f, 1.f);
+                ++i;
             }
         }
 
@@ -316,7 +316,7 @@ public:
         m_SSAOCameraBuffer.initialize(device, deviceContext, &m_SSAOCameraData, BufferType::CONSTANT);
     }
 
-    RenderTexture& getSSAORenderTexture()
+    RenderTexture& getAORenderTexture()
     {
         return m_texture;
     }
@@ -377,6 +377,9 @@ public:
 
         // Draw Fullscreen Quad
         m_deviceContext->Draw(6, 0);
+
+        // Reset
+        m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, nullptr);
     }
 };
 

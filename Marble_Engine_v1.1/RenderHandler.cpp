@@ -755,7 +755,12 @@ void RenderHandler::lightPass()
 	};
 	
 	if (m_ssaoToggle)
-		gBufferSRVs[GBufferType::AMBIENT_OCCLUSION] = m_SSAOInstance.getSSAORenderTexture().srv;
+	{
+		if (m_useHBAOToggle)
+			gBufferSRVs[GBufferType::AMBIENT_OCCLUSION] = m_HBAOInstance.getAORenderTexture().srv;
+		else
+			gBufferSRVs[GBufferType::AMBIENT_OCCLUSION] = m_SSAOInstance.getAORenderTexture().srv;
+	}
 	
 	UINT srvIndex = GBufferType::GB_NUM + 1;
 
@@ -780,7 +785,7 @@ void RenderHandler::downsamplePass()
 	/*m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, NULL);
 	m_downsampleCS.setShaders();
 
-	m_deviceContext->CSSetShaderResources(0, 1, &m_SSAOInstance.getSSAORenderTexture().srv);
+	m_deviceContext->CSSetShaderResources(0, 1, &m_SSAOInstance.getAORenderTexture().srv);
 	m_deviceContext->CSSetUnorderedAccessViews(0, 1, m_downSampledUnorderedAccessView.GetAddressOf(), 0);
 	m_deviceContext->Dispatch(m_settings.width / 16, m_settings.height / 16, 1);
 
@@ -798,8 +803,8 @@ void RenderHandler::blurSSAOPass()
 
 	m_edgePreservingBlurCS.setShaders();
 
-	ID3D11ShaderResourceView* blurSRVs[] = { m_SSAOInstance.getSSAORenderTexture().srv, m_blurPingPongSRV.Get() };
-	ID3D11UnorderedAccessView* blurUAVs[] = { m_blurPingPongUAV.Get(), m_SSAOInstance.getSSAORenderTexture().uav };
+	ID3D11ShaderResourceView* blurSRVs[] = { m_SSAOInstance.getAORenderTexture().srv, m_blurPingPongSRV.Get() };
+	ID3D11UnorderedAccessView* blurUAVs[] = { m_blurPingPongUAV.Get(), m_SSAOInstance.getAORenderTexture().uav };
 
 	for (UINT i = 0; i < 2; i++)
 	{
@@ -1139,7 +1144,7 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_SSAOInstance.initialize(m_device.Get(), m_deviceContext.Get(), winRect.right, winRect.bottom, m_camera.getFarZ(), m_camera.getFov(), m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
 
 	// Blur
-	initSSAOBlurPass(m_clientWidth, m_clientHeight, m_SSAOInstance.getSSAORenderTexture().format);
+	initSSAOBlurPass(m_clientWidth, m_clientHeight, m_SSAOInstance.getAORenderTexture().format);
 	
 	// Volumetric Sun Scattering
 	initVolumetricSunPass();
@@ -1176,9 +1181,9 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_particleSystems["fire3"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f,  22.8f));
 
 	// Air
-	particleStyle.colorBegin = XMFLOAT3(1.f, 0.7f, 0.5f);
+	particleStyle.colorBegin = XMFLOAT3(1.f, 1.f, 1.f);
 	particleStyle.colorBias = 0.f;
-	particleStyle.colorEnd = XMFLOAT3(0.5f, 0.35f, 0.25f);
+	particleStyle.colorEnd = XMFLOAT3(0.5f, 0.5f, 0.5f);
 	particleStyle.colorIntensity = 1.f;
 	particleStyle.scaleVariationMax = 1.2f;
 	particleStyle.rotationVariationMax = 0.f;
@@ -1191,7 +1196,7 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	particleStyle.randomizeDirection = true;
 	particleStyle.dieOnCollition = false;
 	particleStyle.fadeInAndOut = true;
-	particleStyle.idInterval = 300.f;
+	particleStyle.idInterval = 300;
 
 	m_particleSystems["air"].Initialize(m_device.Get(), m_deviceContext.Get(), L"spot_gradient_tex.png", 400, particleStyle, XMFLOAT3(0, 0, 0), XMFLOAT2(0.1f, 0.1f));
 	m_particleSystems["air"].setEmitPosition(XMFLOAT3(0.f, 10.f, 0.f));
@@ -1235,8 +1240,12 @@ void RenderHandler::updateCamera(XMVECTOR position, XMVECTOR rotation)
 {
 	m_camera.updateViewMatrix(position, rotation);
 	m_skybox.updateVP(m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
-	//m_HBAOInstance.updateViewMatrix(m_camera.getViewMatrix());
-	m_SSAOInstance.updateViewMatrix(m_camera.getViewMatrix());
+
+	if (m_useHBAOToggle)
+		m_HBAOInstance.updateViewMatrix(m_camera.getViewMatrix());
+	else
+		m_SSAOInstance.updateViewMatrix(m_camera.getViewMatrix());
+
 	//m_shadowInstance.buildLightMatrix(m_camera.getCameraPositionF3());
 }
 
@@ -1564,7 +1573,6 @@ float RenderHandler::selectionArrowPicking(UINT pointX, UINT pointY, char dimens
 
 void RenderHandler::update(double dt)
 {
-	//Sleep((1000.f / 60.f));
 	// Particles
 	for (auto& object : m_particleSystems)
 		object.second.update(dt, (float)m_timer.timeElapsed(), m_camera);
@@ -1605,11 +1613,13 @@ void RenderHandler::updatePassShaders()
 	m_lightPassShaders.updateShaders();
 	m_tonemapShaders.updateShaders();
 
-	for (auto& object : m_particleSystems)
-		object.second.updateShaders();
+	/*for (auto& object : m_particleSystems)
+		object.second.updateShaders();*/
 
-	//m_HBAOInstance.updateShaders();
-	//m_SSAOInstance.updateShaders();
+	if (m_useHBAOToggle)
+		m_HBAOInstance.updateShaders();
+	else
+		m_SSAOInstance.updateShaders();
 	//m_edgePreservingBlurCS.updateShaders();
 
 	/*m_bloomDownsampleShader.updateShaders();
@@ -1638,9 +1648,17 @@ void RenderHandler::UIRenderPipelineTexturesWindow()
 	ImGui::Image(m_gBuffer.renderTextures[GBufferType::EMISSIVE_SHADOWMASK].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 	//ImGui::Image(m_gBuffer.renderTextures[GBufferType::DEPTH].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 	
-	// SSAO
+	// SSAO / HBAO
 	if (m_ssaoToggle)
-		ImGui::Image(m_SSAOInstance.getSSAORenderTexture().srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+	{
+		if (m_useHBAOToggle)
+			ImGui::Image(m_HBAOInstance.getAORenderTexture().srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+		else
+			ImGui::Image(m_SSAOInstance.getAORenderTexture().srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+		
+		/*m_HBAOInstance.UIRenderDitherTextureWindow();
+		m_SSAOInstance.updateUI();*/
+	}
 	else
 		ImGui::Image(m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION].srv, ImVec2((float)m_clientWidth / 4.f, (float)m_clientHeight / 4.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 	
@@ -1728,6 +1746,37 @@ void RenderHandler::UIssaoSettings()
 		m_ssaoToggle = true;
 		ImGui::Indent(16.0f);
 		ImGui::PushItemWidth(-16.f);
+		
+		// HBAO or SSAO Toggle
+		//ImGui::Text("Use HBAO");
+		//ImGui::SameLine();
+		//const char* str_id = "useHBAOToggle";
+		//
+		//ImVec4* colors = ImGui::GetStyle().Colors;
+		//ImVec2 p = ImGui::GetCursorScreenPos();
+		//ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+		//float height = 15.f;
+		//float width = height * 1.5f;
+		//float radius = height * 0.5f;
+
+		//ImGui::InvisibleButton(str_id, ImVec2(width, height));
+		//if (ImGui::IsItemClicked())
+		//	m_useHBAOToggle = !m_useHBAOToggle;
+		//ImGuiContext& gg = *GImGui;
+		//float ANIM_SPEED = 0.085f;
+
+		//if (gg.LastActiveId == gg.CurrentWindow->GetID(str_id))// && gg.LastActiveIdTimer < ANIM_SPEED)
+		//	float t_anim = ImSaturate(gg.LastActiveIdTimer / ANIM_SPEED);
+
+		//if (ImGui::IsItemHovered())
+		//	draw_list->AddRectFilled(p, ImVec2(p.x + width, p.y + height), ImGui::GetColorU32(m_useHBAOToggle ? colors[ImGuiCol_ButtonActive] : ImVec4(0.78f, 0.78f, 0.78f, 1.0f)), height * 0.5f);
+		//else
+		//	draw_list->AddRectFilled(p, ImVec2(p.x + width, p.y + height), ImGui::GetColorU32(m_useHBAOToggle ? colors[ImGuiCol_Button] : ImVec4(0.85f, 0.85f, 0.85f, 1.0f)), height * 0.50f);
+		//
+		//draw_list->AddCircleFilled(ImVec2(p.x + radius + (m_useHBAOToggle ? 1 : 0) * (width - radius * 2.0f), p.y + radius), radius - 1.5f, IM_COL32(255, 255, 255, 255));
+		
+		// SSAO Blur
 		if (ImGui::CollapsingHeader("Blur", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			m_ssaoBlurToggle = true;
@@ -1956,8 +2005,11 @@ void RenderHandler::render(double dt)
 		m_deviceContext->OMSetRenderTargets(1, &m_renderTargetNullptr, nullptr);
 		m_deviceContext->PSSetShaderResources(0, 1, &m_gBuffer.renderTextures[GBufferType::DEPTH].srv);
 		m_deviceContext->PSSetShaderResources(1, 1, &m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].srv);
-		//m_HBAOInstance.render();
-		m_SSAOInstance.render();
+		
+		if (m_useHBAOToggle)
+			m_HBAOInstance.render();
+		else
+			m_SSAOInstance.render();
 
 		// Blur
 		if (m_ssaoBlurToggle)

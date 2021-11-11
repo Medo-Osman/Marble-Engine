@@ -1,21 +1,18 @@
-struct VS_IN
-{
-    float3 Position : POSITION;
-    float3 frustumIndex : NORMAL;
-    float2 TexCoord : TEXCOORD;
-};
-
 struct VS_OUT
 {
     float4 Position : SV_POSITION;
-    float4 FrustumVector : POSITION;
+    float4 PositionV : POSITION;
     float2 TexCoord : TEXCOORD1;
 };
 
-cbuffer FrustumVectors : register(b0)
-{
-    float4 FrustumVectors[4];
-    matrix invProjectionMatrix;
+cbuffer MatrixBuffer : register(b0)
+{ 
+    //matrix viewToTexMatrix;
+    matrix projectionMatrix; // the local projection matrix
+    matrix invProjectionMatrix; // the inverse of the local projection matrix
+    matrix viewMatrix; // the local view matrix
+    float4 viewFrustumVectors[4]; // Frustum Corners
+    float2 renderTargetResolution;
 };
 
 static const float2 gQuadUVs[6] =
@@ -28,25 +25,18 @@ static const float2 gQuadUVs[6] =
     float2(1.0f, 1.0f)
 };
 
-VS_OUT main(VS_IN input, uint vertexID : SV_VertexID)
+static const uint frustumIndex[6] = { 1, 0, 3, 1, 3, 2 };
+
+VS_OUT main(uint vertexID : SV_VertexID)
 {
     VS_OUT output;
 
-    //output.TexCoord = gQuadUVs[vertexID];
-
-    //// Quad covering screen in NDC space ([-1.0, 1.0] x [-1.0, 1.0] x [0.0, 1.0] x [1.0])
-    //output.Position = float4(2.0f * output.TexCoord.x - 1.0f,
-    //                            1.0f - 2.0f * output.TexCoord.y,
-    //                            0.0f,
-    //                            1.0f);
-
-    //// Transform current quad corner to view space.
-    //float4 ph = mul(output.Position, invProjectionMatrix);
-    //output.FrustumVector = ph / ph.w;
+    output.TexCoord = gQuadUVs[vertexID];
+    output.Position = float4(2.0f * output.TexCoord.x - 1.0f, 1.0f - 2.0f * output.TexCoord.y, 0.0f, 1.0f);
     
-    output.Position = float4(input.Position.xy, 0.f, 1.f);
-    output.TexCoord = input.TexCoord;
-    output.FrustumVector = FrustumVectors[input.frustumIndex.x];
-
+    //float4 ph = mul(output.Position, invProjectionMatrix);
+    //output.PositionV = ph / ph.w;
+    output.PositionV = viewFrustumVectors[frustumIndex[vertexID]];
+    
     return output;
 }

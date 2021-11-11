@@ -179,6 +179,7 @@ float4 main(PS_IN input) : SV_TARGET
     float4 ndcPosition = float4(x, y, z, 1.f);
     float4 viewPosition = mul(ndcPosition, projInverseMatrix);
     viewPosition /= viewPosition.w;
+    //return float4(viewPosition.xyz, 1.f);
     float3 WorldPos = mul(viewPosition, viewInverseMatrix).xyz;
     
     // Albedo

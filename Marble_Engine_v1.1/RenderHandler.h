@@ -8,8 +8,8 @@
 #include "ParticleSystem.h"
 #include "ModelSelectionHandler.h"
 #include "GBuffer.h"
-#include "HBAOInstance.h"
 #include "SSAOInstance.h"
+#include "HBAOInstance.h"
 
 struct Settings
 {
@@ -95,7 +95,8 @@ private:
 
     // Ambient Occlusion
     bool m_ssaoToggle = true;
-    bool m_ssaoBlurToggle = true;
+    bool m_useHBAOToggle = false;
+    bool m_ssaoBlurToggle = false;
     float m_ssaoBlurSigma = 3.f;
     HBAOInstance m_HBAOInstance;
     SSAOInstance m_SSAOInstance;

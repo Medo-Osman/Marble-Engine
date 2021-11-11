@@ -21,7 +21,7 @@ cbuffer cameraBuffer : register(b0)
     matrix viewMatrix;
 };
 
-cbuffer HBAOData : register(b1)
+cbuffer SSAOData : register(b1)
 {
     float4 sampleDirections[SAMPLE_COUNT];
     float2 ditherScale;

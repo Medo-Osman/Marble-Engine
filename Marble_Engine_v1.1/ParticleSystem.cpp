@@ -32,11 +32,11 @@ void ParticleSystem::Initialize(ID3D11Device* device, ID3D11DeviceContext* devic
 
     // - Random Values Texture
     // - - Texture
-    XMVECTOR randomValues[1024];
+    std::vector< XMVECTOR > randomValues(1024);
     for (int i = 0; i < 1024; i++)
         randomValues[i] = (XMVectorSet(frand(-1.0f, 1.0f), frand(-1.0f, 1.0f), frand(-1.0f, 1.0f), frand(-1.0f, 1.0f)));
     
-    D3D11_TEXTURE1D_DESC texDesc;
+    D3D11_TEXTURE1D_DESC texDesc = {};
     texDesc.Width = 1024;
     texDesc.MipLevels = 1;
     texDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -47,7 +47,7 @@ void ParticleSystem::Initialize(ID3D11Device* device, ID3D11DeviceContext* devic
     texDesc.ArraySize = 1;
 
     D3D11_SUBRESOURCE_DATA texData;
-    texData.pSysMem = randomValues;
+    texData.pSysMem = randomValues.data();
     texData.SysMemPitch = 1024 * sizeof(XMVECTOR);
 
     ID3D11Texture1D* randomTexture;
