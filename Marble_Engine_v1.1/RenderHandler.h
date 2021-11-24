@@ -2,7 +2,7 @@
 #define RENDERHANDLER_H
 
 #include "Camera.h"
-#include "Skybox.h"
+#include "Sky.h"
 #include "LightManager.h"
 #include "ShadowMapInstance.h"
 #include "ParticleSystem.h"
@@ -82,6 +82,7 @@ private:
     // Render States
     ComPtr< ID3D11SamplerState > m_defaultWrapSamplerState;
     ComPtr< ID3D11SamplerState > m_defaultBorderSamplerState;
+    ComPtr< ID3D11SamplerState > m_whiteBorderSamplerState;
     ComPtr< ID3D11RasterizerState > m_defaultRasterizerState;
     ComPtr< ID3D11RasterizerState > m_wireframeRasterizerState;
     ComPtr< ID3D11RasterizerState > m_cullOffRasterizerState;
@@ -96,7 +97,7 @@ private:
     // Ambient Occlusion
     bool m_ssaoToggle = true;
     bool m_useHBAOToggle = false;
-    bool m_ssaoBlurToggle = false;
+    bool m_ssaoBlurToggle = true;
     float m_ssaoBlurSigma = 3.f;
     HBAOInstance m_HBAOInstance;
     SSAOInstance m_SSAOInstance;
@@ -121,7 +122,6 @@ private:
 
     Buffer< VS_WVP_CBUFFER > m_lightVolumeWvpCBuffer;
     Buffer< DS_TESSELLATION_CBUFFER > m_lightVolumeTessCBuffer;
-    Buffer< DS_SUN_DATA_CBUFFER > m_sunLightCBuffer;
     
     // Fog
     bool m_fogToggle = true;
@@ -196,7 +196,7 @@ private:
     void initCamera();
     
     // Skybox
-    Skybox m_skybox;
+    Sky m_sky;
 
     // Lighting
     LightManager m_lightManager;
@@ -285,9 +285,6 @@ public:
     bool* getWireframeModePtr();
     bool* getSsaoModePtr();
     bool* getSsaoBlurModePtr();
-
-    // Lighting
-    //void newLight(Light newLight);
 
     // Selection
     void updateSelectedObject(RenderObjectKey key, XMFLOAT3 newPosition);

@@ -17,8 +17,10 @@ cbuffer WVPBuffer : register(b0)
 VertexShaderOutput main(VertexShaderInput input)
 {
     VertexShaderOutput output;
-    output.pos = mul(float4(input.pos, 0.f), vpMatrix).xyww;
+    
+    output.pos = mul(float4(input.pos, 0.f), vpMatrix);
     output.localPos = input.pos;
+    output.pos = output.pos.xyww;
 
     return output;
 }

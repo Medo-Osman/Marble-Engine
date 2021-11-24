@@ -201,14 +201,14 @@ public:
                 m_renderObjects[SPOT_MESH].setMaterial(material);
 
                 XMMATRIX worldMatrix = XMMatrixIdentity();
-                worldMatrix *= lookAtMatrix(XMLoadFloat4(&m_lightData.lights[i].position), XMVector3Normalize(XMVectorSetW(XMLoadFloat4(&m_lightData.lights[i].direction), 0.f)), XMVectorSet(0,1,0,0));
+                worldMatrix *= lookAtMatrix(XMLoadFloat4(&m_lightData.lights[i].position), XMVector3Normalize(XMVectorSetW(XMLoadFloat3(&m_lightData.lights[i].direction), 0.f)), XMVectorSet(0,1,0,0));
                 
                 m_renderObjects[SPOT_MESH].updateWCPBuffer(worldMatrix, viewMatrix, projMatrix);
                 m_renderObjects[SPOT_MESH].render(true);
             }
             else if (m_lightData.lights[i].type == DIRECTIONAL_LIGHT)
             {
-                float colorScale = 6.f;
+                /*float colorScale = 6.f;
                 PS_MATERIAL_BUFFER material;
                 XMFLOAT4 col = XMFLOAT4(m_lightData.lights[i].color.x * colorScale, m_lightData.lights[i].color.y * colorScale, m_lightData.lights[i].color.z * colorScale, 1.f);
                 material.ambient = col;
@@ -224,7 +224,7 @@ public:
                 worldMatrix *= lookAtMatrix(newPos, XMVector3Normalize(XMVectorSetW(XMLoadFloat4(&m_lightData.lights[i].direction), 0.f)), XMVectorSet(0, 1, 0, 0));
 
                 m_renderObjects[SPOT_MESH].updateWCPBuffer(worldMatrix, viewMatrix, projMatrix);
-                m_renderObjects[SPOT_MESH].render(true);
+                m_renderObjects[SPOT_MESH].render(true);*/
             }
         }
     }

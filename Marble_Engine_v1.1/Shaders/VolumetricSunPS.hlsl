@@ -34,11 +34,13 @@ cbuffer shadowBuffer : register(b2)
     matrix shadowProjectionMatrix;
 };
 
-cbuffer sunData : register(b5)
+cbuffer SkyLightDataCB : register(b5) // Sun and Moon
 {
-    float3 sunDirection;
-    float sunIntensity;
-    float3 sunColor;
+    float3 skyLightDirection;
+    float skyLightIntensity;
+    float3 skyLightColor;
+    int moonOrSun; // 0 = Moon, 1 = Sun
+    bool skyLightCastingShadow;
 };
 
 // Textures
@@ -46,7 +48,8 @@ Texture2D DepthTexture : register(t0);
 Texture2D ShadowMap : register(t6);
 
 // Samplers
-SamplerState sampState : register(s1); // Imgui uses slot 0, use 1 for default
+SamplerState depthNormalSampler : register(s3);
+SamplerState borderSampState : register(s5);
 
 // Functions
 
@@ -60,7 +63,7 @@ float ComputeScattering(float lightDotView)
 
 float3 getWorldPos(float2 texCoord)
 {
-    float z = DepthTexture.Sample(sampState, texCoord).r;
+    float z = DepthTexture.Sample(borderSampState, texCoord).r;
     float x = texCoord.x * 2 - 1;
     float y = (1 - texCoord.y) * 2 - 1;
     float4 ndcPosition = float4(x, y, z, 1.f);
@@ -91,7 +94,7 @@ float4 main(PS_IN input, bool isFrontFace : SV_IsFrontFace) : SV_TARGET
         
     // Scattering contribution
     float3 accumFog = (float3) 0;
-    float3 scatteringForEveryStep = ComputeScattering(dot(rayDirection, sunDirection)) * sunColor * sunIntensity;
+    float3 scatteringForEveryStep = ComputeScattering(dot(rayDirection, skyLightDirection * (float)(moonOrSun * 2 - 1))) * skyLightIntensity;
     
     // Loop Helpers
     float shadowMapValue = 0.f;
@@ -99,7 +102,7 @@ float4 main(PS_IN input, bool isFrontFace : SV_IsFrontFace) : SV_TARGET
     float2 shadowUV = (float2) 0;
     
     // Ray Marching
-    for (int i = 0; i < VOLUME_RAY_STEPS; i++)
+    for (int i = 0; i < VOLUME_RAY_STEPS; ++i)
     {
         shadowPos = mul(float4(currentPosition, 1.0f), shadowViewMatrix);
         shadowPos = mul(shadowPos, shadowProjectionMatrix);
@@ -118,7 +121,7 @@ float4 main(PS_IN input, bool isFrontFace : SV_IsFrontFace) : SV_TARGET
         }
         else
         {
-            shadowMapValue = ShadowMap.Sample(sampState, shadowUV).r;
+            shadowMapValue = ShadowMap.Sample(borderSampState, shadowUV).r;
         
             if (shadowMapValue > shadowPos.z)
                 accumFog += scatteringForEveryStep;

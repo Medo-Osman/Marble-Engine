@@ -178,22 +178,22 @@ public:
 		switch (dir)
 		{
 		case Direction::FORWARD:
-			finalForce = XMVectorScale(m_moveComp->forward, m_acceleration.z * m_accelMultiplier * multiplier) * dt;
+			finalForce = XMVectorScale(m_moveComp->forward, m_acceleration.z * m_accelMultiplier * multiplier);// * dt;
 			break;
 		case Direction::BACKWARD:
-			finalForce = XMVectorScale(m_moveComp->backward, m_acceleration.z * m_accelMultiplier * multiplier) * dt;
+			finalForce = XMVectorScale(m_moveComp->backward, m_acceleration.z * m_accelMultiplier * multiplier);// *dt;
 			break;
 		case Direction::LEFT:
-			finalForce = XMVectorScale(m_moveComp->left, m_acceleration.x * m_accelMultiplier * multiplier) * dt;
+			finalForce = XMVectorScale(m_moveComp->left, m_acceleration.x * m_accelMultiplier * multiplier);// *dt;
 			break;
 		case Direction::RIGHT:
-			finalForce = XMVectorScale(m_moveComp->right, m_acceleration.x * m_accelMultiplier * multiplier) * dt;
+			finalForce = XMVectorScale(m_moveComp->right, m_acceleration.x * m_accelMultiplier * multiplier);// * dt;
 			break;
 		case Direction::UP:
-			finalForce = XMVectorScale(m_moveComp->up, m_acceleration.y * m_accelMultiplier * multiplier) * dt;
+			finalForce = XMVectorScale(m_moveComp->up, m_acceleration.y * m_accelMultiplier * multiplier);// * dt;
 			break;
 		case Direction::DOWN:
-			finalForce = XMVectorScale(m_moveComp->down, m_acceleration.y * m_accelMultiplier * multiplier) * dt;
+			finalForce = XMVectorScale(m_moveComp->down, m_acceleration.y * m_accelMultiplier * multiplier);// * dt;
 			break;
 		default:
 			assert(!"Error, no valid direction found!");
@@ -306,14 +306,25 @@ public:
 
 	void updatePosition(double dt, bool isCamera = false)
 	{
-		m_moveComp->position = XMVectorAdd(m_moveComp->position, XMLoadFloat3(&m_velocity));
+		m_velocity.x = m_velocity.x - (5.f * m_velocity.x * (float)dt);
+		m_velocity.y = m_velocity.y - (5.f * m_velocity.y * (float)dt);
+		m_velocity.z = m_velocity.z - (5.f * m_velocity.z * (float)dt);
+		
+		/*OutputDebugStringA(std::to_string(m_velocity.x).c_str());
+		OutputDebugStringA(", ");
+		OutputDebugStringA(std::to_string(m_velocity.y).c_str());
+		OutputDebugStringA(", ");
+		OutputDebugStringA(std::to_string(m_velocity.z).c_str());
+		OutputDebugStringA("\n");*/
+
+		m_moveComp->position = XMVectorAdd(m_moveComp->position, XMLoadFloat3(&m_velocity) * (float)dt);
 		m_aabb->Center = m_moveComp->getPositionF3();
 
 		m_moveComp->updateDirVectors();
 
-		m_velocity.x = decelerate(m_velocity.x, 0, m_deceleration.x * m_decelMultiplier, dt);
+		/*m_velocity.x = decelerate(m_velocity.x, 0, m_deceleration.x * m_decelMultiplier, dt);
 		m_velocity.y = decelerate(m_velocity.y, 0, m_deceleration.y * m_decelMultiplier, dt);
-		m_velocity.z = decelerate(m_velocity.z, 0, m_deceleration.z * m_decelMultiplier, dt);
+		m_velocity.z = decelerate(m_velocity.z, 0, m_deceleration.z * m_decelMultiplier, dt);*/
 
 		//m_oldVelocity = m_velocity;
 

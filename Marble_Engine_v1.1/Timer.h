@@ -23,6 +23,10 @@ public:
 		m_remember = remember;
 		m_resumeValue = 0;
 	}
+	void shouldRememberDuringPause(const bool remember)
+	{
+		m_remember = remember;
+	}
 	double timeElapsed() const
 	{
 		if (m_isRunning)
@@ -44,9 +48,8 @@ public:
 		else
 		{
 			if (m_remember)
-			{
 				addTime((int)m_resumeValue);
-			}
+			
 			m_startTime = std::chrono::high_resolution_clock::now();
 			m_isRunning = true;
 		}

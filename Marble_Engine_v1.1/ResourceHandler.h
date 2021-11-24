@@ -58,19 +58,22 @@ private:
 
 		if (FAILED(hr))
 		{
-			OutputDebugString(L"Failed to load: ");
+			OutputDebugString(L"Failed to load: '");
 			OutputDebugString(texturePath);
-			OutputDebugString(L"\n");
+			OutputDebugString(L"'\n");
 			couldLoad = false;
 		}
 		else
 		{
-			OutputDebugString(L"Texture loaded: ");
+			OutputDebugString(L"Texture loaded: '");
 			OutputDebugString(texturePath);
-			OutputDebugString(L"\n");
+			OutputDebugString(L"'\n");
 		}
 		assert(SUCCEEDED(hr) && "Error, failed to load texture file!");
 
+		/*if (FAILED(hr))
+			m_textures[texturePath] = getTexture(L"Empty_Texture.jpg");*/
+		
 		return couldLoad;
 	}
 

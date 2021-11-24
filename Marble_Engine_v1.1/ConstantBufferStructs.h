@@ -15,6 +15,12 @@ struct VS_WVP_CBUFFER
     }
 };
 
+struct VS_VP_MATRIX_CBUFFER
+{
+    XMMATRIX viewMatrix;
+    XMMATRIX projMatrix;
+};
+
 struct VS_SKYBOX_MATRIX_CBUFFER
 {
     XMMATRIX vpMatrix;
@@ -24,18 +30,75 @@ struct VS_SKYBOX_MATRIX_CBUFFER
     }
 };
 
+struct PROCEDURAL_SKY_CBUFFER
+{
+    XMFLOAT3 skyColor = XMFLOAT3(0.05f, 0.09f, 0.2f);
+    float skyExponent = 5.f;
+    XMFLOAT3 skyNightColor = XMFLOAT3(0.02f, 0.01f, 0.03f);
+    float skyNightExponent = 6.f;
+
+    XMFLOAT3 horizonColor = XMFLOAT3(0.4f, 0.4f, 0.4f);
+    float intensity = 1.f;
+    XMFLOAT3 horizonNightColor = XMFLOAT3(0.025f, 0.02f, 0.028f);
+    BOOL useSunMoonColorforHorizon = false;
+
+    XMFLOAT3 groundColor = XMFLOAT3(0.f, 0.206f, 0.08f);
+    float groundExponent = 5.f;
+    XMFLOAT3 groundNightColor = XMFLOAT3(0.f, 0.02f, 0.01f);
+    float groundNightExponent = 1.f;
+
+    float sunIntensity = 5.f;
+    float sunExponent = 1.f;
+    float sunRadiusA = 0.001f;
+    float sunRadiusB = 0.03f;
+
+    XMFLOAT3 sunSetRiseColor = XMFLOAT3(1.f, 0.3f, 0.1f);
+
+    float starsUVScale = 1.f;
+    float starsIntensity = 1.f;
+
+    float moonIntensity = 2.f;
+    float moonRadiusA = 0.01f;
+    float moonRadiusB = 0.02f;
+    
+    XMFLOAT3 moonColor = XMFLOAT3(0.25f, 0.32f, 0.5f);
+    float moonExponent = 1.f;
+};
+
 struct Light
 {
-    XMFLOAT4	position;
-    XMFLOAT4    direction;
-    XMFLOAT3    color;
-    float       intensity = 1.f;
-    float       spotAngle;
-    XMFLOAT3    attenuation;
-    float       range;
-    int         type;
-    BOOL        enabled;
-    BOOL        isCastingShadow;
+    XMFLOAT4	position;          // vec4 1 , 4 floats
+    XMFLOAT3    direction;         // vec4 2 , 3 floats
+    float       intensity = 1.f;   // vec4 2 , 1 floats
+    XMFLOAT3    color;             // vec4 3 , 3 floats
+    float       spotAngle;         // vec4 3 , 1 floats
+    XMFLOAT3    attenuation;       // vec4 4 , 3 floats
+    float       range;             // vec4 4 , 1 floats
+    int         type;              // vec4 5 , 1 floats
+    BOOL        enabled;           // vec4 5 , 1 floats
+    BOOL        isCastingShadow;   // vec4 5 , 1 floats
+    float       pad;               // vec4 5 , 1 floats
+};
+
+//XMFLOAT4	  position;
+//XMFLOAT4    direction;
+//XMFLOAT3    color;
+//float       intensity = 1.f;
+//float       spotAngle;
+//XMFLOAT3    attenuation;
+//float       range;
+//int         type;
+//BOOL        enabled;
+//BOOL        isCastingShadow;
+
+struct SKY_LIGHT_DATA_CBUFFER
+{
+    XMFLOAT3 direction;
+    float intensity;
+    XMFLOAT3 color;
+    int moonOrSun; // 0 = Moon, 1 = Sun
+    BOOL castingShadow;
+    XMFLOAT3 pad;
 };
 
 struct LightHelper
@@ -165,12 +228,4 @@ struct DS_TESSELLATION_CBUFFER
 {
     float tessFactor;
     XMFLOAT3 pad;
-};
-
-struct DS_SUN_DATA_CBUFFER
-{
-    XMFLOAT3 sunDirection;
-    float sunIntensity;
-    XMFLOAT3 sunColor;
-    float pad;
 };

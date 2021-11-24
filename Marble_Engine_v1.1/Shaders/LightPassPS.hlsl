@@ -29,15 +29,16 @@ cbuffer CameraCB : register(b0)
 struct Light
 {
     float4 position;
-    float4 direction;
-    float3 color;
+    float3 direction;
     float intensity;
+    float3 color;
     float spotAngle;
     float3 attenuation;
     float range;
     int type;
     bool enabled;
     bool isCastingShadow;
+    float pad;
 };
 cbuffer lightBuffer : register(b1)
 {
@@ -53,6 +54,15 @@ cbuffer shadowBuffer : register(b2)
 {
     matrix shadowViewMatrix;
     matrix shadowProjectionMatrix;
+};
+
+cbuffer SkyLightDataCB : register(b5) // Also Used for Sun and Moon
+{
+    float3 skyLightDirection;
+    float skyLightIntensity;
+    float3 skyLightColor;
+    int moonOrSun; // 0 = Moon, 1 = Sun
+    bool skyLightCastingShadow;
 };
 
 // Textures
@@ -118,6 +128,26 @@ float GeometrySmith(float3 N, float3 V, float3 L, float roughness)
     float ggx1 = GeometrySchlickGGX(NdotL, roughness);
 	
     return ggx1 * ggx2;
+}
+
+float3 lightCommon(float3 N, float3 H, float3 V, float NDotV, float3 L, float3 F0, float roughness, float metallic, float3 radiance, float3 albedo)
+{
+    // cook-torrance brdf
+    float NDF = DistributionGGX(N, H, roughness);
+    float G = GeometrySmith(N, V, L, roughness);
+    float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+        
+    float3 kS = F;
+    float3 kD = float3(1.0, 1.0, 1.0) - kS;
+    kD *= 1.0 - metallic;
+        
+    float3 numerator = NDF * G * F;
+    float denominator = 4.0 * max(NDotV, 0.0) * max(dot(N, L), 0.0);
+    float3 specular = numerator / max(denominator, 0.001);
+        
+    // add to outgoing radiance Lo
+    float NdotL = max(dot(N, L), 0.0);
+    return (kD * albedo / PI + specular) * radiance * NdotL;
 }
 
 float3 getUppsampledVolumetricScattering(float2 texCoord)
@@ -207,44 +237,68 @@ float4 main(PS_IN input) : SV_TARGET
         float NDotV = dot(N, V);
 
         // Light
-        float3 F0 = float3(0.04, 0.04, 0.04);
+        float3 F0 = float3(0.04f, 0.04f, 0.04f);
         F0 = lerp(F0, albedo, metallic);
     
         // reflectance equation
         uint i;
         float3 Lo = (float3) 0;
+        
+        // Sun/Moon Light
+        float3 direction = normalize(skyLightDirection) * (float)(moonOrSun * 2 - 1); // Flip if Moon
+        float3 radiance = skyLightColor * skyLightIntensity;
+                    
+        float3 L = normalize(-direction);
+        float3 H = normalize(V + L);
+        
+        float NDF = DistributionGGX(N, H, roughness);
+        float G = GeometrySmith(N, V, L, roughness);
+        float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+        
+        float3 kS = F;
+        float3 kD = float3(1.f, 1.f, 1.f) - kS;
+        kD *= 1.0 - metallic;
+        
+        float3 numerator = NDF * G * F;
+        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+        float3 specular = numerator / denominator;
+            
+        float NdotL = max(dot(N, L), 0.0);
+        float3 directionalLightContribution = (kD * albedo / PI + specular) * radiance * NdotL;
+        
+        if (skyLightCastingShadow)
+        {
+            directionalLightContribution *= emissiveShadowMask.a;
+            fogColor = skyLightColor;
+        }
+        Lo += directionalLightContribution;
+        
         for (i = 0; i < nrOfLights; ++i)
         {
             switch (lights[i].type)
             {
                 case DIRECTIONAL_LIGHT:
                 {
-                    float3 direction = normalize(lights[i].direction.xyz);
-                    float3 radiance = lights[i].color.xyz * lights[i].intensity;
+                    direction = normalize(lights[i].direction.xyz);
+                    radiance = lights[i].color.xyz * lights[i].intensity;
                     
-                    float3 L = normalize(-direction);
-                    float3 H = normalize(V + L);
+                    L = normalize(-direction);
+                    H = normalize(V + L);
         
-                    float NDF = DistributionGGX(N, H, roughness);
-                    float G = GeometrySmith(N, V, L, roughness);
-                    float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+                    NDF = DistributionGGX(N, H, roughness);
+                    G = GeometrySmith(N, V, L, roughness);
+                    F = fresnelSchlick(max(dot(H, V), 0.0), F0);
         
-                    float3 kS = F;
-                    float3 kD = float3(1.f, 1.f, 1.f) - kS;
+                    kS = F;
+                    kD = float3(1.f, 1.f, 1.f) - kS;
                     kD *= 1.0 - metallic;
         
-                    float3 numerator = NDF * G * F;
-                    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-                    float3 specular = numerator / denominator;
+                    numerator = NDF * G * F;
+                    denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+                    specular = numerator / denominator;
             
-                    float NdotL = max(dot(N, L), 0.0);
-                    float3 directionalLightContribution = (kD * albedo / PI + specular) * radiance * NdotL;
-                    
-                    if (lights[i].isCastingShadow)
-                    {
-                        directionalLightContribution *= emissiveShadowMask.a;
-                        fogColor = lights[i].color;
-                    }
+                    NdotL = max(dot(N, L), 0.0);
+                    directionalLightContribution = (kD * albedo / PI + specular) * radiance * NdotL;
                     
                     Lo += directionalLightContribution;
                 }
@@ -252,8 +306,8 @@ float4 main(PS_IN input) : SV_TARGET
                 case POINT_LIGHT:
                 {
                     // calculate per-light radiance
-                    float3 L = lights[i].position.xyz - WorldPos;
-                    float3 H = normalize(V + L);
+                    L = lights[i].position.xyz - WorldPos;
+                    H = normalize(V + L);
                     float distance = length(L);
                     L = normalize(L);
                     float d = max(distance - lights[i].range, 0);
@@ -275,20 +329,20 @@ float4 main(PS_IN input) : SV_TARGET
                     //distanceFalloff = max(0, distanceFalloff - rsqrt(distanceFalloff));
                     
                     //attenuation = distanceFalloff;
-                    float3 radiance = lights[i].color.xyz * lights[i].intensity;
+                    radiance = lights[i].color.xyz * lights[i].intensity;
                     
                     // cook-torrance brdf
-                    float NDF = DistributionGGX(N, H, roughness);
-                    float G = GeometrySmith(N, V, L, roughness);
-                    float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+                    NDF = DistributionGGX(N, H, roughness);
+                    G = GeometrySmith(N, V, L, roughness);
+                    F = fresnelSchlick(max(dot(H, V), 0.0), F0);
         
-                    float3 kS = F;
-                    float3 kD = float3(1.f, 1.f, 1.f) - kS;
+                    kS = F;
+                    kD = float3(1.f, 1.f, 1.f) - kS;
                     kD *= 1.0 - metallic;
         
-                    float3 numerator = NDF * G * F;
-                    float denominator = 4.0 * max(NDotV, 0.0) * max(dot(N, L), 0.0);
-                    float3 specular = numerator / max(denominator, 0.001);
+                    numerator = NDF * G * F;
+                    denominator = 4.0 * max(NDotV, 0.0) * max(dot(N, L), 0.0);
+                    specular = numerator / max(denominator, 0.001);
                 
                     // add to outgoing radiance Lo
                     float NdotL = max(dot(N, L), 0.0);
@@ -297,9 +351,9 @@ float4 main(PS_IN input) : SV_TARGET
                 break;
                 case SPOT_LIGHT:
                 {
-                    float3 direction = normalize(lights[i].direction.xyz);
-                    float3 L = normalize(lights[i].position.xyz - WorldPos);
-                    float3 H = normalize(V + L);
+                    direction = normalize(lights[i].direction.xyz);
+                    L = normalize(lights[i].position.xyz - WorldPos);
+                    H = normalize(V + L);
                     float distance = length(lights[i].position.xyz - WorldPos);
         
                     float attenuation = 1.0f / (1.0f + lights[i].attenuation.x * distance * distance);
@@ -309,32 +363,17 @@ float4 main(PS_IN input) : SV_TARGET
                     float cosAngle = dot(direction, -L);
                     float spotIntensity = smoothstep(minCos, maxCos, cosAngle);
         
-                    float3 radiance = lights[i].color.xyz * lights[i].intensity * spotIntensity * attenuation; // * (coneFalloff * distanceFalloff);
-
-                    // cook-torrance brdf
-                    float NDF = DistributionGGX(N, H, roughness);
-                    float G = GeometrySmith(N, V, L, roughness);
-                    float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
-        
-                    float3 kS = F;
-                    float3 kD = float3(1.0, 1.0, 1.0) - kS;
-                    kD *= 1.0 - metallic;
-        
-                    float3 numerator = NDF * G * F;
-                    float denominator = 4.0 * max(NDotV, 0.0) * max(dot(N, L), 0.0);
-                    float3 specular = numerator / max(denominator, 0.001);
-        
-                    // add to outgoing radiance Lo
-                    float NdotL = max(dot(N, L), 0.0);
-                    Lo += (kD * albedo / PI + specular) * radiance * NdotL;
-                    }
+                    radiance = lights[i].color.xyz * lights[i].intensity * spotIntensity * attenuation; // * (coneFalloff * distanceFalloff);
+                    
+                    Lo += lightCommon(N, H, V, NDotV, L, F0, roughness, metallic, radiance, albedo);
+                }
                 break;
             }
         }
         
-        float3 F = FresnelSchlickRoughness(max(NDotV, 0.0), F0, roughness);
-        float3 kS = F;
-        float3 kD = 1.0 - kS;
+        F = FresnelSchlickRoughness(max(NDotV, 0.0), F0, roughness);
+        kS = F;
+        kD = 1.0 - kS;
         kD *= 1.0 - metallic;
 
         // Diffuse IBL
@@ -347,7 +386,7 @@ float4 main(PS_IN input) : SV_TARGET
         }
 
         // Specular IBL
-        float3 specular = (float3)0;
+        specular = (float3)0;
         if (enviormentSpecContribution > 0.f)
         {
             float3 prefilteredColor = SpecularIBLMap.SampleLevel(sampState, R, lod).rgb;
@@ -370,7 +409,7 @@ float4 main(PS_IN input) : SV_TARGET
     // Volumetric Sun Scattering
     if (volumetricSunScattering)
         finalColor += VolumetricSunTexture.Sample(sampState, input.TexCoord);
-        //finalColor += getUppsampledVolumetricScattering(input.TexCoord); //VolumetricSunTexture.Sample(sampState, input.TexCoord);
+        //finalColor += getUppsampledVolumetricScattering(input.TexCoord);
 
     // Fog
     if (fog)

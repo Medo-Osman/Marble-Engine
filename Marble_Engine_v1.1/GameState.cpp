@@ -207,7 +207,7 @@ void GameState::generateMaxRandomLights()
 	LightHelper newLightHelper;
 	uint32_t type;
 	const float pi = 3.14159265359f;
-	for (uint32_t n = 0; n < LIGHT_CAP - 1; n++) // leave initialize() directional light as default
+	for (uint32_t n = 0; n < LIGHT_CAP; n++) // leave initialize() directional light as default
 	{
 		XMFLOAT3 newRandF3 = randVecUniform();
 		XMFLOAT3 pos = XMFLOAT3(newRandF3.x * posScale.x + posBias.x, newRandF3.y * posScale.y + posBias.y, newRandF3.z * posScale.z + posBias.z);
@@ -238,7 +238,7 @@ void GameState::generateMaxRandomLights()
 			newLight.intensity = newLight.intensity * 5.f;
 
 		newLight.position = XMFLOAT4(pos.x, pos.y, pos.z, 1.f);
-		newLight.direction = XMFLOAT4(coneDir.x, coneDir.y, coneDir.z, 1.f);
+		newLight.direction = XMFLOAT3(coneDir.x, coneDir.y, coneDir.z);
 		newLight.color = color;
 		newLight.spotAngle = XMConvertToRadians(45.0f);
 		newLight.attenuation = XMFLOAT3(1.f, 0.6f, 1.f);
@@ -330,8 +330,8 @@ void GameState::initialize(Settings settings)
 	m_mapHandler.importGameObjects(m_gameObjects);
 
 	// Lights
-	Light light;
-	LightHelper lightHelper;
+	/*Light light;
+	LightHelper lightHelper;*/
 	// Point Light 0
 	//light.position = XMFLOAT4(-10.f, 5.f, 0.f, 1.f);
 	//light.color = XMFLOAT4(1.f, 0.f, 0.f, 0.f);
@@ -366,31 +366,32 @@ void GameState::initialize(Settings settings)
 	m_renderHandler->addLight(light);*/
 
 	// Directional Light
-	lightHelper.rotationDeg = XMFLOAT3(-90.f, 14.f, 0.f);
+	//lightHelper.rotationDeg = XMFLOAT3(-90.f, 14.f, 0.f);
 
-	XMVECTOR rotQuat = XMQuaternionRotationRollPitchYaw(
-		XMConvertToRadians(lightHelper.rotationDeg.x),
-		XMConvertToRadians(lightHelper.rotationDeg.y),
-		XMConvertToRadians(lightHelper.rotationDeg.z));
+	//XMVECTOR rotQuat = XMQuaternionRotationRollPitchYaw(
+	//	XMConvertToRadians(lightHelper.rotationDeg.x),
+	//	XMConvertToRadians(lightHelper.rotationDeg.y),
+	//	XMConvertToRadians(lightHelper.rotationDeg.z));
 
-	XMVECTOR rotQuatInverse = XMQuaternionInverse(rotQuat);
-	XMVECTOR lightDir = XMQuaternionMultiply(rotQuat, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
-	lightDir = XMQuaternionMultiply(lightDir, rotQuatInverse);
-	XMStoreFloat4(&light.direction, lightDir);
+	//XMVECTOR rotQuatInverse = XMQuaternionInverse(rotQuat);
+	//XMVECTOR lightDir = XMQuaternionMultiply(rotQuat, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+	//lightDir = XMQuaternionMultiply(lightDir, rotQuatInverse);
+	//XMStoreFloat4(&light.direction, lightDir);
 
-	light.color = XMFLOAT3(.64f, 0.767f, 1.f);
-	light.intensity = 0.5f;
-	light.type = DIRECTIONAL_LIGHT;
-	light.enabled = true;
-	light.isCastingShadow = true;
-	m_lights.push_back(std::make_pair(new Light(light), lightHelper));
-	m_renderHandler->addLight(
-		light,
-		XMFLOAT3(
-			XMConvertToRadians(lightHelper.rotationDeg.x),
-			XMConvertToRadians(lightHelper.rotationDeg.y),
-			XMConvertToRadians(lightHelper.rotationDeg.z)),
-		light.isCastingShadow);
+	////light.color = XMFLOAT3(.64f, 0.767f, 1.f);
+	//light.color = XMFLOAT3(1.f, 0.8f, 0.7f);
+	//light.intensity = 1.f;
+	//light.type = DIRECTIONAL_LIGHT;
+	//light.enabled = true;
+	//light.isCastingShadow = false;
+	//m_lights.push_back(std::make_pair(new Light(light), lightHelper));
+	//m_renderHandler->addLight(
+	//	light,
+	//	XMFLOAT3(
+	//		XMConvertToRadians(lightHelper.rotationDeg.x),
+	//		XMConvertToRadians(lightHelper.rotationDeg.y),
+	//		XMConvertToRadians(lightHelper.rotationDeg.z)),
+	//	light.isCastingShadow);
 
 	generateMaxRandomLights();
 
@@ -845,7 +846,7 @@ void GameState::update(double dt)
 					Light newLight;
 					LightHelper newLightHelper;
 					newLight.position = XMFLOAT4(0.f, 5.f, 0.f, 1.f);
-					newLight.direction = XMFLOAT4(0.1f, -0.4f, 0.f, 0.f);
+					newLight.direction = XMFLOAT3(0.1f, -0.4f, 0.f);
 					newLight.color = XMFLOAT3(1.f, 1.f, 1.f);
 					newLight.intensity = 1.f;
 					newLight.spotAngle = 1.f;
@@ -880,17 +881,17 @@ void GameState::update(double dt)
 			ImGui::SameLine(ImGui::GetWindowWidth() - colWidth - 48);
 			if (ImGui::ImageButton(ResourceHandler::getInstance().getTexture(L"baseline_delete_white_18dp.png"), ImVec2(20, 20)))
 			{
-				if (m_lights[i].first->isCastingShadow) // Disable Shadow Mapping if light is casting Shadows
-				{
-					m_renderHandler->changeShadowMappingLight(
-						m_lights[i].first, 
-						XMFLOAT3(
-							XMConvertToRadians(m_lights[i].second.rotationDeg.x),
-							XMConvertToRadians(m_lights[i].second.rotationDeg.y),
-							XMConvertToRadians(m_lights[i].second.rotationDeg.z)),
-						true);
+				//if (m_lights[i].first->isCastingShadow) // Disable Shadow Mapping if light is casting Shadows
+				//{
+				//	m_renderHandler->changeShadowMappingLight(
+				//		m_lights[i].first, 
+				//		XMFLOAT3(
+				//			XMConvertToRadians(m_lights[i].second.rotationDeg.x),
+				//			XMConvertToRadians(m_lights[i].second.rotationDeg.y),
+				//			XMConvertToRadians(m_lights[i].second.rotationDeg.z)),
+				//		true);
 
-				}
+				//}
 
 				delete m_lights[i].first;
 				m_lights.erase(m_lights.begin() + i);
@@ -953,7 +954,7 @@ void GameState::update(double dt)
 
 						XMVECTOR rotQuatInverse = XMQuaternionInverse(rotQuat);
 						XMVECTOR lightDir = XMQuaternionMultiply(rotQuat, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
-						XMStoreFloat4(&m_lights[i].first->direction, XMQuaternionMultiply(lightDir, rotQuatInverse));
+						XMStoreFloat3(&m_lights[i].first->direction, XMQuaternionMultiply(lightDir, rotQuatInverse));
 						
 						m_renderHandler->updateLight(m_lights[i].first, (int)i);
 					}
@@ -975,43 +976,41 @@ void GameState::update(double dt)
 
 						XMVECTOR rotQuatInverse = XMQuaternionInverse(rotQuat);
 						XMVECTOR lightDir = XMQuaternionMultiply(rotQuat, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
-						XMStoreFloat4(&m_lights[i].first->direction, XMQuaternionMultiply(lightDir, rotQuatInverse));
+						XMStoreFloat3(&m_lights[i].first->direction, XMQuaternionMultiply(lightDir, rotQuatInverse));
 
-						//if (!(m_lights[i].first->direction.x == 0.f && m_lights[i].first->direction.y == 0.f && m_lights[i].first->direction.z == 0.f))
+						/*if (m_lights[i].first->isCastingShadow)
 						{
-							if (m_lights[i].first->isCastingShadow)
-							{
-								m_renderHandler->changeShadowMappingLight(
-									m_lights[i].first,
-									XMFLOAT3(
-										XMConvertToRadians(m_lights[i].second.rotationDeg.x),
-										XMConvertToRadians(m_lights[i].second.rotationDeg.y),
-										XMConvertToRadians(m_lights[i].second.rotationDeg.z)),
-									false);
-							}
-							m_renderHandler->updateLight(m_lights[i].first, (int)i);
-						}
+							m_renderHandler->changeShadowMappingLight(
+								m_lights[i].first,
+								XMFLOAT3(
+									XMConvertToRadians(m_lights[i].second.rotationDeg.x),
+									XMConvertToRadians(m_lights[i].second.rotationDeg.y),
+									XMConvertToRadians(m_lights[i].second.rotationDeg.z)),
+								false);
+						}*/
+						m_renderHandler->updateLight(m_lights[i].first, (int)i);
+						
 					}
 					ImGui::PopItemWidth();
 
 					ImGui::NextColumn();
-					ImGui::Text("Casts Shadow");
-					ImGui::NextColumn();
-					if (ImGui::Checkbox(std::string("##Casts Shadow" + std::to_string(i)).c_str(), (bool*)(&m_lights[i].first->isCastingShadow)))
-					{
-						for (size_t j = 0; j < m_lights.size(); j++)
-						{
-							if (m_lights[j].first->type == DIRECTIONAL_LIGHT && j != i) // Not Current Directional Light
-								m_lights[j].first->isCastingShadow = false;
-						}
-						m_renderHandler->changeShadowMappingLight(
-							m_lights[i].first,
-							XMFLOAT3(
-								XMConvertToRadians(m_lights[i].second.rotationDeg.x),
-								XMConvertToRadians(m_lights[i].second.rotationDeg.y),
-								XMConvertToRadians(m_lights[i].second.rotationDeg.z)),
-							!m_lights[i].first->isCastingShadow);
-					}
+					/*ImGui::Text("Casts Shadow");
+					ImGui::NextColumn();*/
+					//if (ImGui::Checkbox(std::string("##Casts Shadow" + std::to_string(i)).c_str(), (bool*)(&m_lights[i].first->isCastingShadow)))
+					//{
+					//	for (size_t j = 0; j < m_lights.size(); j++)
+					//	{
+					//		if (m_lights[j].first->type == DIRECTIONAL_LIGHT && j != i) // Not Current Directional Light
+					//			m_lights[j].first->isCastingShadow = false;
+					//	}
+					//	m_renderHandler->changeShadowMappingLight(
+					//		m_lights[i].first,
+					//		XMFLOAT3(
+					//			XMConvertToRadians(m_lights[i].second.rotationDeg.x),
+					//			XMConvertToRadians(m_lights[i].second.rotationDeg.y),
+					//			XMConvertToRadians(m_lights[i].second.rotationDeg.z)),
+					//		!m_lights[i].first->isCastingShadow);
+					//}
 				}
 				ImGui::NextColumn();
 			}
@@ -1042,4 +1041,6 @@ void GameState::update(double dt)
 
 	// Camera
 	m_camera.update(dt);
+
+	//Sleep((1000 / 150));
 }

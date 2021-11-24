@@ -73,6 +73,7 @@ public:
 	XMMATRIX getViewMatrix() const { return *m_viewMatrix; }
 	XMMATRIX getInvViewMatrix() const { return m_cameraData.viewInverseMatrix; }
 	XMFLOAT3 getCameraPositionF3() const { XMFLOAT3 temp; XMStoreFloat3(&temp, m_cameraData.cameraPosition); return temp; }
+	XMVECTOR getCameraPosition() const { return m_cameraData.cameraPosition; }
 	bool isInitialized() const { return m_isInitialized; }
 	float getFov() const { return m_fov; }
 	float getFarZ() const { return m_farZ; }

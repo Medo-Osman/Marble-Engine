@@ -72,7 +72,7 @@ public:
 	float getLightShadowRadius() const;
 
 	// Update
-	void buildLightMatrix(Light directionalLight, XMFLOAT3 rotationRad, XMFLOAT3 centerPosition = XMFLOAT3(0.f, 0.f, 0.f));
+	void buildLightMatrix(Light directionalLight, XMFLOAT3 rotationRad = XMFLOAT3(0.f, 0.f, 0.f), XMFLOAT3 centerPosition = XMFLOAT3(0.f, 0.f, 0.f));
 	void buildLightMatrix(XMFLOAT3 centerPosition = XMFLOAT3(0.f, 0.f, 0.f));
 	void updateLight(Light directionalLight);
 

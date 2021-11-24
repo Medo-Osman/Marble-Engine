@@ -330,7 +330,10 @@ float horizon_occlusion(float2 deltaUV,
 #endif
 
     float sinH = tanH / sqrt(1.0f + tanH * tanH);
-
+    
+    // to remove error, not correct!
+    numSteps = 1.f;
+    
     for (float j = 1; j <= numSteps; ++j)
     {
         uv += deltaUV;

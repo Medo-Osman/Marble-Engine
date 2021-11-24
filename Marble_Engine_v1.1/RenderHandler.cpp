@@ -323,8 +323,15 @@ void RenderHandler::initRenderStates()
 	hr = m_device->CreateSamplerState(&samplerStateDesc, &m_defaultBorderSamplerState);
 	assert(SUCCEEDED(hr) && "Error, failed to create default border sampler state!");
 	m_deviceContext->CSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
-	m_deviceContext->DSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
 	m_deviceContext->HSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
+	m_deviceContext->DSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
+
+	samplerStateDesc.BorderColor[0] = 1.f;
+	samplerStateDesc.BorderColor[1] = 1.f;
+	samplerStateDesc.BorderColor[2] = 1.f;
+	samplerStateDesc.BorderColor[3] = 1.f;
+	hr = m_device->CreateSamplerState(&samplerStateDesc, &m_whiteBorderSamplerState);
+	m_deviceContext->PSSetSamplers(5, 1, m_defaultBorderSamplerState.GetAddressOf());
 
 	// Blend States
 	D3D11_BLEND_DESC blendStateDesc;
@@ -504,8 +511,7 @@ void RenderHandler::initVolumetricSunPass()
 	// Constant Buffer
 	m_lightVolumeWvpCBuffer.initialize(m_device.Get(), m_deviceContext.Get(), nullptr, BufferType::CONSTANT);
 	m_lightVolumeTessCBuffer.initialize(m_device.Get(), m_deviceContext.Get(), nullptr, BufferType::CONSTANT);
-	m_sunLightCBuffer.initialize(m_device.Get(), m_deviceContext.Get(), nullptr, BufferType::CONSTANT);
-
+	
 	// Shaders
 	ShaderFiles sf;
 	sf.vs = L"FullscreenQuadVS.hlsl";
@@ -768,7 +774,7 @@ void RenderHandler::lightPass()
 
 	// Set Specular radiance and Diffuse irradiance maps
 	srvIndex++;
-	m_skybox.setSkyboxTextures(srvIndex, srvIndex - 1);
+	m_sky.setSkyTextures(srvIndex, srvIndex - 1);
 
 	// Set Light Pass Shaders
 	m_lightPassShaders.setShaders();
@@ -847,15 +853,6 @@ void RenderHandler::volumetricSunPass()
 	
 	// - Light Inverse Matrix
 	m_shadowInstance.bindInverseVpMatrixVS();
-
-	// - Sun Light Data
-	DS_SUN_DATA_CBUFFER sunData;
-	Light sunLight = m_shadowInstance.getLight();
-	sunData.sunDirection = XMFLOAT3(sunLight.direction.x, sunLight.direction.y, sunLight.direction.z);
-	sunData.sunIntensity = sunLight.intensity;
-	sunData.sunColor = sunLight.color;
-	m_sunLightCBuffer.update(&sunData);
-	m_deviceContext->PSSetConstantBuffers(5, 1, m_sunLightCBuffer.GetAddressOf());
 
 	// - Camera Data
 	m_deviceContext->PSSetConstantBuffers(0, 1, m_camera.getConstantBuffer());
@@ -1110,13 +1107,23 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_lightManager.initialize(m_device.Get(), m_deviceContext.Get(), m_camera.getViewMatrixPtr(), m_camera.getProjectionMatrixPtr());
 	m_shadowInstance.initialize(m_device.Get(), m_deviceContext.Get(), SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
 	
-	// Skybox
-	//m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"TableMountain1Cubemap.dds", L"TableMountain1Irradiance.dds");
-	m_skybox.initialize(m_device.Get(), m_deviceContext.Get(), L"dikhololo_night_skybox.dds", L"dikhololo_night_sky_irradiance.dds");
+	// Sky
+	Light sunLight;
+	sunLight.direction = XMFLOAT3(0, -1, 0);
+	sunLight.color = XMFLOAT3(0.8f, 0.6f, 0.5f);
+	sunLight.intensity = 1.f;
+	sunLight.isCastingShadow = true;
+	Light moonLight;
+	moonLight.direction = XMFLOAT3(0, -1, 0);
+	moonLight.color = XMFLOAT3(0.2f, 0.3f, 0.4f);
+	moonLight.intensity = 0.5f;
+	moonLight.isCastingShadow = true;
+	//m_sky.initialize(m_device.Get(), m_deviceContext.Get(), L"TableMountain1Cubemap.dds", L"TableMountain1Irradiance.dds");
+	m_sky.initialize(m_device.Get(), m_deviceContext.Get(), &m_shadowInstance, sunLight, moonLight, L"dikhololo_night_skybox.dds", L"dikhololo_night_sky_irradiance.dds");
 	
 	// - Render Cubemap Previews
 	m_deviceContext->RSSetState(m_defaultRasterizerState.Get());
-	m_skybox.cubemapPreviewsRenderSetup();
+	m_sky.cubemapPreviewsRenderSetup();
 	m_deviceContext->Draw(4, 0);
 
 	// Timer
@@ -1172,13 +1179,13 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	particleStyle.fadeInAndOut = false;
 	particleStyle.idInterval = 5;
 
-	for (int i = 0; i < 4; i++)
+	/*for (int i = 0; i < 4; i++)
 		m_particleSystems["fire" + std::to_string(i)].Initialize(m_device.Get(), m_deviceContext.Get(), L"spot_gradient_tex.png", 20, particleStyle, XMFLOAT3(0,0,0), XMFLOAT2(3.f, 3.f));
 	
 	m_particleSystems["fire0"].setEmitPosition(XMFLOAT3(-8.85f, 4.8f, -23.7f));
 	m_particleSystems["fire1"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f, -23.7f));
 	m_particleSystems["fire2"].setEmitPosition(XMFLOAT3(-8.85f, 4.8f,  22.8f));
-	m_particleSystems["fire3"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f,  22.8f));
+	m_particleSystems["fire3"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f,  22.8f));*/
 
 	// Air
 	particleStyle.colorBegin = XMFLOAT3(1.f, 1.f, 1.f);
@@ -1239,7 +1246,7 @@ UINT RenderHandler::getClientHeight() const
 void RenderHandler::updateCamera(XMVECTOR position, XMVECTOR rotation)
 {
 	m_camera.updateViewMatrix(position, rotation);
-	m_skybox.updateVP(m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
+	m_sky.updateMatrices(m_camera.getViewMatrix(), m_camera.getProjectionMatrix(), m_camera.getCameraPosition());
 
 	if (m_useHBAOToggle)
 		m_HBAOInstance.updateViewMatrix(m_camera.getViewMatrix());
@@ -1438,11 +1445,13 @@ int RenderHandler::addLight(Light newLight, XMFLOAT3 rotationRad, bool usedForSh
 	if (m_lightManager.addLight(newLight))
 	{
 		m_lightManager.update();
-		if (usedForShadowMapping && newLight.type == DIRECTIONAL_LIGHT)
-			m_shadowInstance.buildLightMatrix(newLight, rotationRad);
-			//m_shadowInstance.buildLightMatrix(newLight, rotationRad, m_camera.getCameraPositionF3());
+		//if (usedForShadowMapping && newLight.type == DIRECTIONAL_LIGHT)
+		//{
+		//	m_shadowInstance.buildLightMatrix(newLight, rotationRad);
+		//	//m_shadowInstance.buildLightMatrix(newLight, rotationRad, m_camera.getCameraPositionF3());
+		//}
 
-		return m_lightManager.getNrOfLights(); // Used as a ID
+		return m_lightManager.getNrOfLights(); // Used as a ID, SHOULD BE CHANGED TO A BETTER INDEX SYSTEM!!!
 	}
 	return -1;
 }
@@ -1456,8 +1465,8 @@ void RenderHandler::updateLight(Light* light, int id)
 {
 	m_lightManager.updateLight(light, id);
 
-	if (light->isCastingShadow)
-		m_shadowInstance.updateLight(*light);
+	/*if (light->isCastingShadow)
+		m_shadowInstance.updateLight(*light);*/
 }
 
 void RenderHandler::changeShadowMappingLight(Light* light, XMFLOAT3 rotationRad, bool disableShadowCasting)
@@ -1470,9 +1479,9 @@ void RenderHandler::changeShadowMappingLight(Light* light, XMFLOAT3 rotationRad,
 	else
 	{
 		m_shadowMappingEnabled = true;
-		XMVECTOR normDirection = XMLoadFloat4(&light->direction);
+		XMVECTOR normDirection = XMLoadFloat3(&light->direction);
 		XMVector4Normalize(normDirection);
-		XMStoreFloat4(&light->direction, normDirection);
+		XMStoreFloat3(&light->direction, normDirection);
 		m_shadowInstance.buildLightMatrix(*light, rotationRad/*, m_camera.getCameraPositionF3()*/);
 	}
 }
@@ -1573,6 +1582,9 @@ float RenderHandler::selectionArrowPicking(UINT pointX, UINT pointY, char dimens
 
 void RenderHandler::update(double dt)
 {
+	// Sky
+	m_sky.update(dt);
+
 	// Particles
 	for (auto& object : m_particleSystems)
 		object.second.update(dt, (float)m_timer.timeElapsed(), m_camera);
@@ -1626,9 +1638,11 @@ void RenderHandler::updatePassShaders()
 	m_bloomUpsampleShader.updateShaders();*/
 
 	//m_volumetricSunShaders.updateShaders();
+	
+	m_sky.updateProceduralShaders();
 
-	/*m_skybox.updatePreviewShaders();
-	m_skybox.cubemapPreviewsRenderSetup();
+	/*m_sky.updatePreviewShaders();
+	m_sky.cubemapPreviewsRenderSetup();
 	m_deviceContext->Draw(4, 0);*/
 }
 
@@ -1843,73 +1857,157 @@ void RenderHandler::UIbloomSettings()
 
 void RenderHandler::UIEnviormentPanel()
 {
-	if (ImGui::CollapsingHeader("Enviorment Panel"))
+	if (ImGui::CollapsingHeader("Enviorment Panel", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		float indentSize = 16.f;
-		float imageSize = 100.f;
-		float imageOffset = imageSize + indentSize + 10.f;
+		ImGui::Text("Sky Light");
+		m_sky.updateUI();
 
-		ImGui::Indent(indentSize);
-
-		ImGui::Text("Skybox Cubemap");
-		_bstr_t nameCStr(m_skybox.getSkyboxFileName().c_str());
-		ImGui::Image(m_skybox.getSkyboxPreviewSRV(), ImVec2(imageSize, imageSize));
-		ImGui::SameLine(imageOffset);
-		ImGui::BeginGroup();
+		ImGui::Separator();
+		bool* procederualSkyToggle = m_sky.getProduralSkyTogglePtr();
+		ImGui::Checkbox("Procedural Sky", procederualSkyToggle);
+		if (*procederualSkyToggle)
 		{
-			if (ImGui::Button((const char*)nameCStr))
-			{
-				m_fileDialog.Open();
-				m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
-				m_loadNewCubemapType = CubemapType::Skybox;
-			}
-			m_lightManager.enviormentSpecContributionUI();
-		}
-		ImGui::EndGroup();
+			PROCEDURAL_SKY_CBUFFER* proceduralData = m_sky.getProduralSkyDataPtr();
 
-		ImGui::Text("Irradiance Cubemap");
-		nameCStr = m_skybox.getIrradianceFileName().c_str();
-		ImGui::Image(m_skybox.getIrradiancePreviewSRV(), ImVec2(imageSize, imageSize));
-		ImGui::SameLine(imageOffset);
-		ImGui::BeginGroup();
-		{
-			if (ImGui::Button((const char*)nameCStr))
-			{
-				m_fileDialog.Open();
-				m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
-				m_loadNewCubemapType = CubemapType::Irradiance;
-			}
-			m_lightManager.enviormentDiffContributionUI();
-		}
-		ImGui::EndGroup();
+			if (ImGui::DragFloat("Intensity", &proceduralData->intensity, 0.1f, 0.1f, 10.f))
+				m_sky.updateProceduralData();
+			ImGui::Separator();
 
-		m_fileDialog.Display();
-		if (m_fileDialog.HasSelected())
-		{
-			std::string strPath = m_fileDialog.GetSelected().string();
-			size_t pos = strPath.find("Textures");
-			strPath.erase(0, pos);
-			std::wstring path = charToWchar(strPath);
-			switch (m_loadNewCubemapType)
+			ImGui::Text("Sky");
+			if (ImGui::ColorEdit3("Sky Color", &proceduralData->skyColor.x, ImGuiColorEditFlags_Float))
+				m_sky.updateProceduralData();
+			if (ImGui::DragFloat("Sky Exponent", &proceduralData->skyExponent, 0.1f, 0.1f, 10.f))
+				m_sky.updateProceduralData();
+			if (ImGui::ColorEdit3("Sky Night Color", &proceduralData->skyNightColor.x, ImGuiColorEditFlags_Float))
+				m_sky.updateProceduralData();
+			if (ImGui::DragFloat("Sky Night Exponent", &proceduralData->skyNightExponent, 0.1f, 0.1f, 10.f))
+				m_sky.updateProceduralData();
+			ImGui::Separator();
+
+			ImGui::Text("Horizon");
+			bool* useSunMoonCol = (bool*)&proceduralData->useSunMoonColorforHorizon;
+			if (ImGui::Checkbox("Use Sun/Moon Color", useSunMoonCol))
+				m_sky.updateProceduralData();
+
+			if (!*useSunMoonCol)
 			{
-			case CubemapType::Skybox:
-				m_skybox.updateSkyboxCubemap(path);
-				m_skybox.cubemapPreviewsRenderSetup();
-				m_deviceContext->Draw(4, 0);
-				m_loadNewCubemapType = CubemapType::None;
-				break;
-			case CubemapType::Irradiance:
-				m_skybox.updateIrradianceCubemap(path);
-				m_skybox.cubemapPreviewsRenderSetup();
-				m_deviceContext->Draw(4, 0);
-				m_loadNewCubemapType = CubemapType::None;
-				break;
-			default:
-				break;
+				if (ImGui::ColorEdit3("Horizon Color", &proceduralData->horizonColor.x, ImGuiColorEditFlags_Float))
+					m_sky.updateProceduralData();
+				if (ImGui::ColorEdit3("Horizon Night Color", &proceduralData->horizonNightColor.x, ImGuiColorEditFlags_Float))
+					m_sky.updateProceduralData();
 			}
+
+			ImGui::Separator();
+			
+			ImGui::Text("Ground");
+			if (ImGui::ColorEdit3("Ground Color", &proceduralData->groundColor.x, ImGuiColorEditFlags_Float))
+				m_sky.updateProceduralData();
+			if (ImGui::DragFloat("Ground Exponent", &proceduralData->groundExponent, 0.1f, 0.1f, 10.f))
+				m_sky.updateProceduralData();
+			if (ImGui::ColorEdit3("Ground Night Color", &proceduralData->groundNightColor.x, ImGuiColorEditFlags_Float))
+				m_sky.updateProceduralData();
+			if (ImGui::DragFloat("Ground Night Exponent", &proceduralData->groundNightExponent, 0.1f, 0.1f, 10.f))
+				m_sky.updateProceduralData();
+			ImGui::Separator();
+
+			ImGui::Text("Sun");
+			if (ImGui::DragFloat("Sun Strength", &proceduralData->sunExponent, 0.1f, 0.1f, 10.f))
+				m_sky.updateProceduralData();
+
+			if (ImGui::DragFloat("Sun Radius A", &proceduralData->sunRadiusA, 0.001f, 0.001f, 10.f))
+				m_sky.updateProceduralData();
+
+			if (ImGui::DragFloat("Sun Radius B", &proceduralData->sunRadiusB, 0.001f, 0.001f, 10.f))
+				m_sky.updateProceduralData();
+			ImGui::Separator();
+
+			ImGui::Text("Moon");
+			if (ImGui::DragFloat("Moon Exponent", &proceduralData->moonExponent, 0.1f, 0.1f, 10.f))
+				m_sky.updateProceduralData();
+
+			if (ImGui::DragFloat("Moon Radius A", &proceduralData->moonRadiusA, 0.001f, 0.001f, 10.f))
+				m_sky.updateProceduralData();
+
+			if (ImGui::DragFloat("Moon Radius B", &proceduralData->moonRadiusB, 0.001f, 0.001f, 10.f))
+				m_sky.updateProceduralData();
+			ImGui::Separator();
+
+			ImGui::Text("Stars");
+			if (ImGui::DragFloat("Stars Scale", &proceduralData->starsUVScale, 0.1f, 0.1f, 10.f))
+				m_sky.updateProceduralData();
+
+			if (ImGui::DragFloat("Stars Intensity", &proceduralData->starsIntensity, 0.1f, 0.1f, 10.f))
+				m_sky.updateProceduralData();
+			ImGui::Separator();
 		}
-		m_fileDialog.ClearSelected();
-		ImGui::Unindent(indentSize);
+		else
+		{
+			float indentSize = 16.f;
+			float imageSize = 100.f;
+			float imageOffset = imageSize + indentSize + 10.f;
+
+			ImGui::Indent(indentSize);
+
+			ImGui::Text("Skybox Cubemap");
+			_bstr_t nameCStr(m_sky.getSkyFileName().c_str());
+			ImGui::Image(m_sky.getSkyPreviewSRV(), ImVec2(imageSize, imageSize));
+			ImGui::SameLine(imageOffset);
+			ImGui::BeginGroup();
+			{
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					m_loadNewCubemapType = CubemapType::Skybox;
+				}
+				m_lightManager.enviormentSpecContributionUI();
+			}
+			ImGui::EndGroup();
+
+			ImGui::Text("Irradiance Cubemap");
+			nameCStr = m_sky.getIrradianceFileName().c_str();
+			ImGui::Image(m_sky.getIrradiancePreviewSRV(), ImVec2(imageSize, imageSize));
+			ImGui::SameLine(imageOffset);
+			ImGui::BeginGroup();
+			{
+				if (ImGui::Button((const char*)nameCStr))
+				{
+					m_fileDialog.Open();
+					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
+					m_loadNewCubemapType = CubemapType::Irradiance;
+				}
+				m_lightManager.enviormentDiffContributionUI();
+			}
+			ImGui::EndGroup();
+
+			m_fileDialog.Display();
+			if (m_fileDialog.HasSelected())
+			{
+				std::string strPath = m_fileDialog.GetSelected().string();
+				size_t pos = strPath.find("Textures");
+				strPath.erase(0, pos);
+				std::wstring path = charToWchar(strPath);
+				switch (m_loadNewCubemapType)
+				{
+				case CubemapType::Skybox:
+					m_sky.updateSkyCubemap(path);
+					m_sky.cubemapPreviewsRenderSetup();
+					m_deviceContext->Draw(4, 0);
+					m_loadNewCubemapType = CubemapType::None;
+					break;
+				case CubemapType::Irradiance:
+					m_sky.updateIrradianceCubemap(path);
+					m_sky.cubemapPreviewsRenderSetup();
+					m_deviceContext->Draw(4, 0);
+					m_loadNewCubemapType = CubemapType::None;
+					break;
+				default:
+					break;
+				}
+			}
+			m_fileDialog.ClearSelected();
+			ImGui::Unindent(indentSize);
+		}
 	}
 }
 
@@ -1996,6 +2094,7 @@ void RenderHandler::render(double dt)
 		object.second->render(true);
 
 	// Volumetric Sun Scattering
+	m_sky.setSkyLight(); // Used by Light Pass and Proceural Skybox Shader too
 	if (m_volumetricSunToggle)
 		volumetricSunPass();
 
@@ -2023,7 +2122,7 @@ void RenderHandler::render(double dt)
 	m_deviceContext->OMSetRenderTargets(1, &m_hdrRTV.rtv, m_depthStencilView.Get());
 
 	// Skybox
-	m_skybox.render();
+	m_sky.render();
 
 	// Particles
 	particlePass();

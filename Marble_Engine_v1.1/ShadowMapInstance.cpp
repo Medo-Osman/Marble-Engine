@@ -169,7 +169,7 @@ XMVECTOR ShadowMapInstance::getLightPosition() const
 
 XMVECTOR ShadowMapInstance::getLightDirection() const
 {
-	return XMLoadFloat4(&m_directionalLight.direction);
+	return XMLoadFloat3(&m_directionalLight.direction);
 }
 
 XMVECTOR ShadowMapInstance::getLightRotation() const
@@ -194,7 +194,7 @@ void ShadowMapInstance::buildLightMatrix(Light directionalLight, XMFLOAT3 rotati
 	// Light View Matrix
 	VS_SHADOW_C_BUFFER* lightMatrices = new VS_SHADOW_C_BUFFER();
 	VS_SHADOW_C_BUFFER* invLightMatrices = new VS_SHADOW_C_BUFFER();
-	XMVECTOR lightDirection = XMLoadFloat4(&directionalLight.direction);
+	XMVECTOR lightDirection = XMLoadFloat3(&directionalLight.direction);
 	XMVECTOR position = XMLoadFloat3(&m_worldBoundingSphere.Center);
 	position = XMVectorSetW(position, 1.f);
 	m_lightPosition = (-4.f * m_worldBoundingSphere.Radius * lightDirection) + position;
@@ -259,7 +259,7 @@ void ShadowMapInstance::buildLightMatrix(XMFLOAT3 centerPosition)
 	// Light View Matrix
 	VS_SHADOW_C_BUFFER* lightMatrices = new VS_SHADOW_C_BUFFER();
 	VS_SHADOW_C_BUFFER* invLightMatrices = new VS_SHADOW_C_BUFFER();
-	XMVECTOR lightDirection = XMLoadFloat4(&m_directionalLight.direction);
+	XMVECTOR lightDirection = XMLoadFloat3(&m_directionalLight.direction);
 	XMVECTOR position = XMLoadFloat3(&m_worldBoundingSphere.Center);
 	position = XMVectorSetW(position, 1.f);
 	m_lightPosition = (-2.f * m_worldBoundingSphere.Radius * lightDirection) + position;

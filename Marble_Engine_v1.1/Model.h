@@ -121,28 +121,28 @@ private:
 		aiString texturePath;
 
 		if (aMaterial->GetTextureCount(aiTextureType_DIFFUSE) > 0 && aMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.diffusePath = texturePathsPBR.albedoPath = charToWchar(texturePath.C_Str()).c_str();
+			texturePaths.diffusePath = texturePathsPBR.albedoPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
 
 		if (aMaterial->GetTextureCount(aiTextureType_NORMALS) > 0 && aMaterial->GetTexture(aiTextureType_NORMALS, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.normalPath = texturePathsPBR.normalPath = charToWchar(texturePath.C_Str()).c_str();
+			texturePaths.normalPath = texturePathsPBR.normalPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
 
 		if (aMaterial->GetTextureCount(aiTextureType_SPECULAR) > 0 && aMaterial->GetTexture(aiTextureType_SPECULAR, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.specularPath = charToWchar(texturePath.C_Str()).c_str();
+			texturePaths.specularPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
 
 		if (aMaterial->GetTextureCount(aiTextureType_METALNESS) > 0 && aMaterial->GetTexture(aiTextureType_METALNESS, 0, &texturePath) == AI_SUCCESS)
-			texturePathsPBR.metallicPath = charToWchar(texturePath.C_Str()).c_str();
+			texturePathsPBR.metallicPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
 
 		if (aMaterial->GetTextureCount(aiTextureType_SHININESS) > 0 && aMaterial->GetTexture(aiTextureType_SHININESS, 0, &texturePath) == AI_SUCCESS)
-			texturePathsPBR.roughnessPath = charToWchar(texturePath.C_Str()).c_str();
+			texturePathsPBR.roughnessPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
 		
 		if (aMaterial->GetTextureCount(aiTextureType_AMBIENT) > 0 && aMaterial->GetTexture(aiTextureType_AMBIENT, 0, &texturePath) == AI_SUCCESS)
-			texturePathsPBR.ambientOcclusionPath = charToWchar(texturePath.C_Str()).c_str();
+			texturePathsPBR.ambientOcclusionPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
 		
 		if (aMaterial->GetTextureCount(aiTextureType_EMISSIVE) > 0 && aMaterial->GetTexture(aiTextureType_EMISSIVE, 0, &texturePath) == AI_SUCCESS)
-			texturePathsPBR.emissivePath = charToWchar(texturePath.C_Str()).c_str();
+			texturePathsPBR.emissivePath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
 
 		if (aMaterial->GetTextureCount(aiTextureType_DISPLACEMENT) > 0 && aMaterial->GetTexture(aiTextureType_DISPLACEMENT, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.displacementPath = texturePathsPBR.displacementPath = charToWchar(texturePath.C_Str()).c_str();
+			texturePaths.displacementPath = texturePathsPBR.displacementPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
 
 
 		aiString fileBaseColor, fileMetallicRoughness;
@@ -151,8 +151,8 @@ private:
 
 		if (fileMetallicRoughness.length > 0)
 		{
-			texturePathsPBR.metallicPath = charToWchar(fileMetallicRoughness.C_Str()).c_str();
-			texturePathsPBR.roughnessPath = charToWchar(fileMetallicRoughness.C_Str()).c_str();
+			texturePathsPBR.metallicPath = extractFileName(charToWchar(fileMetallicRoughness.C_Str()).c_str());
+			texturePathsPBR.roughnessPath = extractFileName(charToWchar(fileMetallicRoughness.C_Str()).c_str());
 		}
 
 		Mesh<VertexPosNormTexTan>* finalMesh = new Mesh<VertexPosNormTexTan>(m_device, m_deviceContext, vertices, indices, material, texturePaths, mesh->mName.C_Str());
