@@ -312,9 +312,19 @@ void RenderHandler::initRenderStates()
 	m_deviceContext->GSSetSamplers(0, 1, m_defaultWrapSamplerState.GetAddressOf());
 
 	// - Border Sampler
+	
+	// - - White Border
 	samplerStateDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
 	samplerStateDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
 	samplerStateDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+	samplerStateDesc.BorderColor[0] = 1.f;
+	samplerStateDesc.BorderColor[1] = 1.f;
+	samplerStateDesc.BorderColor[2] = 1.f;
+	samplerStateDesc.BorderColor[3] = 1.f;
+	hr = m_device->CreateSamplerState(&samplerStateDesc, &m_whiteBorderSamplerState);
+	assert(SUCCEEDED(hr) && "Error, failed to create white border sampler state!");
+
+	// - - Black Border
 	samplerStateDesc.BorderColor[0] = 0.f;
 	samplerStateDesc.BorderColor[1] = 0.f;
 	samplerStateDesc.BorderColor[2] = 0.f;
@@ -325,13 +335,20 @@ void RenderHandler::initRenderStates()
 	m_deviceContext->CSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
 	m_deviceContext->HSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
 	m_deviceContext->DSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
-
-	samplerStateDesc.BorderColor[0] = 1.f;
-	samplerStateDesc.BorderColor[1] = 1.f;
-	samplerStateDesc.BorderColor[2] = 1.f;
-	samplerStateDesc.BorderColor[3] = 1.f;
-	hr = m_device->CreateSamplerState(&samplerStateDesc, &m_whiteBorderSamplerState);
+	m_deviceContext->GSSetSamplers(1, 1, m_defaultBorderSamplerState.GetAddressOf());
 	m_deviceContext->PSSetSamplers(5, 1, m_defaultBorderSamplerState.GetAddressOf());
+
+	// - - Black Border Comparison
+	samplerStateDesc.MinLOD = 0.f;
+	samplerStateDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	samplerStateDesc.MipLODBias = 0.f;
+	samplerStateDesc.MaxAnisotropy = 0;
+	samplerStateDesc.ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL;
+	samplerStateDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+
+	hr = m_device->CreateSamplerState(&samplerStateDesc, m_blackBorderComparisonSamplerState.GetAddressOf());
+	assert(SUCCEEDED(hr) && "Error, failed to creat black border comparison sampler state!");
+	m_deviceContext->GSSetSamplers(2, 1, m_blackBorderComparisonSamplerState.GetAddressOf()); // Used for Lens Flare
 
 	// Blend States
 	D3D11_BLEND_DESC blendStateDesc;
@@ -1159,6 +1176,16 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	// Bloom
 	initBloomPass((UINT)winRect.right, (UINT)winRect.bottom);
 
+	// Lens Flare
+	m_lensFlareCBuffer.initialize(m_device.Get(), m_deviceContext.Get(), nullptr, BufferType::CONSTANT);
+
+	shaderFiles.vs = L"LensFlareVS.hlsl";
+	shaderFiles.gs = L"LensFlareGS.hlsl";
+	shaderFiles.ps = L"LensFlarePS.hlsl";
+	m_lensFlareShaders.initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS, D3D10_PRIMITIVE_TOPOLOGY_POINTLIST);
+
+	m_lensFlareTexturesSRV = ResourceHandler::getInstance().getTexture(L"Lens flare/lens_flare_textures.dds");
+
 	// Particles
 
 	// - Fire
@@ -1179,13 +1206,13 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	particleStyle.fadeInAndOut = false;
 	particleStyle.idInterval = 5;
 
-	/*for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 4; i++)
 		m_particleSystems["fire" + std::to_string(i)].Initialize(m_device.Get(), m_deviceContext.Get(), L"spot_gradient_tex.png", 20, particleStyle, XMFLOAT3(0,0,0), XMFLOAT2(3.f, 3.f));
 	
 	m_particleSystems["fire0"].setEmitPosition(XMFLOAT3(-8.85f, 4.8f, -23.7f));
 	m_particleSystems["fire1"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f, -23.7f));
 	m_particleSystems["fire2"].setEmitPosition(XMFLOAT3(-8.85f, 4.8f,  22.8f));
-	m_particleSystems["fire3"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f,  22.8f));*/
+	m_particleSystems["fire3"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f,  22.8f));
 
 	// Air
 	particleStyle.colorBegin = XMFLOAT3(1.f, 1.f, 1.f);
@@ -1228,6 +1255,7 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 
 	// HDR Tonemapping
 	shaderFiles.vs = L"FullscreenQuadVS.hlsl";
+	shaderFiles.gs = L"";
 	shaderFiles.ps = L"HDRtoSDR_PS.hlsl";
 	m_tonemapShaders.initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS);
 	m_tonemapCBuffer.initialize(m_device.Get(), m_deviceContext.Get(), &m_tonemapCData, BufferType::CONSTANT);
@@ -1585,6 +1613,25 @@ void RenderHandler::update(double dt)
 	// Sky
 	m_sky.update(dt);
 
+	// Lens Flare
+	if (m_lensFlareToggle)
+	{
+		XMFLOAT3 sunPos = m_sky.getSkyLightDirection(SkyLightType::SUN);
+		XMVECTOR lightPos = XMLoadFloat3(&sunPos);
+		lightPos = XMVectorNegate(DirectX::XMVectorScale(lightPos, 1000.f)) + m_camera.getCameraPosition();
+		lightPos = XMVectorSetW(lightPos, 0.f);
+
+		m_lensFlareCData.skyLightPosition = DirectX::XMVector3TransformCoord(lightPos, m_camera.getViewMatrix());
+		if (DirectX::XMVectorGetZ(m_lensFlareCData.skyLightPosition) < 0.f) // Behind Camera
+			m_lensFlareCData.skyLightPosition = XMVectorSet(0,0,-1,1);
+		else
+			m_lensFlareCData.skyLightPosition = DirectX::XMVector3TransformCoord(m_lensFlareCData.skyLightPosition, m_camera.getProjectionMatrix());
+
+		m_lensFlareCData.screenDimensions = XMFLOAT2((float)m_clientWidth, (float)m_clientHeight);
+		m_lensFlareCBuffer.update(&m_lensFlareCData);
+		m_deviceContext->GSSetConstantBuffers(2, 1, m_lensFlareCBuffer.GetAddressOf());
+	}
+	
 	// Particles
 	for (auto& object : m_particleSystems)
 		object.second.update(dt, (float)m_timer.timeElapsed(), m_camera);
@@ -1640,6 +1687,7 @@ void RenderHandler::updatePassShaders()
 	//m_volumetricSunShaders.updateShaders();
 	
 	m_sky.updateProceduralShaders();
+	m_lensFlareShaders.updateShaders();
 
 	/*m_sky.updatePreviewShaders();
 	m_sky.cubemapPreviewsRenderSetup();
@@ -1855,23 +1903,26 @@ void RenderHandler::UIbloomSettings()
 		m_bloomToggle = false;
 }
 
+void RenderHandler::UILensFlareSettings()
+{
+	ImGui::Checkbox("Lens Flare", &m_lensFlareToggle);
+}
+
 void RenderHandler::UIEnviormentPanel()
 {
 	if (ImGui::CollapsingHeader("Enviorment Panel", ImGuiTreeNodeFlags_DefaultOpen))
 	{
+		float indentSize = 16.f;
+		ImGui::Indent(indentSize);
+
 		ImGui::Text("Sky Light");
 		m_sky.updateUI();
 
 		ImGui::Separator();
 		bool* procederualSkyToggle = m_sky.getProduralSkyTogglePtr();
-		ImGui::Checkbox("Procedural Sky", procederualSkyToggle);
 		if (*procederualSkyToggle)
 		{
 			PROCEDURAL_SKY_CBUFFER* proceduralData = m_sky.getProduralSkyDataPtr();
-
-			if (ImGui::DragFloat("Intensity", &proceduralData->intensity, 0.1f, 0.1f, 10.f))
-				m_sky.updateProceduralData();
-			ImGui::Separator();
 
 			ImGui::Text("Sky");
 			if (ImGui::ColorEdit3("Sky Color", &proceduralData->skyColor.x, ImGuiColorEditFlags_Float))
@@ -1940,19 +1991,23 @@ void RenderHandler::UIEnviormentPanel()
 				m_sky.updateProceduralData();
 			ImGui::Separator();
 		}
-		else
+
+		float imageSize = 100.f;
+		float imageOffset = imageSize + indentSize + 10.f;
+		_bstr_t nameCStr;
+
+		m_sky.ambientSettingsUI();
+
+		if (!*procederualSkyToggle)
 		{
-			float indentSize = 16.f;
-			float imageSize = 100.f;
-			float imageOffset = imageSize + indentSize + 10.f;
-
-			ImGui::Indent(indentSize);
-
 			ImGui::Text("Skybox Cubemap");
-			_bstr_t nameCStr(m_sky.getSkyFileName().c_str());
+			nameCStr = m_sky.getSkyFileName().c_str();
 			ImGui::Image(m_sky.getSkyPreviewSRV(), ImVec2(imageSize, imageSize));
 			ImGui::SameLine(imageOffset);
-			ImGui::BeginGroup();
+		}
+		ImGui::BeginGroup();
+		{
+			if (!*procederualSkyToggle)
 			{
 				if (ImGui::Button((const char*)nameCStr))
 				{
@@ -1960,15 +2015,21 @@ void RenderHandler::UIEnviormentPanel()
 					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
 					m_loadNewCubemapType = CubemapType::Skybox;
 				}
-				m_lightManager.enviormentSpecContributionUI();
 			}
-			ImGui::EndGroup();
-
+			m_lightManager.enviormentSpecContributionUI();
+		}
+		ImGui::EndGroup();
+		
+		if (!*procederualSkyToggle)
+		{
 			ImGui::Text("Irradiance Cubemap");
 			nameCStr = m_sky.getIrradianceFileName().c_str();
 			ImGui::Image(m_sky.getIrradiancePreviewSRV(), ImVec2(imageSize, imageSize));
 			ImGui::SameLine(imageOffset);
-			ImGui::BeginGroup();
+		}
+		ImGui::BeginGroup();
+		{
+			if (!*procederualSkyToggle)
 			{
 				if (ImGui::Button((const char*)nameCStr))
 				{
@@ -1976,10 +2037,13 @@ void RenderHandler::UIEnviormentPanel()
 					m_fileDialog.SetPwd(std::filesystem::current_path() / "Textures");
 					m_loadNewCubemapType = CubemapType::Irradiance;
 				}
-				m_lightManager.enviormentDiffContributionUI();
 			}
-			ImGui::EndGroup();
+			m_lightManager.enviormentDiffContributionUI();
+		}
+		ImGui::EndGroup();
 
+		if (!*procederualSkyToggle)
+		{
 			m_fileDialog.Display();
 			if (m_fileDialog.HasSelected())
 			{
@@ -2006,8 +2070,8 @@ void RenderHandler::UIEnviormentPanel()
 				}
 			}
 			m_fileDialog.ClearSelected();
-			ImGui::Unindent(indentSize);
 		}
+		ImGui::Unindent(indentSize);
 	}
 }
 
@@ -2126,6 +2190,22 @@ void RenderHandler::render(double dt)
 
 	// Particles
 	particlePass();
+
+	// Lens Flare
+	if (m_lensFlareToggle)
+	{
+		m_deviceContext->OMSetBlendState(m_blendStatePreMultipliedAlphaBlend.Get(), blendFactor, sampleMask);
+
+		m_deviceContext->OMSetRenderTargets(1, &m_hdrRTV.rtv, nullptr);
+		m_deviceContext->GSSetShaderResources(1, 1, &m_gBuffer.renderTextures[DEPTH].srv);
+		m_deviceContext->PSSetShaderResources(0, 1, &m_lensFlareTexturesSRV);
+		m_lensFlareShaders.setShaders();
+		m_deviceContext->Draw(9, 0); // 9 quads will be generated with each of the 9 lens flare images
+
+		// - Reset
+		m_deviceContext->GSSetShaderResources(1, 1, &m_shaderResourceNullptr);
+		m_deviceContext->OMSetBlendState(m_blendStateBlend.Get(), blendFactor, sampleMask);
+	}
 
 	// Draw Selection Indicators
 	if (m_selectedObjectKey.valid)

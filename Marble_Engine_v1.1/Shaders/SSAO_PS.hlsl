@@ -91,6 +91,6 @@ float4 main(PS_IN input) : SV_TARGET
     occlusionSum /= SAMPLE_COUNT;
     
     float access = 1.0f - occlusionSum;
-    float ao = saturate(pow(access, 3.f));
+    float ao = saturate(pow(access, 2.f));
     return float4(ao, ao, ao, 1.f);
 }

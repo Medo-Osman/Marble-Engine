@@ -83,6 +83,8 @@ private:
     ComPtr< ID3D11SamplerState > m_defaultWrapSamplerState;
     ComPtr< ID3D11SamplerState > m_defaultBorderSamplerState;
     ComPtr< ID3D11SamplerState > m_whiteBorderSamplerState;
+    ComPtr< ID3D11SamplerState > m_blackBorderComparisonSamplerState;
+
     ComPtr< ID3D11RasterizerState > m_defaultRasterizerState;
     ComPtr< ID3D11RasterizerState > m_wireframeRasterizerState;
     ComPtr< ID3D11RasterizerState > m_cullOffRasterizerState;
@@ -149,6 +151,13 @@ private:
     // - Shaders
     Shaders m_bloomDownsampleShader;
     Shaders m_bloomUpsampleShader;
+
+    // Lens Flare
+    bool m_lensFlareToggle = true;
+    Shaders m_lensFlareShaders;
+    LENS_FLARE_CBUFFER m_lensFlareCData;
+    Buffer< LENS_FLARE_CBUFFER > m_lensFlareCBuffer;
+    ID3D11ShaderResourceView* m_lensFlareTexturesSRV;
 
     // Adaptive Exposure
     bool m_adaptiveExposureToggle = true;
@@ -306,6 +315,7 @@ public:
     void UIadaptiveExposureSettings();
     void UIVolumetricSunSettings();
     void UIbloomSettings();
+    void UILensFlareSettings();
     void UIEnviormentPanel();
 
     // Render

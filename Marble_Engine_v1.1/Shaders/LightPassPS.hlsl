@@ -48,6 +48,7 @@ cbuffer lightBuffer : register(b1)
     float enviormentSpecContribution;
     bool volumetricSunScattering;
     bool fog;
+    bool procederualSky;
 };
 
 cbuffer shadowBuffer : register(b2)
@@ -56,13 +57,14 @@ cbuffer shadowBuffer : register(b2)
     matrix shadowProjectionMatrix;
 };
 
-cbuffer SkyLightDataCB : register(b5) // Also Used for Sun and Moon
+cbuffer SkyLightDataCB : register(b5) // Used for Sun and Moon
 {
     float3 skyLightDirection;
     float skyLightIntensity;
     float3 skyLightColor;
     int moonOrSun; // 0 = Moon, 1 = Sun
     bool skyLightCastingShadow;
+    float3 ambientColor; // used when procederualSky is on
 };
 
 // Textures
@@ -381,7 +383,11 @@ float4 main(PS_IN input) : SV_TARGET
         float lod = roughness * MAX_REFLECTION_LOD;
         if (enviormentDiffContribution > 0.f)
         {
-            float3 irradiance = IrradianceMap.Sample(sampState, N).rgb;
+            float3 irradiance;
+            if (procederualSky)
+                irradiance = ambientColor;
+            else
+                irradiance = IrradianceMap.Sample(sampState, N).rgb;
             diffuse = irradiance * albedo * enviormentDiffContribution;
         }
 
@@ -389,7 +395,11 @@ float4 main(PS_IN input) : SV_TARGET
         specular = (float3)0;
         if (enviormentSpecContribution > 0.f)
         {
-            float3 prefilteredColor = SpecularIBLMap.SampleLevel(sampState, R, lod).rgb;
+            float3 prefilteredColor;
+            if (procederualSky)
+                prefilteredColor = ambientColor;
+            else 
+                prefilteredColor = SpecularIBLMap.SampleLevel(sampState, R, lod).rgb;
     
             const float4 c0 = float4(-1, -0.0275, -0.572, 0.022);
             const float4 c1 = float4(1, 0.0425, 1.04, -0.04);

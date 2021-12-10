@@ -76,12 +76,18 @@ void Sky::updateSkyLight()
 	}
 	else
 	{
-		m_skyLightData.color = m_moonLight.color;
+		XMStoreFloat3(&m_skyLightData.color, XMVectorLerp(XMLoadFloat3(&m_moonLight.color), XMLoadFloat3(&m_proceduralSkyData.sunSetRiseColor), sunSetRiseRange));
+		//m_skyLightData.color = m_moonLight.color;
+
 		m_skyLightData.intensity = m_moonLight.intensity;
 		m_skyLightData.moonOrSun = MOON;
 		m_shadowmapInstance->buildLightMatrix(m_moonLight);
 	}
-
+	float ambientColorIntensity = 0.6f;
+	if (m_ambientColorSameAsSunToggle)
+		XMStoreFloat3(&m_skyLightData.ambientColor, XMVectorLerp(XMLoadFloat3(&m_skyLightData.color) * ambientColorIntensity, XMVectorSet(1.f, 1.f, 1.f, 1.f), 0.5f));
+		//m_skyLightData.ambientColor = XMFLOAT3(m_skyLightData.color.x * ambientColorIntensity, m_skyLightData.color.y * ambientColorIntensity, m_skyLightData.color.z * ambientColorIntensity);
+	
 	// Update Constant Buffer
 	m_skyLightCBuffer.update(&m_skyLightData);
 }
@@ -164,7 +170,7 @@ void Sky::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, S
 	PS_MATERIAL_BUFFER material;
 	std::vector<UINT> indices;
 	m_cubeMesh = new Mesh<VertexPos>(device, m_deviceContext, vertices, indices, material, TexturePaths());
-	m_sphereModel.initialize(device, m_deviceContext, 999547, "inverted_sphere.glb");
+	m_sphereModel.initialize(device, m_deviceContext, 999547, "inverted_sphere.glb"); // not used
 
 	// Constant Buffer
 	m_vpCBuffer.initialize(device, deviceContext, nullptr, BufferType::CONSTANT);
@@ -216,9 +222,10 @@ void Sky::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, S
 	m_moonLight = moonLight;
 	m_skyLightData.direction = XMFLOAT3(0.f, 1.f, 0.f);
 	m_skyLightData.castingShadow = true;
+	m_skyLightData.ambientColor = sunLight.color;
 	m_dayNightCycleToggle = true;
 	m_timeOfDay = m_timeOffset; // 0 = 00:00(Midnight), 0.25 = 06:00(Morning), 0.5 = 12:00(Noon),  0.75 = 18:00(Evening)
-	m_cyclePerMinute = 0.1f;
+	m_cyclePerMinute = 2.f;
 	m_dayNightTimer.shouldRememberDuringPause(true);
 	m_dayNightTimer.start();
 }
@@ -231,6 +238,21 @@ Sky::Sky()
 Sky::~Sky()
 {
 	delete m_cubeMesh;
+}
+
+XMFLOAT3 Sky::getSkyLightDirection(SkyLightType types)
+{
+	if (types == SUN)
+		return XMFLOAT3(m_skyLightData.direction.x, m_skyLightData.direction.y, m_skyLightData.direction.z);
+	else if(types == MOON)
+		return XMFLOAT3(-m_skyLightData.direction.x, -m_skyLightData.direction.y, -m_skyLightData.direction.z);
+	else
+	{
+		if (m_timeOfDay > 0.25f && m_timeOfDay < 0.75f) // Sun / Day
+			return XMFLOAT3(m_skyLightData.direction.x, m_skyLightData.direction.y, m_skyLightData.direction.z);
+		else // Moon / Night
+			return XMFLOAT3(-m_skyLightData.direction.x, -m_skyLightData.direction.y, -m_skyLightData.direction.z);
+	}
 }
 
 void Sky::updateUI()
@@ -264,6 +286,29 @@ void Sky::updateUI()
 			m_dayNightTimer.start();
 		else
 			m_dayNightTimer.stop();
+	}
+
+	ImGui::Separator();
+	ImGui::Checkbox("Procedural Sky", &m_proceduralToggle);
+
+	if (m_proceduralToggle)
+	{
+		if (ImGui::DragFloat("Intensity", &m_proceduralSkyData.intensity, 0.1f, 0.1f, 10.f))
+			updateProceduralData();
+	}
+}
+
+void Sky::ambientSettingsUI()
+{
+	if (m_proceduralToggle)
+	{
+		ImGui::Text("Ambient Color");
+		ImGui::PushID("Ambient Color");
+		if (ImGui::Checkbox("Use Sun/Moon Color", &m_ambientColorSameAsSunToggle))
+			OutputDebugStringA(std::to_string(m_ambientColorSameAsSunToggle).c_str());
+		if (!m_ambientColorSameAsSunToggle)
+			ImGui::ColorEdit3("Ambient Color", &m_skyLightData.ambientColor.x, ImGuiColorEditFlags_Float);
+		ImGui::PopID();
 	}
 }
 
@@ -319,9 +364,6 @@ void Sky::update(double dt)
 		float time = (float)m_dayNightTimer.timeElapsed();
 		m_timeOfDay = std::fmod(m_timeOffset + time * (6.f / m_cyclePerMinute / 360.f), 1.f);
 
-		/*OutputDebugStringA(std::to_string(m_timeOfDay).c_str());
-		OutputDebugStringA("\n");*/
-
 		updateSkyLight();
 
 		/*if (m_timeOfDay > 0.25 && m_timeOfDay < 0.5f)
@@ -341,4 +383,69 @@ void Sky::update(double dt)
 			OutputDebugString(L"Night\n");
 		}*/
 	}
+}
+
+void Sky::setSkyLight() // PS:Slot 5, GS:Slot 3
+{
+	m_deviceContext->PSSetConstantBuffers(5, 1, m_skyLightCBuffer.GetAddressOf());
+	m_deviceContext->GSSetConstantBuffers(3, 1, m_skyLightCBuffer.GetAddressOf());
+}
+void Sky::setSkyTextures(int SkyRegister, int irradianceRegister)
+{
+	m_deviceContext->PSSetShaderResources(SkyRegister, 1, m_SkyTextureSRV.GetAddressOf());
+	m_deviceContext->PSSetShaderResources(irradianceRegister, 1, m_irradianceTextureSRV.GetAddressOf());
+}
+
+void Sky::cubemapPreviewsRenderSetup()
+{
+	// Set Viewport
+	m_deviceContext->RSSetViewports(1, &m_previewViewport);
+
+	// Setting Shaders
+	m_previewShaders.setShaders();
+
+	// Set RenderTargets
+	ID3D11RenderTargetView* renderTargets[] = {
+		m_SkyPreviewTexture.rtv,
+		m_irradiancePreviewTexture.rtv
+	};
+	m_deviceContext->OMSetRenderTargets(2, renderTargets, nullptr);
+
+	// Set Textures
+	m_deviceContext->PSSetShaderResources(0, 1, m_SkyTextureSRV.GetAddressOf());
+	m_deviceContext->PSSetShaderResources(1, 1, m_irradianceTextureSRV.GetAddressOf());
+}
+
+void Sky::render()
+{
+	// Set Texture
+	// Already set to slot 6 as SpecularIBLMap
+	//m_deviceContext->PSSetShaderResources(0, 1, m_SkyTextureSRV.GetAddressOf());
+
+	// Sky Mode
+	if (m_proceduralToggle)
+	{
+		// Shaders
+		m_proceduralShaders.setShaders();
+
+		// Set Textures
+		m_deviceContext->PSSetShaderResources(7, 1, m_starsSRV.GetAddressOf());
+		m_deviceContext->PSSetShaderResources(8, 1, m_moonSRV.GetAddressOf());
+		m_deviceContext->PSSetShaderResources(9, 1, m_blueNoiseSRV.GetAddressOf());
+
+		// Constant Buffer
+		m_deviceContext->VSSetConstantBuffers(0, 1, m_proceduralVPMatrixCBuffer.GetAddressOf());
+		m_deviceContext->PSSetConstantBuffers(4, 1, m_proceduralSkyCBuffer.GetAddressOf());
+	}
+	else
+	{
+		// Shaders
+		m_skyboxShaders.setShaders();
+
+		// Constant Buffer
+		m_deviceContext->VSSetConstantBuffers(0, 1, m_vpCBuffer.GetAddressOf());
+	}
+
+	// Render
+	m_cubeMesh->render();
 }

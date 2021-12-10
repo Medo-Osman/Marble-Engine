@@ -668,15 +668,16 @@ void GameState::update(double dt)
 
 		if (ImGui::CollapsingHeader("Settings"))
 		{
-			ImGui::Checkbox(" Wireframe Mode", RenderHandler::getInstance()->getWireframeModePtr());
+			ImGui::Checkbox("Wireframe Mode", RenderHandler::getInstance()->getWireframeModePtr());
 			RenderHandler::getInstance()->UIssaoSettings();
 			RenderHandler::getInstance()->UIadaptiveExposureSettings();
 			RenderHandler::getInstance()->UIVolumetricSunSettings();
 			RenderHandler::getInstance()->UIbloomSettings();
+			RenderHandler::getInstance()->UILensFlareSettings();
 			ImGui::PushItemWidth(-1);
 			ImGui::PopItemWidth();
-			ImGui::Checkbox(" Window Resize", &m_windowResizeFlag);
-			ImGui::Checkbox(" Window Move", &m_windowMoveFlag);
+			ImGui::Checkbox("Window Resize", &m_windowResizeFlag);
+			ImGui::Checkbox("Window Move", &m_windowMoveFlag);
 			if (ImGui::CollapsingHeader("Camera"))
 				m_camera.updateUI();
 		}
@@ -789,7 +790,7 @@ void GameState::update(double dt)
 		ImGui::Text(m_gameObjects[i]->getModelNameAndId().c_str());
 		ImGui::PushID("gameobject_update_" + i);
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
-		ImGui::SameLine(ImGui::GetWindowWidth() - 48);
+		ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 22);
 		if (ImGui::ImageButton(ResourceHandler::getInstance().getTexture(L"baseline_delete_white_18dp.png"), ImVec2(20, 20)))
 		{
 			if (m_selectedIndex = (int)i)
@@ -805,12 +806,12 @@ void GameState::update(double dt)
 		else
 		{
 			ImGui::PopStyleVar();
-			ImGui::SameLine(ImGui::GetWindowWidth() - 48 - 56);
-			if (ImGui::Button("Select"))
+			//ImGui::SameLine(ImGui::GetWindowWidth() - 48 - 56);
+			/*if (ImGui::Button("Select"))
 			{
 				m_selectedIndex = (int)i;
 				m_renderHandler->updateSelectedObject(m_gameObjects[i]->getKey(), m_gameObjects[i]->getPositionF3());
-			}
+			}*/
 			m_gameObjects[i]->update(dt);
 		}
 		ImGui::PopID();
@@ -878,7 +879,7 @@ void GameState::update(double dt)
 
 			ImGui::NextColumn();
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
-			ImGui::SameLine(ImGui::GetWindowWidth() - colWidth - 48);
+			ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - colWidth - 46); // 22
 			if (ImGui::ImageButton(ResourceHandler::getInstance().getTexture(L"baseline_delete_white_18dp.png"), ImVec2(20, 20)))
 			{
 				//if (m_lights[i].first->isCastingShadow) // Disable Shadow Mapping if light is casting Shadows

@@ -94,7 +94,7 @@ float4 main(PS_IN input, bool isFrontFace : SV_IsFrontFace) : SV_TARGET
         
     // Scattering contribution
     float3 accumFog = (float3) 0;
-    float3 scatteringForEveryStep = ComputeScattering(dot(rayDirection, skyLightDirection * (float)(moonOrSun * 2 - 1))) * skyLightIntensity;
+    float3 scatteringForEveryStep = ComputeScattering(dot(rayDirection, skyLightDirection * (float)(moonOrSun * 2 - 1))) * skyLightColor * skyLightIntensity;
     
     // Loop Helpers
     float shadowMapValue = 0.f;

@@ -52,7 +52,7 @@ struct PROCEDURAL_SKY_CBUFFER
     float sunRadiusA = 0.001f;
     float sunRadiusB = 0.03f;
 
-    XMFLOAT3 sunSetRiseColor = XMFLOAT3(1.f, 0.3f, 0.1f);
+    XMFLOAT3 sunSetRiseColor = XMFLOAT3(0.5f, 0.2f, 0.1f);
 
     float starsUVScale = 1.f;
     float starsIntensity = 1.f;
@@ -67,43 +67,17 @@ struct PROCEDURAL_SKY_CBUFFER
 
 struct Light
 {
-    XMFLOAT4	position;          // vec4 1 , 4 floats
-    XMFLOAT3    direction;         // vec4 2 , 3 floats
-    float       intensity = 1.f;   // vec4 2 , 1 floats
-    XMFLOAT3    color;             // vec4 3 , 3 floats
-    float       spotAngle;         // vec4 3 , 1 floats
-    XMFLOAT3    attenuation;       // vec4 4 , 3 floats
-    float       range;             // vec4 4 , 1 floats
-    int         type;              // vec4 5 , 1 floats
-    BOOL        enabled;           // vec4 5 , 1 floats
-    BOOL        isCastingShadow;   // vec4 5 , 1 floats
-    float       pad;               // vec4 5 , 1 floats
-};
-
-//XMFLOAT4	  position;
-//XMFLOAT4    direction;
-//XMFLOAT3    color;
-//float       intensity = 1.f;
-//float       spotAngle;
-//XMFLOAT3    attenuation;
-//float       range;
-//int         type;
-//BOOL        enabled;
-//BOOL        isCastingShadow;
-
-struct SKY_LIGHT_DATA_CBUFFER
-{
-    XMFLOAT3 direction;
-    float intensity;
-    XMFLOAT3 color;
-    int moonOrSun; // 0 = Moon, 1 = Sun
-    BOOL castingShadow;
-    XMFLOAT3 pad;
-};
-
-struct LightHelper
-{
-    XMFLOAT3 rotationDeg;
+    XMFLOAT4	position;       
+    XMFLOAT3    direction;      
+    float       intensity = 1.f;
+    XMFLOAT3    color;          
+    float       spotAngle;      
+    XMFLOAT3    attenuation;    
+    float       range;          
+    int         type;           
+    BOOL        enabled;        
+    BOOL        isCastingShadow;
+    float       pad;            
 };
 
 const UINT LIGHT_CAP = 40;
@@ -113,10 +87,33 @@ struct PS_LIGHT_BUFFER
     Light lights[LIGHT_CAP];
     UINT nrOfLights;
     float enviormentDiffContribution = 0.1f;
-    float enviormentSpecContribution = 0.f;
-    BOOL volumetricSunScattering = TRUE;//FALSE;
-    BOOL fog = TRUE;//FALSE;
-    XMFLOAT3 pad;
+    float enviormentSpecContribution = 0.05f;
+    BOOL volumetricSunScattering = TRUE;
+    BOOL fog = TRUE;
+    BOOL procederualSky = TRUE;
+    XMFLOAT2 pad;
+};
+
+struct SKY_LIGHT_DATA_CBUFFER
+{
+    XMFLOAT3 direction;
+    float intensity;
+    XMFLOAT3 color;
+    int moonOrSun; // 0 = Moon, 1 = Sun
+    BOOL castingShadow;
+    XMFLOAT3 ambientColor; // used when procederualSky is on
+};
+
+struct LENS_FLARE_CBUFFER
+{
+    XMVECTOR skyLightPosition; // In Screen Space
+    XMFLOAT2 screenDimensions;
+    XMFLOAT2 pad;
+};
+
+struct LightHelper
+{
+    XMFLOAT3 rotationDeg;
 };
 
 struct PS_COLOR_ANIMATION_BUFFER
