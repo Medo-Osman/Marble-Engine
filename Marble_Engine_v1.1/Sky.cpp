@@ -275,7 +275,11 @@ void Sky::updateUI()
 
 	// Day Night Cycle
 	ImGui::Text("Day Night Cycle");
-	ImGui::DragFloat("Cycles Per Minute", &m_cyclePerMinute, 0.01f, 0.01f, 100.f);
+	if (ImGui::DragFloat("Cycles Per Minute", &m_cyclePerMinute, 0.01f, 0.01f, 100.f))
+	{
+		if (m_cyclePerMinute <= 0.f)
+			m_cyclePerMinute = 0.01f;
+	}
 
 	if (ImGui::SliderFloat("Time Of Day", &m_timeOfDay, 0.f, 1.f))
 		updateSkyLight();
@@ -289,13 +293,6 @@ void Sky::updateUI()
 	}
 
 	ImGui::Separator();
-	ImGui::Checkbox("Procedural Sky", &m_proceduralToggle);
-
-	if (m_proceduralToggle)
-	{
-		if (ImGui::DragFloat("Intensity", &m_proceduralSkyData.intensity, 0.1f, 0.1f, 10.f))
-			updateProceduralData();
-	}
 }
 
 void Sky::ambientSettingsUI()

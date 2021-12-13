@@ -875,7 +875,7 @@ void GameState::update(double dt)
 		{
 			ImGui::Dummy(ImVec2(0.0f, 3.f));
 			ImGui::Text((std::to_string(i) + ", " + LightTypeNames[m_lights[i].first->type]).c_str());
-			ImGui::PushID("light" + i);
+			ImGui::PushID(std::string("light" + std::to_string(i)).c_str());
 
 			ImGui::NextColumn();
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
@@ -891,7 +891,6 @@ void GameState::update(double dt)
 				//			XMConvertToRadians(m_lights[i].second.rotationDeg.y),
 				//			XMConvertToRadians(m_lights[i].second.rotationDeg.z)),
 				//		true);
-
 				//}
 
 				delete m_lights[i].first;

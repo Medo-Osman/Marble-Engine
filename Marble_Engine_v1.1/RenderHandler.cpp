@@ -1936,12 +1936,20 @@ void RenderHandler::UIEnviormentPanel()
 		ImGui::Text("Sky Light");
 		m_sky.updateUI();
 
-		ImGui::Separator();
 		bool* procederualSkyToggle = m_sky.getProduralSkyTogglePtr();
-		if (*procederualSkyToggle)
-		{
-			PROCEDURAL_SKY_CBUFFER* proceduralData = m_sky.getProduralSkyDataPtr();
 
+		if (ImGui::CollapsingHeader("Procedural Sky", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			ImGui::Indent(indentSize);
+			if (ImGui::Checkbox("On/Off", procederualSkyToggle))
+				m_lightManager.setProceduralSky(*procederualSkyToggle);
+
+			PROCEDURAL_SKY_CBUFFER* proceduralData = m_sky.getProduralSkyDataPtr();
+			if (ImGui::DragFloat("Intensity", &proceduralData->intensity, 0.1f, 0.1f, 10.f))
+				m_sky.updateProceduralData();
+
+			ImGui::Separator();
+			
 			ImGui::Text("Sky");
 			if (ImGui::ColorEdit3("Sky Color", &proceduralData->skyColor.x, ImGuiColorEditFlags_Float))
 				m_sky.updateProceduralData();
@@ -2007,8 +2015,9 @@ void RenderHandler::UIEnviormentPanel()
 
 			if (ImGui::DragFloat("Stars Intensity", &proceduralData->starsIntensity, 0.1f, 0.1f, 10.f))
 				m_sky.updateProceduralData();
-			ImGui::Separator();
+			ImGui::Unindent(indentSize);
 		}
+		ImGui::Separator();
 
 		float imageSize = 100.f;
 		float imageOffset = imageSize + indentSize + 10.f;

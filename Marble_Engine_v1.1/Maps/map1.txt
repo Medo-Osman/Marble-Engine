@@ -1038,12 +1038,12 @@ tr 0.000000 0.000000 0.000000
 tp -1.000000 3.000000 0.000000
 nm 1
 mn Cube
-dp Textures\blackmarble_1_basecolor-2K.png
-np Textures\blackmarble_1_normal-2K.png
-mp Textures\blackmarble_1_metallic-2K.png
-rp Textures\blackmarble_1_roughness-2K.png
-ap Textures\blackmarble_1_ambientocclusion-2K.png
-disp Textures\blackmarble_1_height-2K.png
+dp Textures\blackmarble_1_basecolor-4K.png
+np Textures\blackmarble_1_normal-4K.png
+mp Textures\blackmarble_1_metallic-4K.png
+rp Textures\blackmarble_1_roughness-4K.png
+ap Textures\blackmarble_1_ambientocclusion-4K.png
+disp Textures\blackmarble_1_height-4K.png
 me 1
 re 1
 es 0

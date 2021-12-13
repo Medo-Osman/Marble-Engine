@@ -142,10 +142,14 @@ public:
         m_lightData.volumetricSunScattering = toggle;
         update();
     }
-    
     void setFog(bool toggle)
     {
         m_lightData.fog = toggle;
+        update();
+    }
+    void setProceduralSky(bool toggle)
+    {
+        m_lightData.procederualSky = toggle;
         update();
     }
 
