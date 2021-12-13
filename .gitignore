@@ -22,7 +22,9 @@ mono_crash.*
 [Rr]elease/
 [Rr]eleases/
 x64/
+!Marble_Engine_v1.1/Libs/x64/
 x86/
+!Marble_Engine_v1.1/Libs/x84/
 [Ww][Ii][Nn]32/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
@@ -76,7 +78,7 @@ StyleCopReport.xml
 *.ilk
 *.meta
 *.obj
-!3D_Map_Editor_Engine/Models/*.obj
+!Marble_Engine_v1.1/Models/*.obj
 *.iobj
 *.pch
 *.pdb
