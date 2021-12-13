@@ -184,6 +184,25 @@ public:
 		}
 	}
 
+	// Save Mesh Data
+	void fillMeshData(MeshData* meshData)
+	{
+		meshData->name = m_name;
+		meshData->matType = m_materialType;
+
+		switch (m_materialType)
+		{
+		case PHONG:
+			m_material.fillMaterialData(&meshData->matPhong);
+			break;
+		case PBR:
+			m_materialPBR.fillMaterialData(&meshData->matPBR);
+			break;
+		default:
+			break;
+		}
+	}
+
 	// Render
 	void render()
 	{

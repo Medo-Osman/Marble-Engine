@@ -19,7 +19,7 @@ GameObject::~GameObject()
 		m_renderHandler->deleteRenderObject(m_renderKey);
 }
 
-void GameObject::initialize(std::string modelName, UINT id, ShaderStates shaderState)
+void GameObject::initialize(std::string modelName, UINT id, ShaderStates shaderState, std::vector<MeshData>* meshData)
 {
 	m_id = id;
 	m_modelName = modelName;
@@ -30,7 +30,7 @@ void GameObject::initialize(std::string modelName, UINT id, ShaderStates shaderS
 	m_physicsComponent->initialize(m_movementComponent.get(), 10.f, XMFLOAT3(.1f, .1f, .1f), XMFLOAT3(.99f, .99f, .99f));
 
 	m_shaderType = shaderState;
-	m_renderKey = m_renderHandler->newRenderObject(modelName, shaderState);
+	m_renderKey = m_renderHandler->newRenderObject(modelName, shaderState, meshData);
 }
 
 void GameObject::setTextures(TexturePaths textures)
@@ -51,6 +51,11 @@ void GameObject::setMaterial(PS_MATERIAL_BUFFER material)
 void GameObject::setMaterial(PS_MATERIAL_PBR_BUFFER material)
 {
 	m_renderHandler->setRenderObjectMaterialPBR(m_renderKey, material);
+}
+
+void GameObject::fillMeshData(std::vector<MeshData>* meshes)
+{
+	m_renderHandler->fillMeshData(m_renderKey, meshes);
 }
 
 std::string GameObject::getModelName() const

@@ -1284,7 +1284,7 @@ void RenderHandler::updateCamera(XMVECTOR position, XMVECTOR rotation)
 	//m_shadowInstance.buildLightMatrix(m_camera.getCameraPositionF3());
 }
 
-RenderObjectKey RenderHandler::newRenderObject(std::string modelName, ShaderStates shaderState)
+RenderObjectKey RenderHandler::newRenderObject(std::string modelName, ShaderStates shaderState, std::vector<MeshData>* meshData)
 {
 	RenderObjectList* objects = nullptr;
 	switch (shaderState)
@@ -1305,7 +1305,7 @@ RenderObjectKey RenderHandler::newRenderObject(std::string modelName, ShaderStat
 	key.objectType = shaderState;
 
 	(*objects)[key] = new RenderObject();
-	objects->at(key)->initialize(m_device.Get(), m_deviceContext.Get(), (int)objects->size(), modelName);
+	objects->at(key)->initialize(m_device.Get(), m_deviceContext.Get(), (int)objects->size(), modelName, meshData);
 	objects->at(key)->setShaderState(shaderState);
 	if (m_camera.isInitialized())
 	{
@@ -1461,6 +1461,24 @@ void RenderHandler::modelTextureUIUpdate(RenderObjectKey key)
 			break;
 		case PBR:
 			m_renderObjectsPBR[key]->materialUIUpdate();
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+void RenderHandler::fillMeshData(RenderObjectKey key, std::vector<MeshData>* meshes)
+{
+	if (key.isValid())
+	{
+		switch (key.objectType)
+		{
+		case PHONG:
+			m_renderObjects[key]->fillMeshData(meshes);
+			break;
+		case PBR:
+			m_renderObjectsPBR[key]->fillMeshData(meshes);
 			break;
 		default:
 			break;

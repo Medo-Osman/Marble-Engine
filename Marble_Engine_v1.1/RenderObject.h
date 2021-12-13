@@ -27,7 +27,7 @@ public:
 	~RenderObject();
 
 	// Initialization
-	void initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int id, std::string modelName);
+	void initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int id, std::string modelName, std::vector<MeshData>* meshData = nullptr);
 
 	// Picking
 	float pick(XMVECTOR rayOrigin, XMVECTOR rayDirection, char dimension = 'n');
@@ -46,6 +46,7 @@ public:
 
 	// Update
 	void updateWCPBuffer(XMMATRIX worldMatrix, XMMATRIX viewMatrix, XMMATRIX ProjMatrix);
+	void fillMeshData(std::vector<MeshData>* meshes);
 
 	// Render
 	void render(bool disableModelShaders = false);

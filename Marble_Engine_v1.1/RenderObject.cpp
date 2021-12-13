@@ -10,7 +10,7 @@ RenderObject::RenderObject()
 
 RenderObject::~RenderObject() {}
 
-void RenderObject::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int id, std::string modelName)
+void RenderObject::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int id, std::string modelName, std::vector<MeshData>* meshData)
 {
 	// Device
 	m_deviceContext = deviceContext;
@@ -26,7 +26,7 @@ void RenderObject::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceC
 
 	// Model
 	m_model = new Model();
-	m_model->initialize(device, deviceContext, m_id, modelName);
+	m_model->initialize(device, deviceContext, m_id, modelName, meshData);
 
 	// Constant Buffer
 	m_wvpCBuffer.initialize(device, deviceContext, nullptr, BufferType::CONSTANT);
@@ -87,6 +87,11 @@ void RenderObject::updateWCPBuffer(XMMATRIX worldMatrix, XMMATRIX viewMatrix, XM
 	//wvpData->normalMatrix = XMMatrixTranspose(wvpData->normalMatrix/* * viewMatrix*/); // Normals wrong when mesh is rotated.
 
 	m_wvpCBuffer.update(&wvpData);
+}
+
+void RenderObject::fillMeshData(std::vector<MeshData>* meshes)
+{
+	m_model->fillMeshData(meshes);
 }
 
 void RenderObject::render(bool disableModelShaders)

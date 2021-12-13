@@ -33,7 +33,7 @@ public:
 	~GameObject();
 
 	// Initialization
-	void initialize(std::string modelName, UINT id, ShaderStates shaderState = ShaderStates::PHONG);
+	void initialize(std::string modelName, UINT id, ShaderStates shaderState = ShaderStates::PHONG, std::vector<MeshData>* meshData = nullptr);
 
 	// Getters
 	std::string getModelName() const;
@@ -59,6 +59,8 @@ public:
 
 	void setMaterial(PS_MATERIAL_BUFFER material);
 	void setMaterial(PS_MATERIAL_PBR_BUFFER material);
+
+	void fillMeshData(std::vector<MeshData>* meshes);
 
 	// - Movement
 	void setScale(XMVECTOR newScale);

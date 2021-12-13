@@ -72,6 +72,7 @@ private:
 	ID3D11ShaderResourceView* m_ambientOcclusionTexture;
 	ID3D11ShaderResourceView* m_displacementTexture;
 	bool m_displacementExists;
+	TexturePathsPBR m_texturePaths;
 
 	// Constant Buffer
 	PS_MATERIAL_PBR_BUFFER m_materialData;
@@ -80,6 +81,8 @@ private:
 	// Helper Functions
 	void loadTextures(TexturePathsPBR texturePaths)
 	{
+		m_texturePaths = texturePaths;
+
 		if (texturePaths.albedoPath != L"")
 		{
 			m_albedoTexture = ResourceHandler::getInstance().getTexture(texturePaths.albedoPath.c_str());
@@ -218,29 +221,29 @@ public:
 		PS_MATERIAL_PBR_BUFFER* materialData = new PS_MATERIAL_PBR_BUFFER(m_materialData);
 		m_materialCBuffer.update(&materialData);
 	}
-
-	void sendCBufferAndTextures()
-	{
-		// Pixel Shader: Slot 0, Light buffer is set to Slot 2, Camera Position buffer is set to Slot 1
-		m_deviceContext->PSSetConstantBuffers(0, 1, m_materialCBuffer.GetAddressOf());
-
-		// Testures
-		if (m_materialData.materialTextured)
-		{
-			m_deviceContext->PSSetShaderResources(0, 1, &m_albedoTexture);
-			m_deviceContext->PSSetShaderResources(1, 1, &m_normalTexture);
-			m_deviceContext->PSSetShaderResources(2, 1, &m_metallicTexture);
-			m_deviceContext->PSSetShaderResources(3, 1, &m_roughnessTexture);
-			m_deviceContext->PSSetShaderResources(4, 1, &m_emissiveTexture);
-			m_deviceContext->PSSetShaderResources(5, 1, &m_ambientOcclusionTexture);
-		}
-
-		if (m_displacementExists)
-			m_deviceContext->DSSetShaderResources(0, 1, &m_displacementTexture);
-	}
 	void setName(std::string newName)
 	{
 		m_name = newName;
+	}
+
+	// Save Material Data
+	void fillMaterialData(MaterialPBRData* materialData)
+	{
+		materialData->albedoPath = m_texturePaths.albedoPath;
+		materialData->normalPath = m_texturePaths.normalPath;
+		materialData->metallicPath = m_texturePaths.metallicPath;
+		materialData->roughnessPath = m_texturePaths.roughnessPath;
+		materialData->emissivePath = m_texturePaths.emissivePath;
+		materialData->ambientOcclusionPath = m_texturePaths.ambientOcclusionPath;
+		materialData->displacementPath = m_texturePaths.displacementPath;
+
+		materialData->albedo = m_materialData.albedo;
+		materialData->metallic = m_materialData.metallic;
+		materialData->roughness = m_materialData.roughness;
+		materialData->emissiveStrength = m_materialData.emissiveStrength;
+
+		materialData->materialTextured = m_materialData.materialTextured;
+		materialData->emissiveTextured = m_materialData.emissiveTextured;
 	}
 
 	void updateUI()
@@ -491,30 +494,37 @@ public:
 			case PBRTexturesTypes::ALBEDO:
 				m_albedoTexture = ResourceHandler::getInstance().getTexture(path.c_str());
 				m_albedoTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
+				m_texturePaths.albedoPath = path;
 				break;
 			case PBRTexturesTypes::NORMAL:
 				m_normalTexture = ResourceHandler::getInstance().getTexture(path.c_str());
 				m_normalTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
+				m_texturePaths.normalPath = path;
 				break;
 			case PBRTexturesTypes::METALLIC:
 				m_metallicTexture = ResourceHandler::getInstance().getTexture(path.c_str());
 				m_metallicTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
+				m_texturePaths.metallicPath = path;
 				break;
 			case PBRTexturesTypes::ROUGHNESS:
 				m_roughnessTexture = ResourceHandler::getInstance().getTexture(path.c_str());
 				m_roughnessTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
+				m_texturePaths.roughnessPath = path;
 				break;
 			case PBRTexturesTypes::EMISSIVE:
 				m_emissiveTexture = ResourceHandler::getInstance().getTexture(path.c_str());
 				m_emissiveTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
+				m_texturePaths.emissivePath = path;
 				break;
 			case PBRTexturesTypes::AMBIENT_OCCLUSION:
 				m_ambientOcclusionTexture = ResourceHandler::getInstance().getTexture(path.c_str());
 				m_ambientOcclusionTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
+				m_texturePaths.ambientOcclusionPath = path;
 				break;
 			case PBRTexturesTypes::DISPLACEMENT:
 				m_displacementTexture = ResourceHandler::getInstance().getTexture(path.c_str());
 				m_displacementTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
+				m_texturePaths.displacementPath = path;
 				break;
 			default:
 				break;
@@ -522,6 +532,26 @@ public:
 
 			m_fileDialog.ClearSelected();
 		}
+	}
+
+	void sendCBufferAndTextures()
+	{
+		// Pixel Shader: Slot 0, Light buffer is set to Slot 2, Camera Position buffer is set to Slot 1
+		m_deviceContext->PSSetConstantBuffers(0, 1, m_materialCBuffer.GetAddressOf());
+
+		// Testures
+		if (m_materialData.materialTextured)
+		{
+			m_deviceContext->PSSetShaderResources(0, 1, &m_albedoTexture);
+			m_deviceContext->PSSetShaderResources(1, 1, &m_normalTexture);
+			m_deviceContext->PSSetShaderResources(2, 1, &m_metallicTexture);
+			m_deviceContext->PSSetShaderResources(3, 1, &m_roughnessTexture);
+			m_deviceContext->PSSetShaderResources(4, 1, &m_emissiveTexture);
+			m_deviceContext->PSSetShaderResources(5, 1, &m_ambientOcclusionTexture);
+		}
+
+		if (m_displacementExists)
+			m_deviceContext->DSSetShaderResources(0, 1, &m_displacementTexture);
 	}
 };
 

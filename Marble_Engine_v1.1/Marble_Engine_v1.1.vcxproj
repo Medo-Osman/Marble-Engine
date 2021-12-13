@@ -190,6 +190,7 @@
     <ClInclude Include="KeyboardHandler.h" />
     <ClInclude Include="KeyCodes.h" />
     <ClInclude Include="LightManager.h" />
+    <ClInclude Include="MapFileStructs.h" />
     <ClInclude Include="MapHandler.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="MaterialPBR.h" />

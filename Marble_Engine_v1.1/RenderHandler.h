@@ -274,7 +274,7 @@ public:
     void updateCamera(XMVECTOR position, XMVECTOR rotation);
 
     // Render Objects
-    RenderObjectKey newRenderObject(std::string modelName, ShaderStates shaderState = ShaderStates::PHONG);
+    RenderObjectKey newRenderObject(std::string modelName, ShaderStates shaderState = ShaderStates::PHONG, std::vector<MeshData>* meshData = nullptr);
     void setRenderObjectTextures(RenderObjectKey key, TexturePaths textures);
     void setRenderObjectTextures(RenderObjectKey key, TexturePathsPBR textures);
     void setRenderObjectMaterial(RenderObjectKey key, PS_MATERIAL_BUFFER material);
@@ -283,6 +283,7 @@ public:
     void deleteRenderObject(RenderObjectKey key);
     RenderObjectKey setShaderState(RenderObjectKey key, ShaderStates shaderState);
     void modelTextureUIUpdate(RenderObjectKey key);
+    void fillMeshData(RenderObjectKey key, std::vector<MeshData>* meshes);
 
     // Lights
     int addLight(Light newLight, XMFLOAT3 rotationRad = XMFLOAT3(0, 0, 0), bool usedForShadowMapping = false);

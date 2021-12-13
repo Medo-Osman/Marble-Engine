@@ -14,26 +14,15 @@ struct TexturePaths
 
 struct PS_MATERIAL_BUFFER
 {
-	XMFLOAT4 emissive;
-	XMFLOAT4 ambient;
-	XMFLOAT4 diffuse;
-	XMFLOAT4 specular;
-	float shininess;
-	BOOL diffTextureExists;
-	BOOL specTextureExists;
-	BOOL normTextureExists;
+	XMFLOAT4	emissive = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+	XMFLOAT4	ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.f);
+	XMFLOAT4	diffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	XMFLOAT4	specular = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	float		shininess = 30.f;
 
-	PS_MATERIAL_BUFFER()
-	{
-		emissive = XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-		ambient = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.f);
-		diffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-		specular = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-		shininess = 30.f;
-		diffTextureExists = false;
-		specTextureExists = false;
-		normTextureExists = false;
-	}
+	BOOL diffTextureExists = false;
+	BOOL specTextureExists = false;
+	BOOL normTextureExists = false;
 };
 
 enum class PhongTexturesTypes {DIFFUSE, SPECULAR, NORMAL, DISPLACEMENT, NONE};
@@ -56,6 +45,7 @@ private:
 	ID3D11ShaderResourceView* m_specularTexture;
 	ID3D11ShaderResourceView* m_normalTexture;
 	ID3D11ShaderResourceView* m_displacementTexture;
+	TexturePaths m_texturePaths;
 
 	// Constant Buffer
 	PS_MATERIAL_BUFFER m_materialData;
@@ -65,6 +55,7 @@ private:
 	// Helper Functions
 	void loadTextures(TexturePaths texturePaths)
 	{
+		m_texturePaths = texturePaths;
 		if (texturePaths.diffusePath != L"")
 		{
 			m_diffuseTexture = ResourceHandler::getInstance().getTexture(texturePaths.diffusePath.c_str());
@@ -194,6 +185,25 @@ public:
 	void setName(std::string newName)
 	{
 		m_name = newName;
+	}
+
+	// Save Material Data
+	void fillMaterialData(MaterialPhongData* materialData)
+	{
+		materialData->diffusePath = m_texturePaths.diffusePath;
+		materialData->normalPath = m_texturePaths.normalPath;
+		materialData->specularPath = m_texturePaths.specularPath;
+		materialData->displacementPath = m_texturePaths.displacementPath;
+
+		materialData->emissive = m_materialData.emissive;
+		materialData->ambient = m_materialData.ambient;
+		materialData->diffuse = m_materialData.diffuse;
+		materialData->specular = m_materialData.specular;
+		materialData->shininess = m_materialData.shininess;
+
+		materialData->diffTextureExists = m_materialData.diffTextureExists;
+		materialData->normTextureExists = m_materialData.normTextureExists;
+		materialData->specTextureExists = m_materialData.specTextureExists;
 	}
 
 	// Update
@@ -379,23 +389,27 @@ public:
 				m_diffuseTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
 				m_diffTextureExists = true;
 				m_materialData.diffTextureExists = true;
+				m_texturePaths.diffusePath = path;
 				break;
 			case PhongTexturesTypes::SPECULAR:
 				m_specularTexture = ResourceHandler::getInstance().getTexture(path.c_str());
 				m_specularTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
 				m_specTextureExists = true;
 				m_materialData.specTextureExists = true;
+				m_texturePaths.specularPath = path;
 				break;
 			case PhongTexturesTypes::NORMAL:
 				m_normalTexture = ResourceHandler::getInstance().getTexture(path.c_str());
 				m_normalTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
 				m_normTextureExists = true;
 				m_materialData.normTextureExists = true;
+				m_texturePaths.normalPath = path;
 				break;
 			case PhongTexturesTypes::DISPLACEMENT:
 				m_displacementTexture = ResourceHandler::getInstance().getTexture(path.c_str());
 				m_displacementTexture->SetPrivateData(WKPDID_D3DDebugObjectNameW, 64, path.c_str());
 				m_displacementExists = true;
+				m_texturePaths.displacementPath = path;
 				break;
 			default:
 				break;

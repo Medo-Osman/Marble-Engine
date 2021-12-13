@@ -40,6 +40,7 @@
 #include "dirent.h"
 #include "StringUtilities.h"
 #include "MathUtilities.h"
+#include "MapFileStructs.h"
 
 // Assimp
 #include <assimp/Importer.hpp>

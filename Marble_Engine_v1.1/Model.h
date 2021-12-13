@@ -22,7 +22,7 @@ private:
 	std::vector<Mesh<VertexPosNormTexTan>*> m_meshes;
 
 	// Helper Functions
-	Mesh<VertexPosNormTexTan>* processMesh(aiMesh* mesh, const aiScene* scene)
+	Mesh<VertexPosNormTexTan>* processMesh(aiMesh* mesh, const aiScene* scene, int meshIndex = -1, std::vector<MeshData>* meshData = nullptr)
 	{
 		std::vector<VertexPosNormTexTan> vertices;
 		std::vector<UINT> indices;
@@ -80,98 +80,156 @@ private:
 		aiMaterial* aMaterial = scene->mMaterials[mesh->mMaterialIndex];
 		aiColor3D color(0.f, 0.f, 0.f);
 
-		aMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, color);
-		material.emissive = XMFLOAT4(color.r, color.g, color.b, 1.f);
-		XMVECTOR emVector = XMLoadFloat4(&material.emissive);
-		materialPBR.emissiveStrength = DirectX::XMVector3Length(emVector).m128_f32[0];
-
-		aMaterial->Get(AI_MATKEY_COLOR_AMBIENT, color);
-		material.ambient = XMFLOAT4(color.r, color.g, color.b, 1.f);
-
-		aMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, color);
-		material.diffuse = XMFLOAT4(color.r, color.g, color.b, 1.f);
-		materialPBR.albedo = XMFLOAT3(color.r, color.g, color.b);
-
-		if (material.ambient.x == material.diffuse.x && 
-			material.ambient.y == material.diffuse.y &&
-			material.ambient.z == material.diffuse.z)
-		{
-			material.ambient = XMFLOAT4(.1f, .1f, .1f, 1.f);
-			material.diffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
-			materialPBR.albedo = XMFLOAT3(1.f, 1.f, 1.f);
-		}
-		aMaterial->Get(AI_MATKEY_COLOR_SPECULAR, color);
-		material.specular = XMFLOAT4(color.r, color.g, color.b, 1.f);
-		XMVECTOR specVector = XMLoadFloat4(&material.specular);
-		materialPBR.metallic = DirectX::XMVector3Length(specVector).m128_f32[0];
-
-		aMaterial->Get(AI_MATKEY_SHININESS, material.shininess);
-		if (material.shininess == 0.f)
-			material.shininess = 30.f;
-		else
-			material.shininess /= 4.f; // Assimps scales by * 4, this reverses it
-		materialPBR.roughness = std::pow(1 - material.shininess, 2.f);
-		//materialPBR.roughness = 0.f;
-
-
-		// Material Textures
 		TexturePaths texturePaths;
 		TexturePathsPBR texturePathsPBR;
 
-		aiString texturePath;
 
-		if (aMaterial->GetTextureCount(aiTextureType_DIFFUSE) > 0 && aMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.diffusePath = texturePathsPBR.albedoPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
-
-		if (aMaterial->GetTextureCount(aiTextureType_NORMALS) > 0 && aMaterial->GetTexture(aiTextureType_NORMALS, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.normalPath = texturePathsPBR.normalPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
-
-		if (aMaterial->GetTextureCount(aiTextureType_SPECULAR) > 0 && aMaterial->GetTexture(aiTextureType_SPECULAR, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.specularPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
-
-		if (aMaterial->GetTextureCount(aiTextureType_METALNESS) > 0 && aMaterial->GetTexture(aiTextureType_METALNESS, 0, &texturePath) == AI_SUCCESS)
-			texturePathsPBR.metallicPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
-
-		if (aMaterial->GetTextureCount(aiTextureType_SHININESS) > 0 && aMaterial->GetTexture(aiTextureType_SHININESS, 0, &texturePath) == AI_SUCCESS)
-			texturePathsPBR.roughnessPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
-		
-		if (aMaterial->GetTextureCount(aiTextureType_AMBIENT) > 0 && aMaterial->GetTexture(aiTextureType_AMBIENT, 0, &texturePath) == AI_SUCCESS)
-			texturePathsPBR.ambientOcclusionPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
-		
-		if (aMaterial->GetTextureCount(aiTextureType_EMISSIVE) > 0 && aMaterial->GetTexture(aiTextureType_EMISSIVE, 0, &texturePath) == AI_SUCCESS)
-			texturePathsPBR.emissivePath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
-
-		if (aMaterial->GetTextureCount(aiTextureType_DISPLACEMENT) > 0 && aMaterial->GetTexture(aiTextureType_DISPLACEMENT, 0, &texturePath) == AI_SUCCESS)
-			texturePaths.displacementPath = texturePathsPBR.displacementPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
-
-
-		aiString fileBaseColor, fileMetallicRoughness;
-		aMaterial->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &fileBaseColor);
-		aMaterial->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &fileMetallicRoughness);
-
-		if (fileMetallicRoughness.length > 0)
+		if (meshData) // not nullptr
 		{
-			texturePathsPBR.metallicPath = extractFileName(charToWchar(fileMetallicRoughness.C_Str()).c_str());
-			texturePathsPBR.roughnessPath = extractFileName(charToWchar(fileMetallicRoughness.C_Str()).c_str());
+			switch (meshData->at(meshIndex).matType)
+			{
+			case PHONG:
+				texturePaths.diffusePath = meshData->at(meshIndex).matPhong.diffusePath;
+				texturePathsPBR.albedoPath = texturePaths.diffusePath;
+
+				texturePaths.normalPath = meshData->at(meshIndex).matPhong.normalPath;
+				texturePathsPBR.normalPath = texturePaths.normalPath;
+
+				texturePaths.specularPath = meshData->at(meshIndex).matPhong.specularPath;
+
+				texturePaths.displacementPath = meshData->at(meshIndex).matPhong.displacementPath;
+				texturePathsPBR.displacementPath = texturePaths.displacementPath;
+
+				material.emissive = meshData->at(meshIndex).matPhong.emissive;
+				material.ambient = meshData->at(meshIndex).matPhong.ambient;
+				material.diffuse = meshData->at(meshIndex).matPhong.diffuse;
+				material.specular = meshData->at(meshIndex).matPhong.specular;
+				material.shininess = meshData->at(meshIndex).matPhong.shininess;
+
+				material.diffTextureExists = meshData->at(meshIndex).matPhong.diffTextureExists;
+				material.specTextureExists = meshData->at(meshIndex).matPhong.specTextureExists;
+				material.normTextureExists = meshData->at(meshIndex).matPhong.normTextureExists;
+				break;
+			case PBR:
+				texturePathsPBR.albedoPath = meshData->at(meshIndex).matPBR.albedoPath;
+				texturePaths.diffusePath = texturePathsPBR.albedoPath;
+
+				texturePathsPBR.normalPath = meshData->at(meshIndex).matPBR.normalPath;
+				texturePaths.normalPath = texturePathsPBR.normalPath;
+
+				texturePathsPBR.metallicPath = meshData->at(meshIndex).matPBR.metallicPath;
+				texturePathsPBR.roughnessPath = meshData->at(meshIndex).matPBR.roughnessPath;
+				texturePathsPBR.emissivePath = meshData->at(meshIndex).matPBR.emissivePath;
+				texturePathsPBR.ambientOcclusionPath = meshData->at(meshIndex).matPBR.ambientOcclusionPath;
+
+				texturePathsPBR.displacementPath = meshData->at(meshIndex).matPBR.displacementPath;
+				texturePaths.displacementPath = texturePathsPBR.displacementPath;
+
+				materialPBR.albedo = meshData->at(meshIndex).matPBR.albedo;
+				materialPBR.metallic = meshData->at(meshIndex).matPBR.metallic;
+				materialPBR.roughness = meshData->at(meshIndex).matPBR.roughness;
+				materialPBR.emissiveStrength = meshData->at(meshIndex).matPBR.emissiveStrength;
+				materialPBR.materialTextured = meshData->at(meshIndex).matPBR.materialTextured;
+				materialPBR.emissiveTextured = meshData->at(meshIndex).matPBR.emissiveTextured;
+
+				break;
+			default:
+				break;
+			}
+		}
+		else
+		{
+			aMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, color);
+			material.emissive = XMFLOAT4(color.r, color.g, color.b, 1.f);
+			XMVECTOR emVector = XMLoadFloat4(&material.emissive);
+			materialPBR.emissiveStrength = DirectX::XMVector3Length(emVector).m128_f32[0];
+
+			aMaterial->Get(AI_MATKEY_COLOR_AMBIENT, color);
+			material.ambient = XMFLOAT4(color.r, color.g, color.b, 1.f);
+
+			aMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, color);
+			material.diffuse = XMFLOAT4(color.r, color.g, color.b, 1.f);
+			materialPBR.albedo = XMFLOAT3(color.r, color.g, color.b);
+
+			if (material.ambient.x == material.diffuse.x &&
+				material.ambient.y == material.diffuse.y &&
+				material.ambient.z == material.diffuse.z)
+			{
+				material.ambient = XMFLOAT4(.1f, .1f, .1f, 1.f);
+				material.diffuse = XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+				materialPBR.albedo = XMFLOAT3(1.f, 1.f, 1.f);
+			}
+			aMaterial->Get(AI_MATKEY_COLOR_SPECULAR, color);
+			material.specular = XMFLOAT4(color.r, color.g, color.b, 1.f);
+			XMVECTOR specVector = XMLoadFloat4(&material.specular);
+			materialPBR.metallic = DirectX::XMVector3Length(specVector).m128_f32[0];
+
+			aMaterial->Get(AI_MATKEY_SHININESS, material.shininess);
+			if (material.shininess == 0.f)
+				material.shininess = 30.f;
+			else
+				material.shininess /= 4.f; // Assimps scales by * 4, this reverses it
+			materialPBR.roughness = std::pow(1 - material.shininess, 2.f);
+
+
+			// Material Textures
+			aiString texturePath;
+
+			if (aMaterial->GetTextureCount(aiTextureType_DIFFUSE) > 0 && aMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == AI_SUCCESS)
+				texturePaths.diffusePath = texturePathsPBR.albedoPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+
+			if (aMaterial->GetTextureCount(aiTextureType_NORMALS) > 0 && aMaterial->GetTexture(aiTextureType_NORMALS, 0, &texturePath) == AI_SUCCESS)
+				texturePaths.normalPath = texturePathsPBR.normalPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+
+			if (aMaterial->GetTextureCount(aiTextureType_SPECULAR) > 0 && aMaterial->GetTexture(aiTextureType_SPECULAR, 0, &texturePath) == AI_SUCCESS)
+				texturePaths.specularPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+
+			if (aMaterial->GetTextureCount(aiTextureType_METALNESS) > 0 && aMaterial->GetTexture(aiTextureType_METALNESS, 0, &texturePath) == AI_SUCCESS)
+				texturePathsPBR.metallicPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+
+			if (aMaterial->GetTextureCount(aiTextureType_SHININESS) > 0 && aMaterial->GetTexture(aiTextureType_SHININESS, 0, &texturePath) == AI_SUCCESS)
+				texturePathsPBR.roughnessPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+
+			if (aMaterial->GetTextureCount(aiTextureType_AMBIENT) > 0 && aMaterial->GetTexture(aiTextureType_AMBIENT, 0, &texturePath) == AI_SUCCESS)
+				texturePathsPBR.ambientOcclusionPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+
+			if (aMaterial->GetTextureCount(aiTextureType_EMISSIVE) > 0 && aMaterial->GetTexture(aiTextureType_EMISSIVE, 0, &texturePath) == AI_SUCCESS)
+				texturePathsPBR.emissivePath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+
+			if (aMaterial->GetTextureCount(aiTextureType_DISPLACEMENT) > 0 && aMaterial->GetTexture(aiTextureType_DISPLACEMENT, 0, &texturePath) == AI_SUCCESS)
+				texturePaths.displacementPath = texturePathsPBR.displacementPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+
+
+			aiString fileBaseColor, fileMetallicRoughness;
+			aMaterial->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE, &fileBaseColor);
+			aMaterial->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &fileMetallicRoughness);
+
+			if (fileMetallicRoughness.length > 0)
+			{
+				texturePathsPBR.metallicPath = extractFileName(charToWchar(fileMetallicRoughness.C_Str()).c_str());
+				texturePathsPBR.roughnessPath = extractFileName(charToWchar(fileMetallicRoughness.C_Str()).c_str());
+			}
 		}
 
 		Mesh<VertexPosNormTexTan>* finalMesh = new Mesh<VertexPosNormTexTan>(m_device, m_deviceContext, vertices, indices, material, texturePaths, mesh->mName.C_Str());
+		if (meshData && meshData->at(meshIndex).matType == PBR)
+			finalMesh->setMaterial(materialPBR);
 		finalMesh->setTextures(texturePathsPBR);
 
 		return finalMesh;
 	}
-	void processNodes(aiNode* node, const aiScene* scene)
+	void processNodes(aiNode* node, const aiScene* scene, std::vector<MeshData>* meshData = nullptr)
 	{
 		for (UINT i = 0; i < node->mNumMeshes; i++)
 		{
 			aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-			m_meshes.push_back(processMesh(mesh, scene));
+			m_meshes.push_back(processMesh(mesh, scene, (int)m_meshes.size(), meshData));
 		}
 
 		for (UINT i = 0; i < node->mNumChildren; i++)
-			processNodes(node->mChildren[i], scene);
+			processNodes(node->mChildren[i], scene, meshData);
 	}
-	bool loadModel(std::string& modelName)
+	bool loadModel(std::string& modelName, std::vector<MeshData>* meshData = nullptr)
 	{
 		std::string modelPath = "Models\\" + modelName;
 		Assimp::Importer importer;
@@ -180,7 +238,7 @@ private:
 		if (!pScene) // if nullptr
 			return false;
 
-		processNodes(pScene->mRootNode, pScene);
+		processNodes(pScene->mRootNode, pScene, meshData);
 
 		OutputDebugStringA("Model loaded: ");
 		OutputDebugStringA(modelName.c_str());
@@ -203,7 +261,7 @@ public:
 	}
 
 	// Initialization
-	void initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int id, std::string modelName)
+	void initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, int id, std::string modelName, std::vector<MeshData>* meshData = nullptr)
 	{
 		m_device = device;
 		m_deviceContext = deviceContext;
@@ -253,7 +311,7 @@ public:
 			m_meshes.back()->setName(id + "_Default");
 		}
 		else
-			if (!loadModel(modelName))
+			if (!loadModel(modelName, meshData))
 				assert(!"Error, failed to load Model!");
 	}
 
@@ -357,6 +415,14 @@ public:
 			}
 		}
 		ImGui::Separator();
+	}
+
+	// Save Mesh Data
+	void fillMeshData(std::vector<MeshData>* meshes)
+	{
+		meshes->resize(m_meshes.size());
+		for (size_t i = 0; i < m_meshes.size(); i++)
+			m_meshes[i]->fillMeshData(&meshes->at(i));
 	}
 
 	// Render
