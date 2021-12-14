@@ -186,7 +186,6 @@ void GameObject::update(double dt)
 	m_renderHandler->modelTextureUIUpdate(m_renderKey);
 
 	ImGui::PopID();
-	ImGui::NewLine();
 
 	// Movement
 	m_physicsComponent->updatePosition(dt);

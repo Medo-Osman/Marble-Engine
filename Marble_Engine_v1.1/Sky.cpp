@@ -225,7 +225,6 @@ void Sky::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, S
 	m_skyLightData.ambientColor = sunLight.color;
 	m_dayNightCycleToggle = true;
 	m_timeOfDay = m_timeOffset; // 0 = 00:00(Midnight), 0.25 = 06:00(Morning), 0.5 = 12:00(Noon),  0.75 = 18:00(Evening)
-	m_cyclePerMinute = 2.f;
 	m_dayNightTimer.shouldRememberDuringPause(true);
 	m_dayNightTimer.start();
 }

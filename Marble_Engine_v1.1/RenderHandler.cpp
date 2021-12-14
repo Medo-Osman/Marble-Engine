@@ -1938,7 +1938,7 @@ void RenderHandler::UIEnviormentPanel()
 
 		bool* procederualSkyToggle = m_sky.getProduralSkyTogglePtr();
 
-		if (ImGui::CollapsingHeader("Procedural Sky", ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("Procedural Sky"))
 		{
 			ImGui::Indent(indentSize);
 			if (ImGui::Checkbox("On/Off", procederualSkyToggle))

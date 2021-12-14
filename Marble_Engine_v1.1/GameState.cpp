@@ -249,7 +249,7 @@ void GameState::generateMaxRandomLights()
 		/*newLight.coneAngles[0] = 1.0f / (cosf(coneInner) - cosf(coneOuter));
 		newLight.coneAngles[1] = cosf(coneOuter);*/
 
-		m_lights.push_back(std::make_pair(new Light(newLight), newLightHelper));
+		m_lights.push_back(std::make_pair(newLight, newLightHelper));
 		m_renderHandler->addLight(
 			newLight, 
 			XMFLOAT3(
@@ -327,7 +327,20 @@ void GameState::initialize(Settings settings)
 	m_mapHandler.initialize("map1.txt", (UINT)m_gameObjects.size(), true);
 
 	// - Game Objects from Map file
-	m_mapHandler.importGameObjects(m_gameObjects);
+	m_mapHandler.importGameObjects(m_gameObjects, m_lights);
+
+	for (size_t i = 0; i < m_lights.size(); i++)
+	{
+		m_renderHandler->addLight(
+			m_lights[i].first, 
+			XMFLOAT3(
+				XMConvertToRadians(m_lights[i].second.rotationDeg.x),
+				XMConvertToRadians(m_lights[i].second.rotationDeg.y),
+				XMConvertToRadians(m_lights[i].second.rotationDeg.z)
+			)
+		);
+	}
+	
 
 	// Lights
 	/*Light light;
@@ -393,7 +406,7 @@ void GameState::initialize(Settings settings)
 	//		XMConvertToRadians(lightHelper.rotationDeg.z)),
 	//	light.isCastingShadow);
 
-	generateMaxRandomLights();
+	//generateMaxRandomLights();
 
 	// - Nanosuit
 	/*m_gameObjects.push_back(new GameObject());
@@ -650,7 +663,7 @@ void GameState::update(double dt)
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
 		ImGui::SameLine(ImGui::GetWindowWidth() - 28);
 		if (ImGui::ImageButton(ResourceHandler::getInstance().getTexture(L"baseline_save_white_18dp.png"), ImVec2(20, 20)))
-			m_mapHandler.updateDataList(m_gameObjects);
+			m_mapHandler.updateDataList(m_gameObjects, m_lights);
 	
 		ImGui::SameLine(ImGui::GetWindowWidth() - 56);
 		if (ImGui::ImageButton(ResourceHandler::getInstance().getTexture(L"outline_refresh_white_18dp.png"), ImVec2(20, 20)))
@@ -661,7 +674,7 @@ void GameState::update(double dt)
 				delete m_gameObjects[m_gameObjects.size() - 1];
 				m_gameObjects.erase(m_gameObjects.end() - 1);
 			}
-			m_mapHandler.importGameObjects(m_gameObjects);
+			m_mapHandler.importGameObjects(m_gameObjects, m_lights);
 		}
 		ImGui::PopStyleVar();
 		// Save to Map File End
@@ -787,10 +800,12 @@ void GameState::update(double dt)
 	ImGui::BeginChild("Game Objects", ImVec2(ImGui::GetWindowSize().x - (imguiStyle.ScrollbarSize / 1.5f), m_gameObjectSectionHeight), true, ImGuiWindowFlags_HorizontalScrollbar);
 	for (size_t i = 0; i < m_gameObjects.size(); i++)
 	{
+		if (i > 0) // if not the first
+			ImGui::NewLine();
 		ImGui::Text(m_gameObjects[i]->getModelNameAndId().c_str());
 		ImGui::PushID("gameobject_update_" + i);
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
-		ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 22);
+		ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 24);
 		if (ImGui::ImageButton(ResourceHandler::getInstance().getTexture(L"baseline_delete_white_18dp.png"), ImVec2(20, 20)))
 		{
 			if (m_selectedIndex = (int)i)
@@ -858,7 +873,7 @@ void GameState::update(double dt)
 					newLight.isCastingShadow = false;
 
 					if (RenderHandler::getInstance()->addLight(newLight) != -1)
-						m_lights.push_back(std::make_pair(new Light(newLight), newLightHelper));
+						m_lights.push_back(std::make_pair(newLight, newLightHelper));
 				}
 			}
 			ImGui::EndCombo();
@@ -874,7 +889,7 @@ void GameState::update(double dt)
 		for (size_t i = 0; i < m_lights.size(); i++)
 		{
 			ImGui::Dummy(ImVec2(0.0f, 3.f));
-			ImGui::Text((std::to_string(i) + ", " + LightTypeNames[m_lights[i].first->type]).c_str());
+			ImGui::Text((std::to_string(i) + ", " + LightTypeNames[m_lights[i].first.type]).c_str());
 			ImGui::PushID(std::string("light" + std::to_string(i)).c_str());
 
 			ImGui::NextColumn();
@@ -882,7 +897,7 @@ void GameState::update(double dt)
 			ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - colWidth - 46); // 22
 			if (ImGui::ImageButton(ResourceHandler::getInstance().getTexture(L"baseline_delete_white_18dp.png"), ImVec2(20, 20)))
 			{
-				//if (m_lights[i].first->isCastingShadow) // Disable Shadow Mapping if light is casting Shadows
+				//if (m_lights[i].first.isCastingShadow) // Disable Shadow Mapping if light is casting Shadows
 				//{
 				//	m_renderHandler->changeShadowMappingLight(
 				//		m_lights[i].first, 
@@ -893,7 +908,6 @@ void GameState::update(double dt)
 				//		true);
 				//}
 
-				delete m_lights[i].first;
 				m_lights.erase(m_lights.begin() + i);
 				m_renderHandler->removeLight((int)i);
 				ImGui::PopStyleVar();
@@ -909,37 +923,37 @@ void GameState::update(double dt)
 				ImGui::NextColumn();
 
 				ImGui::PushItemWidth(0.f);
-				if (ImGui::ColorEdit3(std::string("##Color" + std::to_string(i)).c_str(), &m_lights[i].first->color.x, ImGuiColorEditFlags_Float))
-					m_renderHandler->updateLight(m_lights[i].first, (int)i);
+				if (ImGui::ColorEdit3(std::string("##Color" + std::to_string(i)).c_str(), &m_lights[i].first.color.x, ImGuiColorEditFlags_Float))
+					m_renderHandler->updateLight(&m_lights[i].first, (int)i);
 				ImGui::PopItemWidth();
 				ImGui::NextColumn();
 
 				ImGui::Text("Intensity");
 				ImGui::NextColumn();
 				ImGui::PushItemWidth(0.f);
-				if (ImGui::DragFloat(std::string("##Intensity" + std::to_string(i)).c_str(), &m_lights[i].first->intensity, 0.01f, 0.f, 200.f))
-					m_renderHandler->updateLight(m_lights[i].first, (int)i);
+				if (ImGui::DragFloat(std::string("##Intensity" + std::to_string(i)).c_str(), &m_lights[i].first.intensity, 0.01f, 0.f, 200.f))
+					m_renderHandler->updateLight(&m_lights[i].first, (int)i);
 				ImGui::PopItemWidth();
-				if (m_lights[i].first->type != DIRECTIONAL_LIGHT)
+				if (m_lights[i].first.type != DIRECTIONAL_LIGHT)
 				{
 					ImGui::NextColumn();
 					ImGui::Text("Position");
 					ImGui::NextColumn();
 					ImGui::PushItemWidth(0.f);
-					if (ImGui::DragFloat3(std::string("##Position" + std::to_string(i)).c_str(), &m_lights[i].first->position.x, 0.1f))
-						m_renderHandler->updateLight(m_lights[i].first, (int)i);
+					if (ImGui::DragFloat3(std::string("##Position" + std::to_string(i)).c_str(), &m_lights[i].first.position.x, 0.1f))
+						m_renderHandler->updateLight(&m_lights[i].first, (int)i);
 					ImGui::PopItemWidth();
 
 					ImGui::NextColumn();
 					ImGui::Text("Range");
 					ImGui::NextColumn();
 					ImGui::PushItemWidth(0.f);
-					if (ImGui::DragFloat(std::string("##Range" + std::to_string(i)).c_str(), &m_lights[i].first->range, 0.01f, 0.f, 100.f))
-						m_renderHandler->updateLight(m_lights[i].first, (int)i);
+					if (ImGui::DragFloat(std::string("##Range" + std::to_string(i)).c_str(), &m_lights[i].first.range, 0.01f, 0.f, 100.f))
+						m_renderHandler->updateLight(&m_lights[i].first, (int)i);
 					ImGui::PopItemWidth();
 				}
 
-				if (m_lights[i].first->type == SPOT_LIGHT)
+				if (m_lights[i].first.type == SPOT_LIGHT)
 				{
 					ImGui::NextColumn();
 					ImGui::Text("Direction");
@@ -954,14 +968,14 @@ void GameState::update(double dt)
 
 						XMVECTOR rotQuatInverse = XMQuaternionInverse(rotQuat);
 						XMVECTOR lightDir = XMQuaternionMultiply(rotQuat, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
-						XMStoreFloat3(&m_lights[i].first->direction, XMQuaternionMultiply(lightDir, rotQuatInverse));
+						XMStoreFloat3(&m_lights[i].first.direction, XMQuaternionMultiply(lightDir, rotQuatInverse));
 						
-						m_renderHandler->updateLight(m_lights[i].first, (int)i);
+						m_renderHandler->updateLight(&m_lights[i].first, (int)i);
 					}
 					ImGui::PopItemWidth();
 				}
 
-				if (m_lights[i].first->type == DIRECTIONAL_LIGHT)
+				if (m_lights[i].first.type == DIRECTIONAL_LIGHT)
 				{
 					ImGui::NextColumn();
 					ImGui::Text("Direction");
@@ -976,9 +990,9 @@ void GameState::update(double dt)
 
 						XMVECTOR rotQuatInverse = XMQuaternionInverse(rotQuat);
 						XMVECTOR lightDir = XMQuaternionMultiply(rotQuat, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
-						XMStoreFloat3(&m_lights[i].first->direction, XMQuaternionMultiply(lightDir, rotQuatInverse));
+						XMStoreFloat3(&m_lights[i].first.direction, XMQuaternionMultiply(lightDir, rotQuatInverse));
 
-						/*if (m_lights[i].first->isCastingShadow)
+						/*if (m_lights[i].first.isCastingShadow)
 						{
 							m_renderHandler->changeShadowMappingLight(
 								m_lights[i].first,
@@ -988,7 +1002,7 @@ void GameState::update(double dt)
 									XMConvertToRadians(m_lights[i].second.rotationDeg.z)),
 								false);
 						}*/
-						m_renderHandler->updateLight(m_lights[i].first, (int)i);
+						m_renderHandler->updateLight(&m_lights[i].first, (int)i);
 						
 					}
 					ImGui::PopItemWidth();
@@ -996,7 +1010,7 @@ void GameState::update(double dt)
 					ImGui::NextColumn();
 					/*ImGui::Text("Casts Shadow");
 					ImGui::NextColumn();*/
-					//if (ImGui::Checkbox(std::string("##Casts Shadow" + std::to_string(i)).c_str(), (bool*)(&m_lights[i].first->isCastingShadow)))
+					//if (ImGui::Checkbox(std::string("##Casts Shadow" + std::to_string(i)).c_str(), (bool*)(&m_lights[i].first.isCastingShadow)))
 					//{
 					//	for (size_t j = 0; j < m_lights.size(); j++)
 					//	{
@@ -1009,7 +1023,7 @@ void GameState::update(double dt)
 					//			XMConvertToRadians(m_lights[i].second.rotationDeg.x),
 					//			XMConvertToRadians(m_lights[i].second.rotationDeg.y),
 					//			XMConvertToRadians(m_lights[i].second.rotationDeg.z)),
-					//		!m_lights[i].first->isCastingShadow);
+					//		!m_lights[i].first.isCastingShadow);
 					//}
 				}
 				ImGui::NextColumn();

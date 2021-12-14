@@ -73,7 +73,7 @@ private:
 	float m_timeOffset = 0.25f;
 	float m_lightRotationOffset = 180.f;
 	float m_timeOfDay; // 0 = 00:00(Midnight), 0.25 = 06:00(Morning), 0.5 = 12:00(Noon),  0.75 = 18:00(Evening)
-	float m_cyclePerMinute;
+	float m_cyclePerMinute = 1.f;
 	Timer m_dayNightTimer;
 	const float ROTATION_PER_MINUTE = XM_2PI / 60.f;
 

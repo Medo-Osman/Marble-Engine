@@ -233,8 +233,11 @@ private:
 	{
 		std::string modelPath = "Models\\" + modelName;
 		Assimp::Importer importer;
-		const aiScene* pScene = importer.ReadFile(modelPath, aiProcess_Triangulate | aiProcess_ConvertToLeftHanded | aiProcess_CalcTangentSpace);
 
+		const aiScene* pScene = importer.ReadFile(modelPath, aiProcess_Triangulate | aiProcess_ConvertToLeftHanded | aiProcess_CalcTangentSpace);
+		// Assimp tries to load gltf2 files with gltf1 importer first for some reason and throws a exception, 
+		// just ignore it as it will import with version 2 of the importer right after
+		
 		if (!pScene) // if nullptr
 			return false;
 
