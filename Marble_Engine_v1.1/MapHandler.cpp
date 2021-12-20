@@ -9,6 +9,7 @@ void MapHandler::dumpDataToFile()
 
 	if (m_file.is_open()) // Found
 	{
+		// Game Objects
 		for (size_t i = 0; i < m_gameObjectData.size(); i++)
 		{
 			// Model
@@ -131,35 +132,32 @@ void MapHandler::dumpDataToFile()
 				}
 			}
 
-			// Lights
-			m_file << NR_OF_LIGHTS_PREFIX << " " << m_lightData.size() << "\n";
+		}
+		// Lights
+		m_file << NR_OF_LIGHTS_PREFIX << " " << m_lightData.size() << "\n";
 
-			for (size_t i = 0; i < m_lightData.size(); i++)
-			{
-				tempStr = f4ToString(m_lightData[i].first.position, " ", true);
-				m_file << LIGHT_POSITION_PREFIX << " " << tempStr << "\n";
+		for (size_t i = 0; i < m_lightData.size(); i++)
+		{
+			tempStr = f4ToString(m_lightData[i].first.position, " ", true);
+			m_file << LIGHT_POSITION_PREFIX << " " << tempStr << "\n";
 
-				tempStr = f3ToString(m_lightData[i].first.direction, " ");
-				m_file << LIGHT_DIRECTION_PREFIX << " " << tempStr << "\n";
+			tempStr = f3ToString(m_lightData[i].first.direction, " ");
+			m_file << LIGHT_DIRECTION_PREFIX << " " << tempStr << "\n";
 
-				m_file << LIGHT_INTENSITY_PREFIX << " " << m_lightData[i].first.intensity << "\n";
+			m_file << LIGHT_INTENSITY_PREFIX << " " << m_lightData[i].first.intensity << "\n";
 
-				tempStr = f3ToString(m_lightData[i].first.color, " ");
-				m_file << LIGHT_COLOR_PREFIX << " " << tempStr << "\n";
+			tempStr = f3ToString(m_lightData[i].first.color, " ");
+			m_file << LIGHT_COLOR_PREFIX << " " << tempStr << "\n";
 
-				m_file << LIGHT_SPOTANGLE_PREFIX << " " << m_lightData[i].first.spotAngle << "\n";
+			tempStr = f2ToString(m_lightData[i].second.spotAngles, " ");
+			m_file << LIGHT_SPOTANGLES_PREFIX << " " << tempStr << "\n";
 
-				tempStr = f3ToString(m_lightData[i].first.attenuation, " ");
-				m_file << LIGHT_ATTENUATION_PREFIX << " " << tempStr << "\n";
+			m_file << LIGHT_RANGE_PREFIX << " " << m_lightData[i].first.range << "\n";
+			m_file << LIGHT_TYPE_PREFIX << " " << m_lightData[i].first.type << "\n";
+			m_file << LIGHT_ENABLED_PREFIX << " " << m_lightData[i].first.enabled << "\n";
 
-				m_file << LIGHT_RANGE_PREFIX << " " << m_lightData[i].first.range << "\n";
-				m_file << LIGHT_TYPE_PREFIX << " " << m_lightData[i].first.type << "\n";
-				m_file << LIGHT_ENABLED_PREFIX << " " << m_lightData[i].first.enabled << "\n";
-				m_file << LIGHT_ISCASTINFSHADOW_PREFIX << " " << m_lightData[i].first.isCastingShadow << "\n";
-
-				tempStr = f3ToString(m_lightData[i].second.rotationDeg, " ");
-				m_file << LIGHT_ROTATION_PREFIX << " " << tempStr << "\n";
-			}
+			tempStr = f3ToString(m_lightData[i].second.rotationDeg, " ");
+			m_file << LIGHT_ROTATION_PREFIX << " " << tempStr << "\n";
 		}
 
 		m_file.close();
@@ -462,14 +460,11 @@ void MapHandler::initialize(std::string mapFileName, int nrOfHardCodedGameObject
 							sStream >> tempF3.x >> tempF3.y >> tempF3.z;
 							m_lightData[i].first.color = tempF3;
 						}
-						else if (prefix == LIGHT_SPOTANGLE_PREFIX)
+						else if (prefix == LIGHT_SPOTANGLES_PREFIX)
 						{
-							sStream >> m_lightData[i].first.spotAngle;
-						}
-						else if (prefix == LIGHT_ATTENUATION_PREFIX)
-						{
-							sStream >> tempF3.x >> tempF3.y >> tempF3.z;
-							m_lightData[i].first.attenuation = tempF3;
+							sStream >> m_lightData[i].second.spotAngles.x >> m_lightData[i].second.spotAngles.y;
+							m_lightData[i].first.spotAngles.x = 1.f / (cosf(m_lightData[i].second.spotAngles.x) - cosf(m_lightData[i].second.spotAngles.y));
+							m_lightData[i].first.spotAngles.y = cosf(m_lightData[i].second.spotAngles.y);
 						}
 						else if (prefix == LIGHT_RANGE_PREFIX)
 						{
@@ -485,7 +480,7 @@ void MapHandler::initialize(std::string mapFileName, int nrOfHardCodedGameObject
 						}
 						else if (prefix == LIGHT_ISCASTINFSHADOW_PREFIX)
 						{
-							sStream >> m_lightData[i].first.isCastingShadow;
+							sStream >> tempStr;
 						}
 						else if (prefix == LIGHT_ROTATION_PREFIX)
 						{

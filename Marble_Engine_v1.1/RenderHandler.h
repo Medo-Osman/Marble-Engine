@@ -79,12 +79,14 @@ private:
     ComPtr< ID3D11DepthStencilState > m_readOnlyDepthStencilState;
     ComPtr< ID3D11DepthStencilState > m_disabledDepthStencilState;
 
-    // Render States
+    // Samplers
     ComPtr< ID3D11SamplerState > m_defaultWrapSamplerState;
     ComPtr< ID3D11SamplerState > m_defaultBorderSamplerState;
     ComPtr< ID3D11SamplerState > m_whiteBorderSamplerState;
     ComPtr< ID3D11SamplerState > m_blackBorderComparisonSamplerState;
+    ComPtr< ID3D11SamplerState > m_blackBorderPointSamplerState;
 
+    // Rasterizer States
     ComPtr< ID3D11RasterizerState > m_defaultRasterizerState;
     ComPtr< ID3D11RasterizerState > m_wireframeRasterizerState;
     ComPtr< ID3D11RasterizerState > m_cullOffRasterizerState;

@@ -62,7 +62,7 @@ void main(uint3 gruoupId : SV_GroupID, uint3 groupThredId : SV_GroupThreadID, ui
     
     // - Tent
     half4 uvDirection = half4(mipData.x, mipData.y, -mipData.x, -mipData.y);
-    half4 result = tentFilter(uvDirection, uvTL + (mipData.xy / 1.5f));
+    half4 result = tentFilter(uvDirection * 1.f, uvTL + mipData.xy);
     
     // Get Last Result from Higher Mip
     if (mipData.z < MAX_BLOOM_MIP) // Skips first pass because no lower mip exists

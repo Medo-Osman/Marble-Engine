@@ -43,6 +43,11 @@ static std::wstring extractFileName(std::wstring oldPath)
 	return fileName;
 }
 
+static std::string f2ToString(DirectX::XMFLOAT2 f2, std::string delimiter = ", ")
+{
+    return std::to_string(f2.x) + delimiter + std::to_string(f2.y);
+}
+
 static std::string f3ToString(DirectX::XMFLOAT3 f3, std::string delimiter = ", ")
 {
     return std::to_string(f3.x) + delimiter + std::to_string(f3.y) + delimiter + std::to_string(f3.z);

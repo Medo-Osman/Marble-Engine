@@ -332,7 +332,7 @@ void RenderHandler::initRenderStates()
 
 	hr = m_device->CreateSamplerState(&samplerStateDesc, &m_defaultBorderSamplerState);
 	assert(SUCCEEDED(hr) && "Error, failed to create default border sampler state!");
-	m_deviceContext->CSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
+	//m_deviceContext->CSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
 	m_deviceContext->HSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
 	m_deviceContext->DSSetSamplers(0, 1, m_defaultBorderSamplerState.GetAddressOf());
 	m_deviceContext->GSSetSamplers(1, 1, m_defaultBorderSamplerState.GetAddressOf());
@@ -349,6 +349,13 @@ void RenderHandler::initRenderStates()
 	hr = m_device->CreateSamplerState(&samplerStateDesc, m_blackBorderComparisonSamplerState.GetAddressOf());
 	assert(SUCCEEDED(hr) && "Error, failed to creat black border comparison sampler state!");
 	m_deviceContext->GSSetSamplers(2, 1, m_blackBorderComparisonSamplerState.GetAddressOf()); // Used for Lens Flare
+
+	// - Point Sampler
+	samplerStateDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+
+	hr = m_device->CreateSamplerState(&samplerStateDesc, &m_blackBorderPointSamplerState);
+	assert(SUCCEEDED(hr) && "Error, failed to create black border point sampler state!");
+	m_deviceContext->CSSetSamplers(0, 1, m_blackBorderPointSamplerState.GetAddressOf());
 
 	// Blend States
 	D3D11_BLEND_DESC blendStateDesc;
@@ -1128,13 +1135,11 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	Light sunLight;
 	sunLight.direction = XMFLOAT3(0, -1, 0);
 	sunLight.color = XMFLOAT3(0.8f, 0.6f, 0.5f);
-	sunLight.intensity = 1.f;
-	sunLight.isCastingShadow = true;
+	sunLight.intensity = 2.f;
 	Light moonLight;
 	moonLight.direction = XMFLOAT3(0, -1, 0);
 	moonLight.color = XMFLOAT3(0.2f, 0.3f, 0.4f);
-	moonLight.intensity = 0.5f;
-	moonLight.isCastingShadow = true;
+	moonLight.intensity = 1.f;
 	//m_sky.initialize(m_device.Get(), m_deviceContext.Get(), L"TableMountain1Cubemap.dds", L"TableMountain1Irradiance.dds");
 	m_sky.initialize(m_device.Get(), m_deviceContext.Get(), &m_shadowInstance, sunLight, moonLight, L"dikhololo_night_skybox.dds", L"dikhololo_night_sky_irradiance.dds");
 	
@@ -1699,8 +1704,8 @@ void RenderHandler::updatePassShaders()
 		m_SSAOInstance.updateShaders();
 	//m_edgePreservingBlurCS.updateShaders();
 
-	/*m_bloomDownsampleShader.updateShaders();
-	m_bloomUpsampleShader.updateShaders();*/
+	//m_bloomDownsampleShader.updateShaders();
+	//m_bloomUpsampleShader.updateShaders();
 
 	//m_volumetricSunShaders.updateShaders();
 	

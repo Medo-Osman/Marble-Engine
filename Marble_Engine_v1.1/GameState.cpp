@@ -152,8 +152,8 @@ void DrawSplitter(bool split_vertically, float thickness, float* size0, float* s
 
 void GameState::generateMaxRandomLights()
 {
-	XMFLOAT3 posScale = XMFLOAT3(22, 13, 55);
-	XMFLOAT3 posBias = XMFLOAT3(-10.5f, 3, -25);
+	XMFLOAT3 posScale = XMFLOAT3(22.f, 13.f, 55.f);
+	XMFLOAT3 posBias = XMFLOAT3(-10.5f, 3.f, -25.f);
 
 	srand(12645);
 	auto randUint = []() -> uint32_t
@@ -240,14 +240,10 @@ void GameState::generateMaxRandomLights()
 		newLight.position = XMFLOAT4(pos.x, pos.y, pos.z, 1.f);
 		newLight.direction = XMFLOAT3(coneDir.x, coneDir.y, coneDir.z);
 		newLight.color = color;
-		newLight.spotAngle = XMConvertToRadians(45.0f);
-		newLight.attenuation = XMFLOAT3(1.f, 0.6f, 1.f);
+		newLight.spotAngles = XMFLOAT2(1.f / (cosf(coneInner) - cosf(coneOuter)), cosf(coneOuter));
 		newLight.range = lightRadius;
 		newLight.type = type;
 		newLight.enabled = true;
-		newLight.isCastingShadow = false;
-		/*newLight.coneAngles[0] = 1.0f / (cosf(coneInner) - cosf(coneOuter));
-		newLight.coneAngles[1] = cosf(coneOuter);*/
 
 		m_lights.push_back(std::make_pair(newLight, newLightHelper));
 		m_renderHandler->addLight(
@@ -256,7 +252,7 @@ void GameState::generateMaxRandomLights()
 				XMConvertToRadians(newLightHelper.rotationDeg.x), 
 				XMConvertToRadians(newLightHelper.rotationDeg.y), 
 				XMConvertToRadians(newLightHelper.rotationDeg.z)), 
-			newLight.isCastingShadow);
+			false);
 	}
 }
 
@@ -309,30 +305,17 @@ void GameState::initialize(Settings settings)
 	groundMat.materialTextured = false;
 	m_gameObjects.back()->setMaterial(groundMat);
 
-	// PBR Test
-	/*m_gameObjects.push_back(new GameObject());
-	m_gameObjects.back()->initialize("Cerberus_by_Andrew_Maximov\\Cerberus_LP.FBX", (UINT)m_gameObjects.size(), ShaderStates::PBR);
-	m_gameObjects.back()->setScale(XMVectorSet(0.1f, 0.1f, 0.1f, 1.f));
-	m_gameObjects.back()->setRotation(XMVectorSet(XM_PIDIV2, 0.f, 0.f, 1.f));
-	m_gameObjects.back()->setPosition(XMVectorSet(-3.1f, 5.9f, 0.f, 1.f));
-	TexturePathsPBR pbrTextures;
-	pbrTextures.albedoPath = L"Cerberus_A.tga";
-	pbrTextures.normalPath = L"Cerberus_N.tga";
-	pbrTextures.metallicPath = L"Cerberus_M.tga";
-	pbrTextures.roughnessPath = L"Cerberus_R.tga";
-	pbrTextures.ambientOcclusionPath = L"Cerberus_AO.tga";
-	m_gameObjects.back()->setTextures(pbrTextures);*/
-
 	// Map Handler
 	m_mapHandler.initialize("map1.txt", (UINT)m_gameObjects.size(), true);
 
-	// - Game Objects from Map file
+	// - Import Game Objects and Lights from Map file
 	m_mapHandler.importGameObjects(m_gameObjects, m_lights);
 
+	// Add Lights to Renderer
 	for (size_t i = 0; i < m_lights.size(); i++)
 	{
 		m_renderHandler->addLight(
-			m_lights[i].first, 
+			m_lights[i].first,
 			XMFLOAT3(
 				XMConvertToRadians(m_lights[i].second.rotationDeg.x),
 				XMConvertToRadians(m_lights[i].second.rotationDeg.y),
@@ -340,137 +323,8 @@ void GameState::initialize(Settings settings)
 			)
 		);
 	}
-	
 
-	// Lights
-	/*Light light;
-	LightHelper lightHelper;*/
-	// Point Light 0
-	//light.position = XMFLOAT4(-10.f, 5.f, 0.f, 1.f);
-	//light.color = XMFLOAT4(1.f, 0.f, 0.f, 0.f);
-	//light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
-	//light.range = 30.f;
-	//light.type = POINT_LIGHT;
-	//light.enabled = true;
-	//light.isCastingShadow = false;
-	//m_lights.push_back(new Light(light));
-	//m_renderHandler->addLight(light);
-
-	// Point Light 1
-	/*light.position = XMFLOAT4(0.f, 10.f, -10.f, 1.f);
-	light.color = XMFLOAT3(1.f, 1.f, 1.f);
-	light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
-	light.range = 30.f;
-	light.type = POINT_LIGHT;
-	light.enabled = true;
-	light.isCastingShadow = false;
-	m_lights.push_back(new Light(light));
-	m_renderHandler->addLight(light);*/
-
-	// Point Light 2
-	/*light.position = XMFLOAT4(0.f, 10.f, 10.f, 1.f);
-	light.color = XMFLOAT4(0.f, 1.f, 0.f, 1.f);
-	light.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
-	light.range = 40.f;
-	light.type = POINT_LIGHT;
-	light.enabled = true;
-	light.isCastingShadow = false;
-	m_lights.push_back(new Light(light));
-	m_renderHandler->addLight(light);*/
-
-	// Directional Light
-	//lightHelper.rotationDeg = XMFLOAT3(-90.f, 14.f, 0.f);
-
-	//XMVECTOR rotQuat = XMQuaternionRotationRollPitchYaw(
-	//	XMConvertToRadians(lightHelper.rotationDeg.x),
-	//	XMConvertToRadians(lightHelper.rotationDeg.y),
-	//	XMConvertToRadians(lightHelper.rotationDeg.z));
-
-	//XMVECTOR rotQuatInverse = XMQuaternionInverse(rotQuat);
-	//XMVECTOR lightDir = XMQuaternionMultiply(rotQuat, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
-	//lightDir = XMQuaternionMultiply(lightDir, rotQuatInverse);
-	//XMStoreFloat4(&light.direction, lightDir);
-
-	////light.color = XMFLOAT3(.64f, 0.767f, 1.f);
-	//light.color = XMFLOAT3(1.f, 0.8f, 0.7f);
-	//light.intensity = 1.f;
-	//light.type = DIRECTIONAL_LIGHT;
-	//light.enabled = true;
-	//light.isCastingShadow = false;
-	//m_lights.push_back(std::make_pair(new Light(light), lightHelper));
-	//m_renderHandler->addLight(
-	//	light,
-	//	XMFLOAT3(
-	//		XMConvertToRadians(lightHelper.rotationDeg.x),
-	//		XMConvertToRadians(lightHelper.rotationDeg.y),
-	//		XMConvertToRadians(lightHelper.rotationDeg.z)),
-	//	light.isCastingShadow);
-
-	//generateMaxRandomLights();
-
-	// - Nanosuit
-	/*m_gameObjects.push_back(new GameObject());
-	m_gameObjects.back()->initialize("nanosuit.obj", m_gameObjects.size());
-
-	// - Alter
-	m_gameObjects.push_back(new GameObject());
-	m_gameObjects.back()->initialize("Platform.FBX", m_gameObjects.size());
-	m_gameObjects.back()->setRotation(XMVectorSet(XM_PI / 2, 0.f, 0.f, 0.f));
-	m_gameObjects.back()->setPosition(XMVectorSet(-80.f, 4.4f, 0.f, 1.f));
-	TexturePaths terrainTextures;
-	terrainTextures.diffusePath = L"alter_model\\Platform_diffuse.png";
-	terrainTextures.normalPath = L"alter_model\\Platform_normal.png";
-	terrainTextures.specularPath = L"alter_model\\Platform_specular.png";
-	m_gameObjects.back()->setTextures(terrainTextures);
-
-	m_gameObjects.push_back(new GameObject());
-	m_gameObjects.back()->initialize("Altar.FBX", m_gameObjects.size());
-	m_gameObjects.back()->setRotation(XMVectorSet(XM_PI / 2, 0.f, 0.f, 0.f));
-	m_gameObjects.back()->setPosition(XMVectorSet(-79.f, 0.2f, 2.3f, 1.f));
-	terrainTextures.diffusePath = L"alter_model\\Altar_diffuse.png";
-	terrainTextures.normalPath = L"alter_model\\Altar_normal.png";
-	terrainTextures.specularPath = L"alter_model\\Altar_specular.png";
-	m_gameObjects.back()->setTextures(terrainTextures);
-
-	m_gameObjects.push_back(new GameObject());
-	m_gameObjects.back()->initialize("Arches.FBX", m_gameObjects.size());
-	m_gameObjects.back()->setRotation(XMVectorSet(XM_PI / 2, 0.f, 0.f, 0.f));
-	m_gameObjects.back()->setPosition(XMVectorSet(-80.f, 0.f, 7.f, 1.f));
-	terrainTextures.diffusePath = L"alter_model\\Arches_diffuse.png";
-	terrainTextures.normalPath = L"alter_model\\Arches_normal.png";
-	terrainTextures.specularPath = L"alter_model\\Arches_specular.png";
-	m_gameObjects.back()->setTextures(terrainTextures);
-
-	m_gameObjects.push_back(new GameObject());
-	m_gameObjects.back()->initialize("Flag.FBX", m_gameObjects.size());
-	m_gameObjects.back()->setRotation(XMVectorSet(XM_PI / 2, 0.f, 0.f, 0.f));
-	m_gameObjects.back()->setPosition(XMVectorSet(-87.7f, 28.f, 18.3f, 1.f));
-	terrainTextures.diffusePath = L"alter_model\\Flag_diffuse.png";
-	terrainTextures.normalPath = L"alter_model\\Flag_normal.png";
-	terrainTextures.specularPath = L"alter_model\\Flag_specular.png";
-	m_gameObjects.back()->setTextures(terrainTextures);
-
-	m_gameObjects.push_back(new GameObject());
-	m_gameObjects.back()->initialize("Tree.FBX", m_gameObjects.size());
-	m_gameObjects.back()->setRotation(XMVectorSet(XM_PI / 2, 0.f, 0.f, 0.f));
-	m_gameObjects.back()->setPosition(XMVectorSet(-97.f, 5.5f, 46.f, 1.f));
-	terrainTextures.diffusePath = L"alter_model\\Tree_diffuse.png";
-	terrainTextures.normalPath = L"alter_model\\Tree_normal.png";
-	terrainTextures.specularPath = L"alter_model\\Tree_specular.png";
-	m_gameObjects.back()->setTextures(terrainTextures);*/
-	// Alter end
-	
-	/*m_gameObjects.push_back(new GameObject());
-	m_gameObjects.back()->initialize("ddh.obj", m_gameObjects.size());
-	m_gameObjects.back()->setPosition(XMVectorSet(-10.f, 10.f, 0.f, 1.f));
-
-	m_gameObjects.push_back(new GameObject());
-	m_gameObjects.back()->initialize("FinalHook.obj", m_gameObjects.size());
-	m_gameObjects.back()->setPosition(XMVectorSet(0.f, 10.f, 20.f, 1.f));
-	TexturePaths textures;
-	textures.diffusePath = L"hook.png";
-	m_gameObjects.back()->setTextures(textures);*/
-	
+	// Camera
 	m_camera.initialize(settings.mouseSensitivity);
 }
 
@@ -865,12 +719,10 @@ void GameState::update(double dt)
 					newLight.direction = XMFLOAT3(0.1f, -0.4f, 0.f);
 					newLight.color = XMFLOAT3(1.f, 1.f, 1.f);
 					newLight.intensity = 1.f;
-					newLight.spotAngle = 1.f;
-					newLight.attenuation = XMFLOAT3(1.f, 0.4f, 1.f);
+					newLight.spotAngles = XMFLOAT2(XMConvertToRadians(45.f), XMConvertToRadians(75.f));
 					newLight.range = 1.f;
 					newLight.type = (LightType)n;
 					newLight.enabled = true;
-					newLight.isCastingShadow = false;
 
 					if (RenderHandler::getInstance()->addLight(newLight) != -1)
 						m_lights.push_back(std::make_pair(newLight, newLightHelper));
@@ -970,6 +822,21 @@ void GameState::update(double dt)
 						XMVECTOR lightDir = XMQuaternionMultiply(rotQuat, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
 						XMStoreFloat3(&m_lights[i].first.direction, XMQuaternionMultiply(lightDir, rotQuatInverse));
 						
+						m_renderHandler->updateLight(&m_lights[i].first, (int)i);
+					}
+					ImGui::PopItemWidth();
+
+					// Spot Angles
+					ImGui::NextColumn();
+					ImGui::Text("Spot Angles");
+					ImGui::NextColumn();
+					ImGui::PushItemWidth(0.f);
+					if (ImGui::DragFloat2(std::string("##Spot Angles" + std::to_string(i)).c_str(), &m_lights[i].second.spotAngles.x, 0.001f, 0.025f, 2.f))
+					{
+						if (m_lights[i].second.spotAngles.x > m_lights[i].second.spotAngles.y)
+							m_lights[i].second.spotAngles.x = m_lights[i].second.spotAngles.y;
+						m_lights[i].first.spotAngles.x = 1.f / (cosf(m_lights[i].second.spotAngles.x) - cosf(m_lights[i].second.spotAngles.y));
+						m_lights[i].first.spotAngles.y = cosf(m_lights[i].second.spotAngles.y);
 						m_renderHandler->updateLight(&m_lights[i].first, (int)i);
 					}
 					ImGui::PopItemWidth();

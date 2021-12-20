@@ -67,17 +67,17 @@ struct PROCEDURAL_SKY_CBUFFER
 
 struct Light
 {
-    XMFLOAT4	position;       
-    XMFLOAT3    direction;      
+    XMFLOAT4	position;
+
+    XMFLOAT3    direction;
     float       intensity = 1.f;
-    XMFLOAT3    color;          
-    float       spotAngle;      
-    XMFLOAT3    attenuation;    
-    float       range;          
-    int         type;           
-    BOOL        enabled;        
-    BOOL        isCastingShadow;
-    float       pad;            
+
+    XMFLOAT3    color;
+    float       range;
+
+    XMFLOAT2    spotAngles;
+    int         type;
+    BOOL        enabled;
 };
 
 const UINT LIGHT_CAP = 40;
@@ -86,8 +86,8 @@ struct PS_LIGHT_BUFFER
 {
     Light lights[LIGHT_CAP];
     UINT nrOfLights;
-    float enviormentDiffContribution = 0.1f;
-    float enviormentSpecContribution = 0.05f;
+    float enviormentDiffContribution = 0.03f;
+    float enviormentSpecContribution = 0.04f;
     BOOL volumetricSunScattering = TRUE;
     BOOL fog = TRUE;
     BOOL procederualSky = TRUE;
@@ -114,6 +114,7 @@ struct LENS_FLARE_CBUFFER
 struct LightHelper
 {
     XMFLOAT3 rotationDeg;
+    XMFLOAT2 spotAngles;
 };
 
 struct PS_COLOR_ANIMATION_BUFFER

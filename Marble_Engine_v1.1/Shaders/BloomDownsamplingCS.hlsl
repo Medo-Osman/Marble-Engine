@@ -71,16 +71,16 @@ void main(uint3 gruoupId : SV_GroupID, uint3 groupThredId : SV_GroupThreadID, ui
     if (mipData.z < 1) // Only test on first mip
     {
         // Apply Exposure
-        float autoExpsodure = LuminanceTex.Load(int3(0, 0, 0)).r;
+        float autoExpsodure = LuminanceTex.Load(int3(0.f, 0.f, 0.f)).r;
         result *= lerp(mipData.w + 1.f, 1.f, autoExpsodure);
         
         // Curve
         half br = max(max(result.r, result.g), result.b);
         
-        half rq = clamp(br - threshold.y, 0.0, threshold.z);
+        half rq = clamp(br - threshold.y, 0.f, threshold.z);
         rq = threshold.w * rq * rq;
         
-        result.rgb *= max(rq, br - threshold.x) / max(br, 0.0001);
+        result.rgb *= max(rq, br - threshold.x) / max(br, 0.0001f);
         
         // Linear
         //half intensityTest = (half) (length(result.rgb) > threshold.x);

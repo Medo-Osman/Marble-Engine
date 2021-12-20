@@ -257,8 +257,11 @@ XMFLOAT3 Sky::getSkyLightDirection(SkyLightType types)
 void Sky::updateUI()
 {
 	// Sun / Moon Color and Intensity
-	ImGui::ColorEdit3("Sun Color", &m_sunLight.color.x, ImGuiColorEditFlags_Float);
-	ImGui::DragFloat("Sun Intensity", &m_sunLight.intensity, 0.01f, 0.f, 200.f);
+	if (ImGui::ColorEdit3("Sun Color", &m_sunLight.color.x, ImGuiColorEditFlags_Float))
+		updateSkyLight();
+
+	if (ImGui::DragFloat("Sun Intensity", &m_sunLight.intensity, 0.01f, 0.f, 200.f))
+		updateSkyLight();
 
 	if (ImGui::ColorEdit3("Sun Set/Rise Color", &m_proceduralSkyData.sunSetRiseColor.x, ImGuiColorEditFlags_Float))
 		updateProceduralData();
@@ -267,9 +270,11 @@ void Sky::updateUI()
 	{
 		m_proceduralSkyData.moonColor = m_moonLight.color;
 		updateProceduralData();
+		updateSkyLight();
 	}
 
-	ImGui::DragFloat("Moon Intensity", &m_moonLight.intensity, 0.01f, 0.f, 200.f);
+	if (ImGui::DragFloat("Moon Intensity", &m_moonLight.intensity, 0.01f, 0.f, 200.f))
+		updateSkyLight();
 	ImGui::Separator();
 
 	// Day Night Cycle

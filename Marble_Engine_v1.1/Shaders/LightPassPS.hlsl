@@ -6,6 +6,7 @@
 #define DIRECTIONAL_LIGHT 2
 static const float PI = 3.14159265359;
 static const float MAX_REFLECTION_LOD = 6.0;
+static const float EPSILON = 0.000001f;
 
 // - Fog
 static const float FOG_DENSITIY = 0.004;
@@ -32,13 +33,10 @@ struct Light
     float3 direction;
     float intensity;
     float3 color;
-    float spotAngle;
-    float3 attenuation;
     float range;
+    float2 spotAngles;
     int type;
     bool enabled;
-    bool isCastingShadow;
-    float pad;
 };
 cbuffer lightBuffer : register(b1)
 {
@@ -102,12 +100,12 @@ float DistributionGGX(float3 N, float3 H, float roughness)
 {
     float a = roughness * roughness;
     float a2 = a * a;
-    float NdotH = max(dot(N, H), 0.0);
+    float NdotH = max(dot(N, H), 0.f);
     float NdotH2 = NdotH * NdotH;
 	
     float num = a2;
     float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    denom = max(0.000001, PI * denom * denom);
+    denom = max(0.000001f, PI * denom * denom);
 	
     return num / denom;
 }
@@ -124,8 +122,8 @@ float GeometrySchlickGGX(float NdotV, float roughness)
 }
 float GeometrySmith(float3 N, float3 V, float3 L, float roughness)
 {
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotL = max(dot(N, L), 0.0);
+    float NdotV = max(dot(N, V), 0.f);
+    float NdotL = max(dot(N, L), 0.f);
     float ggx2 = GeometrySchlickGGX(NdotV, roughness);
     float ggx1 = GeometrySchlickGGX(NdotL, roughness);
 	
@@ -137,18 +135,18 @@ float3 lightCommon(float3 N, float3 H, float3 V, float NDotV, float3 L, float3 F
     // cook-torrance brdf
     float NDF = DistributionGGX(N, H, roughness);
     float G = GeometrySmith(N, V, L, roughness);
-    float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+    float3 F = fresnelSchlick(max(dot(H, V), 0.f), F0);
         
     float3 kS = F;
-    float3 kD = float3(1.0, 1.0, 1.0) - kS;
-    kD *= 1.0 - metallic;
+    float3 kD = float3(1.f, 1.f, 1.f) - kS;
+    kD *= 1.f - metallic;
         
     float3 numerator = NDF * G * F;
-    float denominator = 4.0 * max(NDotV, 0.0) * max(dot(N, L), 0.0);
-    float3 specular = numerator / max(denominator, 0.001);
+    float denominator = 4.0 * max(NDotV, 0.f) * max(dot(N, L), 0.f);
+    float3 specular = numerator / max(denominator, 0.001f);
         
     // add to outgoing radiance Lo
-    float NdotL = max(dot(N, L), 0.0);
+    float NdotL = max(dot(N, L), 0.f);
     return (kD * albedo / PI + specular) * radiance * NdotL;
 }
 
@@ -176,10 +174,9 @@ float3 getUppsampledVolumetricScattering(float2 texCoord)
 
     for (int i = 0; i < 4; i++)
     {
+        float3 downscaledColor = VolumetricSunTexture.Load(int3(downscaledCoordinates + offsets[i], 0)).rgb;
 
-        float3 downscaledColor = VolumetricSunTexture.Load(int3(downscaledCoordinates + offsets[i], 0));
-
-        float downscaledDepth = DepthTexture.Load(int3(downscaledCoordinates + offsets[i], 1));
+        float downscaledDepth = DepthTexture.Load(int3(downscaledCoordinates + offsets[i], 1)).r;
 
         float currentWeight = 1.0f;
         currentWeight *= max(0.0f, 1.0f - (0.05f) * abs(downscaledDepth - upSampledDepth));
@@ -188,12 +185,8 @@ float3 getUppsampledVolumetricScattering(float2 texCoord)
         totalWeight += currentWeight;
 
     }
-
-    float3 volumetricLight;
-    const float epsilon = 0.0001f;
-    volumetricLight.xyz = color / (totalWeight + epsilon);
-
-    return float4(volumetricLight.xyz, 1.0f);
+    
+    return color / (totalWeight + EPSILON);
 }
 
 // Main
@@ -211,18 +204,16 @@ float4 main(PS_IN input) : SV_TARGET
     float4 ndcPosition = float4(x, y, z, 1.f);
     float4 viewPosition = mul(ndcPosition, projInverseMatrix);
     viewPosition /= viewPosition.w;
-    //return float4(viewPosition.xyz, 1.f);
-    float3 WorldPos = mul(viewPosition, viewInverseMatrix).xyz;
+    float3 worldPosition = mul(viewPosition, viewInverseMatrix).xyz;
     
     // Albedo
     float3 albedo = albedoMetallic.rgb;
 	// Normal
-    float3 Normal = normalize(normalRoughness.xyz);
+    float3 normal = normalize(normalRoughness.xyz);
     // Metallic
     float metallic = albedoMetallic.a;
 	// Rough
     float roughness = normalRoughness.a;
-    //roughness = 1;
     // Emissive
     float3 emissive = emissiveShadowMask.rgb;
     // Ambient Occlusion
@@ -233,149 +224,96 @@ float4 main(PS_IN input) : SV_TARGET
     
     if (length(emissive) == 0.f)
     {
-        float3 N = normalize(Normal);
-        float3 V = normalize(cameraPosition.xyz - WorldPos);
+        float3 N = normalize(normal);
+        float3 V = normalize(cameraPosition.xyz - worldPosition);
         float3 R = reflect(-V, N);
         float NDotV = dot(N, V);
 
-        // Light
+        // Lighting Setup
         float3 F0 = float3(0.04f, 0.04f, 0.04f);
         F0 = lerp(F0, albedo, metallic);
-    
-        // reflectance equation
         uint i;
         float3 Lo = (float3) 0;
         
         // Sun/Moon Light
         float3 direction = normalize(skyLightDirection) * (float)(moonOrSun * 2 - 1); // Flip if Moon
-        float3 radiance = skyLightColor * skyLightIntensity;
                     
         float3 L = normalize(-direction);
         float3 H = normalize(V + L);
+        float3 radiance = skyLightColor * skyLightIntensity;
         
-        float NDF = DistributionGGX(N, H, roughness);
-        float G = GeometrySmith(N, V, L, roughness);
-        float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
-        
-        float3 kS = F;
-        float3 kD = float3(1.f, 1.f, 1.f) - kS;
-        kD *= 1.0 - metallic;
-        
-        float3 numerator = NDF * G * F;
-        float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-        float3 specular = numerator / denominator;
-            
-        float NdotL = max(dot(N, L), 0.0);
-        float3 directionalLightContribution = (kD * albedo / PI + specular) * radiance * NdotL;
+        float3 sunMoonLightContribution = lightCommon(N, H, V, NDotV, L, F0, roughness, metallic, radiance, albedo);
+        fogColor = skyLightColor;
         
         if (skyLightCastingShadow)
         {
-            directionalLightContribution *= emissiveShadowMask.a;
-            fogColor = skyLightColor;
+            sunMoonLightContribution *= emissiveShadowMask.a;
         }
-        Lo += directionalLightContribution;
+        Lo += sunMoonLightContribution;
         
+        // Scene Lights
         for (i = 0; i < nrOfLights; ++i)
         {
+            L = lights[i].position.xyz - worldPosition;
+            radiance = lights[i].color.xyz * lights[i].intensity;
+            
             switch (lights[i].type)
             {
                 case DIRECTIONAL_LIGHT:
                 {
-                    direction = normalize(lights[i].direction.xyz);
-                    radiance = lights[i].color.xyz * lights[i].intensity;
-                    
                     L = normalize(-direction);
                     H = normalize(V + L);
-        
-                    NDF = DistributionGGX(N, H, roughness);
-                    G = GeometrySmith(N, V, L, roughness);
-                    F = fresnelSchlick(max(dot(H, V), 0.0), F0);
-        
-                    kS = F;
-                    kD = float3(1.f, 1.f, 1.f) - kS;
-                    kD *= 1.0 - metallic;
-        
-                    numerator = NDF * G * F;
-                    denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-                    specular = numerator / denominator;
-            
-                    NdotL = max(dot(N, L), 0.0);
-                    directionalLightContribution = (kD * albedo / PI + specular) * radiance * NdotL;
+                    direction = normalize(lights[i].direction.xyz);
                     
-                    Lo += directionalLightContribution;
+                    Lo += lightCommon(N, H, V, NDotV, L, F0, roughness, metallic, radiance, albedo);
                 }
                 break;
                 case POINT_LIGHT:
                 {
-                    // calculate per-light radiance
-                    L = lights[i].position.xyz - WorldPos;
-                    H = normalize(V + L);
-                    float distance = length(L);
-                    L = normalize(L);
-                    float d = max(distance - lights[i].range, 0);
+                    float3 lightDir = normalize(L);
+                    H = normalize(V + lightDir);
                     
-                    //float lightDistSq = dot(L, L);
-                    //float invLightDist = rsqrt(lightDistSq);
-        
-                    float attFactor = lights[i].range;
-                    float attenuation = 1.0f / (1.0f + lights[i].attenuation.x * distance * distance);
-                    //float attenuation = 1.f - (1.0f / (1.0f + attFactor * distance * distance));
-                    //float attenuation = 1.0f - smoothstep(attFactor * 0.75f, attFactor, distance) / 2.f;
-                    //float denom = d / attFactor + 1;
-                    //attenuation = 1 / (denom * denom);
-                    //float cutoff = 0.9f;
-                    //attenuation = (attenuation - cutoff) / (1 - cutoff);
-                    //attenuation = max(attenuation, 0);
+                    float lightDistSq = dot(L, L);
+                    float invLightDist = rsqrt(lightDistSq);
                     
-                    //float distanceFalloff = attFactor * (invLightDist * invLightDist);
-                    //distanceFalloff = max(0, distanceFalloff - rsqrt(distanceFalloff));
+                    float radiusSq = lights[i].range * lights[i].range;
+                    float distanceFalloff = radiusSq * (invLightDist * invLightDist);
+                    float attenuation = max(0, distanceFalloff - rsqrt(distanceFalloff));
                     
-                    //attenuation = distanceFalloff;
-                    radiance = lights[i].color.xyz * lights[i].intensity;
-                    
-                    // cook-torrance brdf
-                    NDF = DistributionGGX(N, H, roughness);
-                    G = GeometrySmith(N, V, L, roughness);
-                    F = fresnelSchlick(max(dot(H, V), 0.0), F0);
-        
-                    kS = F;
-                    kD = float3(1.f, 1.f, 1.f) - kS;
-                    kD *= 1.0 - metallic;
-        
-                    numerator = NDF * G * F;
-                    denominator = 4.0 * max(NDotV, 0.0) * max(dot(N, L), 0.0);
-                    specular = numerator / max(denominator, 0.001);
-                
-                    // add to outgoing radiance Lo
-                    float NdotL = max(dot(N, L), 0.0);
-                    Lo += (kD * albedo / PI + specular) * radiance * NdotL * attenuation;
+                    Lo += lightCommon(N, H, V, NDotV, lightDir, F0, roughness, metallic, radiance, albedo) * attenuation;
                 }
                 break;
                 case SPOT_LIGHT:
                 {
+                    float3 lightDir = normalize(L);
+                    H = normalize(V + lightDir);
                     direction = normalize(lights[i].direction.xyz);
-                    L = normalize(lights[i].position.xyz - WorldPos);
-                    H = normalize(V + L);
-                    float distance = length(lights[i].position.xyz - WorldPos);
-        
-                    float attenuation = 1.0f / (1.0f + lights[i].attenuation.x * distance * distance);
-                
-                    float minCos = cos(lights[i].spotAngle);
-                    float maxCos = (minCos + 1.0f) / 2.0f;
-                    float cosAngle = dot(direction, -L);
-                    float spotIntensity = smoothstep(minCos, maxCos, cosAngle);
-        
-                    radiance = lights[i].color.xyz * lights[i].intensity * spotIntensity * attenuation; // * (coneFalloff * distanceFalloff);
                     
-                    Lo += lightCommon(N, H, V, NDotV, L, F0, roughness, metallic, radiance, albedo);
+                    float lightDistSq = dot(L, L);
+                    float invLightDist = rsqrt(lightDistSq);
+                    
+                    float radiusSq = lights[i].range * lights[i].range;
+                    float distanceFalloff = radiusSq * (invLightDist * invLightDist);
+                    float attenuation = max(0, distanceFalloff - rsqrt(distanceFalloff));
+                    
+                    //float minCos = cos((lights[i].spotAngle + 1.f) * 0.5f);
+                    //float maxCos = cos(lights[i].spotAngle);
+                    //float maxCos = (minCos + 1.f) / 2.f;
+                    //float cosAngle = dot(direction, -L);
+                    //float spotAttenuation = smoothstep(minCos, maxCos, cosAngle);
+                    
+                    float coneFalloff = dot(-lightDir, direction);
+                    float spotAttenuation = saturate((coneFalloff - lights[i].spotAngles.y) * lights[i].spotAngles.x);
+                    
+                    Lo += lightCommon(N, H, V, NDotV, lightDir, F0, roughness, metallic, radiance, albedo) * spotAttenuation * attenuation;
                 }
                 break;
             }
         }
         
-        F = FresnelSchlickRoughness(max(NDotV, 0.0), F0, roughness);
-        kS = F;
-        kD = 1.0 - kS;
+        float3 F = FresnelSchlickRoughness(max(NDotV, 0.0), F0, roughness);
+        float3 kS = F;
+        float3 kD = 1.0 - kS;
         kD *= 1.0 - metallic;
 
         // Diffuse IBL
@@ -392,7 +330,7 @@ float4 main(PS_IN input) : SV_TARGET
         }
 
         // Specular IBL
-        specular = (float3)0;
+        float3 specular = (float3)0;
         if (enviormentSpecContribution > 0.f)
         {
             float3 prefilteredColor;
@@ -418,15 +356,15 @@ float4 main(PS_IN input) : SV_TARGET
     
     // Volumetric Sun Scattering
     if (volumetricSunScattering)
-        finalColor += VolumetricSunTexture.Sample(sampState, input.TexCoord);
+        finalColor += VolumetricSunTexture.Sample(sampState, input.TexCoord).xyz;
         //finalColor += getUppsampledVolumetricScattering(input.TexCoord);
 
     // Fog
     if (fog)
     {
         float3 fogOrigin = cameraPosition.xyz;
-        float3 fogDirection = normalize(WorldPos - fogOrigin);
-        float fogDepth = distance(WorldPos, fogOrigin);
+        float3 fogDirection = normalize(worldPosition - fogOrigin);
+        float fogDepth = distance(worldPosition, fogOrigin);
     
         float fogFactor =   HEIGHT_FACTOR * exp(-fogOrigin.y * FOG_DENSITIY) *
                             (1.f - exp(-fogDepth * fogDirection.y * FOG_DENSITIY)) / fogDirection.y;
