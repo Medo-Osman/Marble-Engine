@@ -13,7 +13,7 @@
 #include <memory>
 #include <wrl/client.h>
 #include <windows.applicationmodel.core.h>
-#include <shobjidl_core.h>
+#include <Shobjidl.h>
 //#define NOMINMAX // std::min/std::max wont work without this
 #include <algorithm>
 #include <map>

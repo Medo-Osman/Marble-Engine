@@ -11,7 +11,8 @@ Application::Application()
 	m_settings.width = 1600;
 	m_settings.height = 900;
 	m_settings.fov = 70;
-	m_settings.mouseSensitivity = 0.005f;
+	m_settings.mouseSensitivity = 0.0005f;
+	m_settings.fullscreen = true;
 	m_deltaTime = 0.f;
 	m_shouldQuit = false;
 	m_clipCursor = false;
@@ -46,6 +47,13 @@ bool Application::initialize(HINSTANCE hInstance, LPWSTR lpCmdLine, HWND hwnd, i
 	ImGui_ImplWin32_Init(m_window);
 	ImGui::StyleColorsDark();
 	
+	// Initialize Raw Mouse Input
+	if (!initRawMouseDevice())
+		return false;
+
+	// Show Window
+	ShowWindow(m_window, showCmd);
+
 	// Renderer
 	m_renderer = RenderHandler::getInstance();
 	m_renderer->initialize(&m_window, &m_settings);
@@ -56,13 +64,6 @@ bool Application::initialize(HINSTANCE hInstance, LPWSTR lpCmdLine, HWND hwnd, i
 	// Game
 	m_game.initialize(m_settings);
 	
-	// Initialize Raw Mouse Input
-	if (!initRawMouseDevice())
-		return false;
-
-	// Show Window
-	ShowWindow(m_window, showCmd);
-
 	return true;
 }
 

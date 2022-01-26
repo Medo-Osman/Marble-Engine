@@ -17,6 +17,7 @@ struct Settings
     int height;
     float fov;
     float mouseSensitivity;
+    bool fullscreen;
 };
 
 class RenderObjectKey
@@ -54,6 +55,8 @@ private:
     HWND* m_window;
     UINT m_clientWidth;
     UINT m_clientHeight;
+    UINT m_clientOriginX;
+    UINT m_clientOriginY;
 
     // Settings
     Settings* m_settings;
@@ -230,6 +233,7 @@ private:
     ImGui::FileBrowser m_fileDialog;
     WCHAR tempName[64];
     CubemapType m_loadNewCubemapType = CubemapType::None;
+    bool m_imguiToggle = true;
 
     // Initialization Functions
     void initDeviceAndSwapChain();
@@ -309,6 +313,7 @@ public:
     void resetParticles();
     void updateShaderState(ShaderStates shaderState);
     void updatePassShaders();
+    void setImGuiEnabled(bool enabled);
 
     // UI
     void UIRenderShadowMap();

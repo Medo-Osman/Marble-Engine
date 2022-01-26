@@ -332,13 +332,18 @@ void GameState::controls(double dt)
 {
 	if (!InputHandler::getInstance().keyBufferIsEmpty())
 	{
+		if (InputHandler::getInstance().keyIsPressed(KeyCodes::F) || InputHandler::getInstance().isMouseRightDown())
+			m_mouseCameraRotation = true;
+		if (InputHandler::getInstance().keyIsPressed(KeyCodes::G))
+			m_mouseCameraRotation = false;
 		//Rotate Camera
 		while (!InputHandler::getInstance().mouseBufferIsEmpty())
 		{
 			MouseEvent mouseEvent = InputHandler::getInstance().readMouseEvent();
 			if (mouseEvent.type == MouseEventType::RawMove)
 			{
-				if (InputHandler::getInstance().keyIsPressed(KeyCodes::F) || InputHandler::getInstance().isMouseRightDown())
+
+				if (m_mouseCameraRotation)
 				{
 					// Hide Cursor
 					while (::ShowCursor(FALSE) >= 0);
@@ -489,6 +494,13 @@ void GameState::controls(double dt)
 		
 		if (InputHandler::getInstance().keyIsPressed(KeyCodes::C))
 			m_renderHandler->resetParticles();
+
+		// Toggle ImGui
+		if (InputHandler::getInstance().keyIsPressed(KeyCodes::O))
+			m_renderHandler->setImGuiEnabled(true);
+
+		if (InputHandler::getInstance().keyIsPressed(KeyCodes::P))
+			m_renderHandler->setImGuiEnabled(false);
 	}
 }
 
@@ -910,11 +922,11 @@ void GameState::update(double dt)
 	ImGui::End();
 
 	// Render Texture Window, for Debug
-	m_renderHandler->UIRenderShadowMap();
-	m_renderHandler->UITonemappingWindow();
-	m_renderHandler->UIRenderPipelineTexturesWindow();
+	//m_renderHandler->UIRenderShadowMap();
+	//m_renderHandler->UITonemappingWindow();
+	//m_renderHandler->UIRenderPipelineTexturesWindow();
 
-	ImGui::ShowDemoWindow(); // For debugging
+	//ImGui::ShowDemoWindow(); // For debugging
 	ImGui::Render(); // Render ImGui(Runs at the end of RenderHandler render funtion!)
 
 	// Controls

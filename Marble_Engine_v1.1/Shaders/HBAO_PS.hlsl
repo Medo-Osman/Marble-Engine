@@ -93,373 +93,711 @@ float ndcDepthToViewDepth(float depth)
 
 
 
-//----------------------------------------------------------------------------------
-float InvLength(float2 v)
-{
-    return rsqrt(dot(v, v));
-}
+////----------------------------------------------------------------------------------
+//float InvLength(float2 v)
+//{
+//    return rsqrt(dot(v, v));
+//}
 
-//----------------------------------------------------------------------------------
-float Tangent(float3 P, float3 S)
-{
-    return (P.z - S.z) * InvLength(S.xy - P.xy);
-}
+////----------------------------------------------------------------------------------
+//float Tangent(float3 P, float3 S)
+//{
+//    return (P.z - S.z) * InvLength(S.xy - P.xy);
+//}
 
-//----------------------------------------------------------------------------------
-float3 UVToEye(float2 uv, float eye_z)
-{
+////----------------------------------------------------------------------------------
+//float3 UVToEye(float2 uv, float eye_z)
+//{
     
-    //float2 focalLen, invFocalLen, UVToViewA, UVToViewB;
-    //focalLen.x = 1.0f / tan(fov * 0.5f) * (renderTargetResolution.x / renderTargetResolution.y);
-    //focalLen.y = 1.0f / tan(fov * 0.5f);
-    //invFocalLen.x = 1.0f / focalLen[0];
-    //invFocalLen.y = 1.0f / focalLen[1];
+//    //float2 focalLen, invFocalLen, UVToViewA, UVToViewB;
+//    //focalLen.x = 1.0f / tan(fov * 0.5f) * (renderTargetResolution.x / renderTargetResolution.y);
+//    //focalLen.y = 1.0f / tan(fov * 0.5f);
+//    //invFocalLen.x = 1.0f / focalLen[0];
+//    //invFocalLen.y = 1.0f / focalLen[1];
 
-    //UVToViewA.x = -2.0f * invFocalLen[0];
-    //UVToViewA.y = -2.0f * invFocalLen[1];
-    //UVToViewB.x = 1.0f * invFocalLen[0];
-    //UVToViewB.y = 1.0f * invFocalLen[1];
+//    //UVToViewA.x = -2.0f * invFocalLen[0];
+//    //UVToViewA.y = -2.0f * invFocalLen[1];
+//    //UVToViewB.x = 1.0f * invFocalLen[0];
+//    //UVToViewB.y = 1.0f * invFocalLen[1];
     
-    //uv = UVToViewA * uv + UVToViewB;
-    //return float3(uv * eye_z, eye_z);
+//    //uv = UVToViewA * uv + UVToViewB;
+//    //return float3(uv * eye_z, eye_z);
     
-    float x = uv.x * 2 - 1;
-    float y = (1 - uv.y) * 2 - 1;
-    float4 ndcPosition = float4(x, y, eye_z, 1.f);
-    float4 viewPosition = mul(ndcPosition, invProjectionMatrix);
-    viewPosition /= viewPosition.w;
-    return viewPosition.xyz;
-}
+//    float x = uv.x * 2 - 1;
+//    float y = (1 - uv.y) * 2 - 1;
+//    float4 ndcPosition = float4(x, y, eye_z, 1.f);
+//    float4 viewPosition = mul(ndcPosition, invProjectionMatrix);
+//    viewPosition /= viewPosition.w;
+//    return viewPosition.xyz;
+//}
 
-//----------------------------------------------------------------------------------
-float3 FetchEyePos(float2 uv)
-{
-    //float z = tLinearDepth.SampleLevel(PointClampSampler, uv, 0);
-    float z = DepthTexture.Sample(depthNormalSampler, uv).r;
-    return UVToEye(uv, z);
-}
+////----------------------------------------------------------------------------------
+//float3 FetchEyePos(float2 uv)
+//{
+//    //float z = tLinearDepth.SampleLevel(PointClampSampler, uv, 0);
+//    float z = DepthTexture.Sample(depthNormalSampler, uv).r;
+//    return UVToEye(uv, z);
+//}
 
-//----------------------------------------------------------------------------------
-float Length2(float3 v)
-{
-    return dot(v, v);
-}
+////----------------------------------------------------------------------------------
+//float Length2(float3 v)
+//{
+//    return dot(v, v);
+//}
 
-//----------------------------------------------------------------------------------
-float3 MinDiff(float3 P, float3 Pr, float3 Pl)
-{
-    float3 V1 = Pr - P;
-    float3 V2 = P - Pl;
-    return (Length2(V1) < Length2(V2)) ? V1 : V2;
-}
+////----------------------------------------------------------------------------------
+//float3 MinDiff(float3 P, float3 Pr, float3 Pl)
+//{
+//    float3 V1 = Pr - P;
+//    float3 V2 = P - Pl;
+//    return (Length2(V1) < Length2(V2)) ? V1 : V2;
+//}
 
-//----------------------------------------------------------------------------------
-float Falloff(float d2)
-{
-    // 1 scalar mad instruction
-    return d2 * NegInvR2 + 1.0f;
-}
+////----------------------------------------------------------------------------------
+//float Falloff(float d2)
+//{
+//    // 1 scalar mad instruction
+//    return d2 * NegInvR2 + 1.0f;
+//}
 
-//----------------------------------------------------------------------------------
-float2 SnapUVOffset(float2 uv)
-{
-    //return round(uv * g_AOResolution) * g_InvAOResolution;
-    return round(uv * renderTargetResolution) * (1.f / renderTargetResolution);
-}
+////----------------------------------------------------------------------------------
+//float2 SnapUVOffset(float2 uv)
+//{
+//    //return round(uv * g_AOResolution) * g_InvAOResolution;
+//    return round(uv * renderTargetResolution) * (1.f / renderTargetResolution);
+//}
 
-//----------------------------------------------------------------------------------
-float TanToSin(float x)
-{
-    return x * rsqrt(x * x + 1.0f);
-}
+////----------------------------------------------------------------------------------
+//float TanToSin(float x)
+//{
+//    return x * rsqrt(x * x + 1.0f);
+//}
 
-//----------------------------------------------------------------------------------
-float3 TangentVector(float2 deltaUV, float3 dPdu, float3 dPdv)
-{
-    return deltaUV.x * dPdu + deltaUV.y * dPdv;
-}
+////----------------------------------------------------------------------------------
+//float3 TangentVector(float2 deltaUV, float3 dPdu, float3 dPdv)
+//{
+//    return deltaUV.x * dPdu + deltaUV.y * dPdv;
+//}
 
-//----------------------------------------------------------------------------------
-float Tangent(float3 T)
-{
-    return -T.z * InvLength(T.xy);
-}
+////----------------------------------------------------------------------------------
+//float Tangent(float3 T)
+//{
+//    return -T.z * InvLength(T.xy);
+//}
 
-//----------------------------------------------------------------------------------
-float BiasedTangent(float3 T)
-{
-    // Do not use atan() because it gets expanded by fxc to many math instructions
-    //return Tangent(T) + g_TanAngleBias;
-    return Tangent(T) + tanBias;
-}
+////----------------------------------------------------------------------------------
+//float BiasedTangent(float3 T)
+//{
+//    // Do not use atan() because it gets expanded by fxc to many math instructions
+//    //return Tangent(T) + g_TanAngleBias;
+//    return Tangent(T) + tanBias;
+//}
 
-#if USE_NORMAL_FREE_HBAO
+//#if USE_NORMAL_FREE_HBAO
 
-//----------------------------------------------------------------------------------
-void IntegrateDirection(inout float ao, float3 P, float2 uv, float2 deltaUV,
-                         float numSteps, float tanH, float sinH)
-{
-    for (float j = 1; j <= numSteps; ++j)
-    {
-        uv += deltaUV;
-        float3 S = FetchEyePos(uv);
-        float tanS = Tangent(P, S);
-        float d2 = Length2(S - P);
+////----------------------------------------------------------------------------------
+//void IntegrateDirection(inout float ao, float3 P, float2 uv, float2 deltaUV,
+//                         float numSteps, float tanH, float sinH)
+//{
+//    for (float j = 1; j <= numSteps; ++j)
+//    {
+//        uv += deltaUV;
+//        float3 S = FetchEyePos(uv);
+//        float tanS = Tangent(P, S);
+//        float d2 = Length2(S - P);
         
-        [branch]
-        if ((d2 < R2) && (tanS > tanH))
-        {
-            // Accumulate AO between the horizon and the sample
-            float sinS = TanToSin(tanS);
-            ao += Falloff(d2) * (sinS - sinH);
+//        [branch]
+//        if ((d2 < R2) && (tanS > tanH))
+//        {
+//            // Accumulate AO between the horizon and the sample
+//            float sinS = TanToSin(tanS);
+//            ao += Falloff(d2) * (sinS - sinH);
             
-            // Update the current horizon angle
-            tanH = tanS;
-            sinH = sinS;
-        }
-    }
-}
+//            // Update the current horizon angle
+//            tanH = tanS;
+//            sinH = sinS;
+//        }
+//    }
+//}
 
-//----------------------------------------------------------------------------------
-float NormalFreeHorizonOcclusion(float2 deltaUV,
-                                 float2 texelDeltaUV,
-                                 float2 uv0,
-                                 float3 P,
-                                 float numSteps,
-                                 float randstep)
-{
+////----------------------------------------------------------------------------------
+//float NormalFreeHorizonOcclusion(float2 deltaUV,
+//                                 float2 texelDeltaUV,
+//                                 float2 uv0,
+//                                 float3 P,
+//                                 float numSteps,
+//                                 float randstep)
+//{
 
-    float tanT = tan(-PI*0.5 + g_AngleBias);
-    float sinT = TanToSin(tanT);
+//    float tanT = tan(-PI*0.5 + g_AngleBias);
+//    float sinT = TanToSin(tanT);
 
-#if SAMPLE_FIRST_STEP
-    float ao1 = 0;
+//#if SAMPLE_FIRST_STEP
+//    float ao1 = 0;
 
-    // Take a first sample between uv0 and uv0 + deltaUV
-    float2 deltaUV1 = SnapUVOffset( randstep * deltaUV + texelDeltaUV );
-    IntegrateDirection(ao1, P, uv0, deltaUV1, 1, tanT, sinT);
-    IntegrateDirection(ao1, P, uv0, -deltaUV1, 1, tanT, sinT);
+//    // Take a first sample between uv0 and uv0 + deltaUV
+//    float2 deltaUV1 = SnapUVOffset( randstep * deltaUV + texelDeltaUV );
+//    IntegrateDirection(ao1, P, uv0, deltaUV1, 1, tanT, sinT);
+//    IntegrateDirection(ao1, P, uv0, -deltaUV1, 1, tanT, sinT);
 
-    ao1 = max(ao1 * 0.5 - 1.0, 0.0);
-    --numSteps;
-#endif
+//    ao1 = max(ao1 * 0.5 - 1.0, 0.0);
+//    --numSteps;
+//#endif
 
-    float ao = 0;
-    float2 uv = uv0 + SnapUVOffset( randstep * deltaUV );
-    deltaUV = SnapUVOffset( deltaUV );
-    IntegrateDirection(ao, P, uv, deltaUV, numSteps, tanT, sinT);
+//    float ao = 0;
+//    float2 uv = uv0 + SnapUVOffset( randstep * deltaUV );
+//    deltaUV = SnapUVOffset( deltaUV );
+//    IntegrateDirection(ao, P, uv, deltaUV, numSteps, tanT, sinT);
 
-    // Integrate opposite directions together
-    deltaUV = -deltaUV;
-    uv = uv0 + SnapUVOffset( randstep * deltaUV );
-    IntegrateDirection(ao, P, uv, deltaUV, numSteps, tanT, sinT);
+//    // Integrate opposite directions together
+//    deltaUV = -deltaUV;
+//    uv = uv0 + SnapUVOffset( randstep * deltaUV );
+//    IntegrateDirection(ao, P, uv, deltaUV, numSteps, tanT, sinT);
 
-    // Divide by 2 because we have integrated 2 directions together
-    // Subtract 1 and clamp to remove the part below the surface
-#if SAMPLE_FIRST_STEP
-    return max(ao * 0.5 - 1.0, ao1);
-#else
-    return max(ao * 0.5 - 1.0, 0.0);
-#endif
-}
+//    // Divide by 2 because we have integrated 2 directions together
+//    // Subtract 1 and clamp to remove the part below the surface
+//#if SAMPLE_FIRST_STEP
+//    return max(ao * 0.5 - 1.0, ao1);
+//#else
+//    return max(ao * 0.5 - 1.0, 0.0);
+//#endif
+//}
 
-#else //USE_NORMAL_FREE_HBAO
+//#else //USE_NORMAL_FREE_HBAO
 
-//----------------------------------------------------------------------------------
-float IntegerateOcclusion(float2 uv0,
-                          float2 snapped_duv,
-                          float3 P,
-                          float3 dPdu,
-                          float3 dPdv,
-                          inout float tanH)
-{
-    float ao = 0;
+////----------------------------------------------------------------------------------
+//float IntegerateOcclusion(float2 uv0,
+//                          float2 snapped_duv,
+//                          float3 P,
+//                          float3 dPdu,
+//                          float3 dPdv,
+//                          inout float tanH)
+//{
+//    float ao = 0;
 
-    // Compute a tangent vector for snapped_duv
-    float3 T1 = TangentVector(snapped_duv, dPdu, dPdv);
-    float tanT = BiasedTangent(T1);
-    float sinT = TanToSin(tanT);
+//    // Compute a tangent vector for snapped_duv
+//    float3 T1 = TangentVector(snapped_duv, dPdu, dPdv);
+//    float tanT = BiasedTangent(T1);
+//    float sinT = TanToSin(tanT);
 
-    float3 S = FetchEyePos(uv0 + snapped_duv);
-    float tanS = Tangent(P, S);
+//    float3 S = FetchEyePos(uv0 + snapped_duv);
+//    float tanS = Tangent(P, S);
 
-    float sinS = TanToSin(tanS);
-    float d2 = Length2(S - P);
+//    float sinS = TanToSin(tanS);
+//    float d2 = Length2(S - P);
 
-    if ((d2 < R2) && (tanS > tanT))
-    {
-        // Compute AO between the tangent plane and the sample
-        ao = Falloff(d2) * (sinS - sinT);
+//    if ((d2 < R2) && (tanS > tanT))
+//    {
+//        // Compute AO between the tangent plane and the sample
+//        ao = Falloff(d2) * (sinS - sinT);
 
-        // Update the horizon angle
-        tanH = max(tanH, tanS);
-    }
+//        // Update the horizon angle
+//        tanH = max(tanH, tanS);
+//    }
 
-    return ao;
-}
+//    return ao;
+//}
 
-//----------------------------------------------------------------------------------
-float horizon_occlusion(float2 deltaUV,
-                        float2 texelDeltaUV,
-                        float2 uv0,
-                        float3 P,
-                        float numSteps,
-                        float randstep,
-                        float3 dPdu,
-                        float3 dPdv)
-{
-    float ao = 0;
+////----------------------------------------------------------------------------------
+//float horizon_occlusion(float2 deltaUV,
+//                        float2 texelDeltaUV,
+//                        float2 uv0,
+//                        float3 P,
+//                        float numSteps,
+//                        float randstep,
+//                        float3 dPdu,
+//                        float3 dPdv)
+//{
+//    float ao = 0;
 
-    // Randomize starting point within the first sample distance
-    float2 uv = uv0 + SnapUVOffset(randstep * deltaUV);
+//    // Randomize starting point within the first sample distance
+//    float2 uv = uv0 + SnapUVOffset(randstep * deltaUV);
 
-    // Snap increments to pixels to avoid disparities between xy
-    // and z sample locations and sample along a line
-    deltaUV = SnapUVOffset(deltaUV);
+//    // Snap increments to pixels to avoid disparities between xy
+//    // and z sample locations and sample along a line
+//    deltaUV = SnapUVOffset(deltaUV);
 
-    // Compute tangent vector using the tangent plane
-    float3 T = deltaUV.x * dPdu + deltaUV.y * dPdv;
+//    // Compute tangent vector using the tangent plane
+//    float3 T = deltaUV.x * dPdu + deltaUV.y * dPdv;
 
-    float tanH = BiasedTangent(T);
+//    float tanH = BiasedTangent(T);
 
-#if SAMPLE_FIRST_STEP
-    // Take a first sample between uv0 and uv0 + deltaUV
-    float2 snapped_duv = SnapUVOffset(randstep * deltaUV + texelDeltaUV);
-    ao = IntegerateOcclusion(uv0, snapped_duv, P, dPdu, dPdv, tanH);
-    --numSteps;
-#endif
+//#if SAMPLE_FIRST_STEP
+//    // Take a first sample between uv0 and uv0 + deltaUV
+//    float2 snapped_duv = SnapUVOffset(randstep * deltaUV + texelDeltaUV);
+//    ao = IntegerateOcclusion(uv0, snapped_duv, P, dPdu, dPdv, tanH);
+//    --numSteps;
+//#endif
 
-    float sinH = tanH / sqrt(1.0f + tanH * tanH);
+//    float sinH = tanH / sqrt(1.0f + tanH * tanH);
     
-    // to remove error, not correct!
-    numSteps = 1.f;
+//    // to remove error, not correct!
+//    numSteps = 1.f;
     
-    for (float j = 1; j <= numSteps; ++j)
-    {
-        uv += deltaUV;
-        float3 S = FetchEyePos(uv);
-        float tanS = Tangent(P, S);
-        float d2 = Length2(S - P);
+//    for (float j = 1; j <= numSteps; ++j)
+//    {
+//        uv += deltaUV;
+//        float3 S = FetchEyePos(uv);
+//        float tanS = Tangent(P, S);
+//        float d2 = Length2(S - P);
 
-        // Use a merged dynamic branch
-        [branch]
-        if ((d2 < R2) && (tanS > tanH))
-        {
-            // Accumulate AO between the horizon and the sample
-            float sinS = tanS / sqrt(1.0f + tanS * tanS);
-            ao += Falloff(d2) * (sinS - sinH);
+//        // Use a merged dynamic branch
+//        [branch]
+//        if ((d2 < R2) && (tanS > tanH))
+//        {
+//            // Accumulate AO between the horizon and the sample
+//            float sinS = tanS / sqrt(1.0f + tanS * tanS);
+//            ao += Falloff(d2) * (sinS - sinH);
 
-            // Update the current horizon angle
-            tanH = tanS;
-            sinH = sinS;
-        }
-    }
+//            // Update the current horizon angle
+//            tanH = tanS;
+//            sinH = sinS;
+//        }
+//    }
 
-    return ao;
-}
+//    return ao;
+//}
 
-#endif //USE_NORMAL_FREE_HBAO
+//#endif //USE_NORMAL_FREE_HBAO
 
-//----------------------------------------------------------------------------------
-float2 RotateDirections(float2 Dir, float2 CosSin)
-{
-    return float2(Dir.x * CosSin.x - Dir.y * CosSin.y,
-                  Dir.x * CosSin.y + Dir.y * CosSin.x);
-}
+////----------------------------------------------------------------------------------
+//float2 RotateDirections(float2 Dir, float2 CosSin)
+//{
+//    return float2(Dir.x * CosSin.x - Dir.y * CosSin.y,
+//                  Dir.x * CosSin.y + Dir.y * CosSin.x);
+//}
 
-//----------------------------------------------------------------------------------
-void ComputeSteps(inout float2 step_size_uv, inout float numSteps, float ray_radius_pix, float rand)
-{
-    // Avoid oversampling if NUM_STEPS is greater than the kernel radius in pixels
-    numSteps = min(NUM_STEPS, ray_radius_pix);
+////----------------------------------------------------------------------------------
+//void ComputeSteps(inout float2 step_size_uv, inout float numSteps, float ray_radius_pix, float rand)
+//{
+//    // Avoid oversampling if NUM_STEPS is greater than the kernel radius in pixels
+//    numSteps = min(NUM_STEPS, ray_radius_pix);
 
-    // Divide by Ns+1 so that the farthest samples are not fully attenuated
-    float step_size_pix = ray_radius_pix / (numSteps + 1);
+//    // Divide by Ns+1 so that the farthest samples are not fully attenuated
+//    float step_size_pix = ray_radius_pix / (numSteps + 1);
     
-    float maxRadiusPixels = 0.1f * min(renderTargetResolution.x, renderTargetResolution.y);
-    // Clamp numSteps if it is greater than the max kernel footprint
-    float maxNumSteps = maxRadiusPixels / step_size_pix;
-    if (maxNumSteps < numSteps)
-    {
-        // Use dithering to avoid AO discontinuities
-        numSteps = floor(maxNumSteps + rand);
-        numSteps = max(numSteps, 1);
-        step_size_pix = maxRadiusPixels / numSteps;
-    }
+//    float maxRadiusPixels = 0.1f * min(renderTargetResolution.x, renderTargetResolution.y);
+//    // Clamp numSteps if it is greater than the max kernel footprint
+//    float maxNumSteps = maxRadiusPixels / step_size_pix;
+//    if (maxNumSteps < numSteps)
+//    {
+//        // Use dithering to avoid AO discontinuities
+//        numSteps = floor(maxNumSteps + rand);
+//        numSteps = max(numSteps, 1);
+//        step_size_pix = maxRadiusPixels / numSteps;
+//    }
 
-    // Step size in uv space
-    //step_size_uv = step_size_pix * g_InvAOResolution;
-    step_size_uv = step_size_pix * (1.f / renderTargetResolution);
+//    // Step size in uv space
+//    //step_size_uv = step_size_pix * g_InvAOResolution;
+//    step_size_uv = step_size_pix * (1.f / renderTargetResolution);
+//}
+
+////----------------------------------------------------------------------------------
+//float4 main(PS_IN input) : SV_TARGET
+//{
+//    float3 P = FetchEyePos(input.TexCoord);
+
+//    // (cos(alpha),sin(alpha),jitter)
+//    //float3 rand = tRandom.Sample(PointWrapSampler, IN.pos.xy / RANDOM_TEXTURE_WIDTH);
+//    float3 rand = DitherTexture.Sample(randomSampler, input.TexCoord / RANDOM_TEXTURE_WIDTH);
+
+//    // Compute projection of disk of radius g_R into uv space
+//    // Multiply by 0.5 to scale from [-1,1]^2 to [0,1]^2
+    
+//    float2 focalLen = float2(1.0f / tan(fovY * 0.5f) * (renderTargetResolution.x / renderTargetResolution.y), 1.0f / tan(fovY * 0.5f));
+//    //float2 invFocalLen = float2(1.0f / focalLen.x, 1.0f / focalLen.y);
+    
+//    float2 ray_radius_uv = 0.5 * R * focalLen / P.z;
+//    float ray_radius_pix = ray_radius_uv.x * renderTargetResolution.x;
+//    if (ray_radius_pix < 1)
+//        return float4(1.f, 0.f, 0.f, 1.f);
+
+//    float numSteps;
+//    float2 step_size;
+//    ComputeSteps(step_size, numSteps, ray_radius_pix, rand.z);
+
+//    //return float4(1.f / numSteps, 0.f, 0.f, 1.f);
+    
+//    // Nearest neighbor pixels on the tangent plane
+//    float2 invRes = 1.f / renderTargetResolution;
+//    float3 Pr, Pl, Pt, Pb;
+//    Pr = FetchEyePos(input.TexCoord + float2(invRes.x, 0));
+//    Pl = FetchEyePos(input.TexCoord + float2(-invRes.x, 0));
+//    Pt = FetchEyePos(input.TexCoord + float2(0, invRes.y));
+//    Pb = FetchEyePos(input.TexCoord + float2(0, -invRes.y));
+
+//    // Screen-aligned basis for the tangent plane
+//    float3 dPdu = MinDiff(P, Pr, Pl);
+//    float3 dPdv = MinDiff(P, Pt, Pb) * (renderTargetResolution.y * invRes.x);
+//   // return float4(dPdv, 1.f);
+
+//    float ao = 0;
+//    float d;
+//    float alpha = 2.0f * PI / NUM_DIRECTIONS;
+
+//    // this switch gets unrolled by the HLSL compiler
+//#if USE_NORMAL_FREE_HBAO
+//    for (d = 0; d < NUM_DIRECTIONS*0.5; ++d)
+//    {
+//        float angle = alpha * d;
+//        float2 dir = RotateDirections(float2(cos(angle), sin(angle)), rand.xy);
+//        float2 deltaUV = dir * step_size.xy;
+//        float2 texelDeltaUV = dir * invRes;
+//        ao += NormalFreeHorizonOcclusion(deltaUV, texelDeltaUV, input.TexCoord, P, numSteps, rand.z);
+//    }
+//    ao *= 2.0;
+//#else
+//    for (d = 0; d < NUM_DIRECTIONS; ++d)
+//    {
+//        float angle = alpha * d;
+//        float2 dir = RotateDirections(float2(cos(angle), sin(angle)), rand.xy);
+//        float2 deltaUV = dir * step_size.xy;
+//        float2 texelDeltaUV = dir * invRes;
+//        ao += horizon_occlusion(deltaUV, texelDeltaUV, input.TexCoord, P, numSteps, rand.z, dPdu, dPdv);
+//    }
+//#endif
+
+//    ao = 1.0 - ao / NUM_DIRECTIONS * strengthPerRay;
+//    //return float4(1, 0, 0, 1.f);
+//    return float4(ao, ao, ao, 1.f);
+//}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+float3 GetViewPosition(float2 uv, float2 frustumDiff)
+{
+    float depth = DepthTexture.SampleLevel(depthNormalSampler, uv, 0).x;
+    float3 frustumVector = float3(viewFrustumVectors[3].xy + uv * frustumDiff, 1.f);
+    return frustumVector * ndcDepthToViewDepth(depth);
 }
 
-//----------------------------------------------------------------------------------
+float3 Unproject(float3 screenPos, matrix inverseProjectionMatrix)
+{
+    float4 viewPos = mul(inverseProjectionMatrix, float4((screenPos.xy * 2.0 - 1.0), screenPos.z, 1.0));
+    viewPos /= viewPos.w;
+    return viewPos.xyz;
+}
+
+float3 Project(float3 viewPos, matrix projectionMatrix)
+{
+    float4 normalizedDevicePos = mul(projectionMatrix, float4(viewPos, 1.0));
+    normalizedDevicePos.xyz /= normalizedDevicePos.w;
+
+    return float3(normalizedDevicePos.xy * 0.5 + float2(0.5), normalizedDevicePos.z);
+}
+
+float rand(float2 co)
+{
+    return frac(sin(dot(co.xy, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+float ComputeHorizonContribution(float3 eyeDir, float3 eyeTangent, float3 viewNorm, float minAngle, float maxAngle)
+{
+    return + 0.25 * dot(eyeDir, viewNorm) * (-cos(2.0 * maxAngle) + cos(2.0 * minAngle))
+    + 0.25 * dot(eyeTangent, viewNorm) * (2.0 * maxAngle - 2.0 * minAngle - sin(2.0 * maxAngle) + sin(2.0 * minAngle));
+}
+
+float2 GetAngularDistribution(float3 centerViewPoint, float3 eyeDir, float3 eyeTangent, float3 rayDir, float2 depthDistribution)
+{
+    float3 viewPoint = rayDir * depthDistribution.x;
+
+    float3 diff = viewPoint - centerViewPoint;
+  
+    float depthProj = dot(eyeDir, diff);
+    float tangentProj = dot(eyeTangent, diff);
+  
+    float invTangentProj = 1.0f / tangentProj;
+  
+    float horizonRatio = depthProj * invTangentProj;
+    float horizonAngle = atan2(1.0f, horizonRatio);
+
+    float horizonAngleDerivative;
+  {
+        float eps = 1e-1f;
+        float3 offsetViewPoint = rayDir * (depthDistribution.x + eps);
+        float3 offsetDiff = offsetViewPoint - centerViewPoint;
+    
+        float offsetDepthProj = dot(eyeDir, offsetDiff);
+        float offsetTangentProj = dot(eyeTangent, offsetDiff);
+    
+        float invOffsetTangentProj = 1.0f / offsetTangentProj;
+    
+        float offsetHorizonRatio = offsetDepthProj * invOffsetTangentProj;
+        float offsetHorizonAngle = atan2(1.0f, offsetHorizonRatio);
+        horizonAngleDerivative = (offsetHorizonAngle - horizonAngle) / eps;
+    }
+    return float2(horizonAngle, depthDistribution.y * horizonAngleDerivative * horizonAngleDerivative);
+}
+
+bool BoxRayCast(float2 rayStart, float2 rayDir, float2 boxMin, float2 boxMax, out float paramMin, out float paramMax)
+{
+  // r.dir is unit direction vector of ray
+    float2 invDir = float2(1.0f / rayDir.x, 1.0f / rayDir.y);
+
+  // lb is the corner of AABB with minimal coordinates - left bottom, rt is maximal corner
+  // r.org is origin of ray
+    float t1 = (boxMin.x - rayStart.x) * invDir.x;
+    float t2 = (boxMax.x - rayStart.x) * invDir.x;
+    float t3 = (boxMin.y - rayStart.y) * invDir.y;
+    float t4 = (boxMax.y - rayStart.y) * invDir.y;
+
+    paramMin = max(min(t1, t2), min(t3, t4));
+    paramMax = min(max(t1, t2), max(t3, t4));
+
+    return paramMin < paramMax;
+}
+
+// Low discrepancy on [0, 1] ^2
+float2 HammersleyNorm(int i, int N)
+{
+  // principle: reverse bit sequence of i
+    uint b = (uint(i) << 16u) | (uint(i) >> 16u);
+    b = (b & 0x55555555u) << 1u | (b & 0xAAAAAAAAu) >> 1u;
+    b = (b & 0x33333333u) << 2u | (b & 0xCCCCCCCCu) >> 2u;
+    b = (b & 0x0F0F0F0Fu) << 4u | (b & 0xF0F0F0F0u) >> 4u;
+    b = (b & 0x00FF00FFu) << 8u | (b & 0xFF00FF00u) >> 8u;
+
+    return float2(i, b) / float2(N, 0xffffffffU);
+}
+
 float4 main(PS_IN input) : SV_TARGET
 {
-    float3 P = FetchEyePos(input.TexCoord);
-
-    // (cos(alpha),sin(alpha),jitter)
-    //float3 rand = tRandom.Sample(PointWrapSampler, IN.pos.xy / RANDOM_TEXTURE_WIDTH);
-    float3 rand = DitherTexture.Sample(randomSampler, input.TexCoord / RANDOM_TEXTURE_WIDTH);
-
-    // Compute projection of disk of radius g_R into uv space
-    // Multiply by 0.5 to scale from [-1,1]^2 to [0,1]^2
+    float2 centerPixelCoord = input.TexCoord.xy;
+  //float2 centerScreenCoord = (ifloat2(centerPixelCoord) * downsamplingScale + downsamplingOffset + float2(0.5)) / viewportSize;
+    float2 centerScreenCoord = centerPixelCoord / renderTargetResolution.xy;
+    float4 centerNormalSample = NormalRoughnessTexture.SampleLevel(depthNormalSampler, centerScreenCoord, 0); // normalSampler
+    float4 centerDepthSample = DepthTexture.SampleLevel(depthNormalSampler, centerScreenCoord, 0.); // depthStencilSampler
+    //float4 centerLightSample = textureLod(depthNormalSampler, centerScreenCoord, 0.0); // blurredDirectLightSampler
     
-    float2 focalLen = float2(1.0f / tan(fovY * 0.5f) * (renderTargetResolution.x / renderTargetResolution.y), 1.0f / tan(fovY * 0.5f));
-    //float2 invFocalLen = float2(1.0f / focalLen.x, 1.0f / focalLen.y);
+    matrix viewProjMatrix = projectionMatrix * viewMatrix;
+    //matrix invViewProjMatrix = inverse(viewProjMatrix);
+    //matrix invViewMatrix = inverse(viewMatrix);
     
-    float2 ray_radius_uv = 0.5 * R * focalLen / P.z;
-    float ray_radius_pix = ray_radius_uv.x * renderTargetResolution.x;
-    if (ray_radius_pix < 1)
-        return float4(1.f, 0.f, 0.f, 1.f);
-
-    float numSteps;
-    float2 step_size;
-    ComputeSteps(step_size, numSteps, ray_radius_pix, rand.z);
-
-    //return float4(1.f / numSteps, 0.f, 0.f, 1.f);
+    float3 camWorldPos = (invViewMatrix * float4(0.0f, 0.0f, 0.0f, 1.0f)).xyz;
     
-    // Nearest neighbor pixels on the tangent plane
-    float2 invRes = 1.f / renderTargetResolution;
-    float3 Pr, Pl, Pt, Pb;
-    Pr = FetchEyePos(input.TexCoord + float2(invRes.x, 0));
-    Pl = FetchEyePos(input.TexCoord + float2(-invRes.x, 0));
-    Pt = FetchEyePos(input.TexCoord + float2(0, invRes.y));
-    Pb = FetchEyePos(input.TexCoord + float2(0, -invRes.y));
+    float3 camWorldPos = GetViewPosition(float2(0.f, 0.f), );
+    
+    float3 centerWorldPos = Unproject(float3(centerScreenCoord, centerDepthSample.r), invViewProjMatrix);
+    float3 centerViewPos = Unproject(float3(centerScreenCoord, centerDepthSample.r), invProjectionMatrix);
 
-    // Screen-aligned basis for the tangent plane
-    float3 dPdu = MinDiff(P, Pr, Pl);
-    float3 dPdv = MinDiff(P, Pt, Pb) * (renderTargetResolution.y * invRes.x);
-   // return float4(dPdv, 1.f);
-
-    float ao = 0;
-    float d;
-    float alpha = 2.0f * PI / NUM_DIRECTIONS;
-
-    // this switch gets unrolled by the HLSL compiler
-#if USE_NORMAL_FREE_HBAO
-    for (d = 0; d < NUM_DIRECTIONS*0.5; ++d)
+    float3 centerWorldNorm = centerNormalSample.xyz;
+  /*if(dot(centerWorldNorm, centerWorldPos - camWorldPos) > 0.0)
+    centerWorldNorm = -centerWorldNorm;*/
+  
+  //float3 centerBlurredViewPos = normalize(Unproject(float3(centerScreenCoord, 1.0f), inverse(projMatrix))) * textureLod(blurredDepthMomentsSampler, centerScreenCoord, 0.0).r;
+  //float3 centerWorldPos = (inverse(viewMatrix) * float4(centerBlurredViewPos, 1.0f)).xyz;
+  //float3 centerWorldPos = camWorldPos + normalize(Unproject(float3(centerScreenCoord, 1.0f), invViewProjMatrix) - camWorldPos) * textureLod(blurredDepthMomentsSampler, centerScreenCoord, 0.0).r;
+  
+    const int interleavedPatternSize = 4;
+    int offsets2[16] =
     {
-        float angle = alpha * d;
-        float2 dir = RotateDirections(float2(cos(angle), sin(angle)), rand.xy);
-        float2 deltaUV = dir * step_size.xy;
-        float2 texelDeltaUV = dir * invRes;
-        ao += NormalFreeHorizonOcclusion(deltaUV, texelDeltaUV, input.TexCoord, P, numSteps, rand.z);
-    }
-    ao *= 2.0;
-#else
-    for (d = 0; d < NUM_DIRECTIONS; ++d)
+        4, 8, 2, 9,
+        15, 0, 12, 5,
+        1, 3, 10, 11,
+        6, 13, 7, 14
+    };
+    int offsets[16] =
     {
-        float angle = alpha * d;
-        float2 dir = RotateDirections(float2(cos(angle), sin(angle)), rand.xy);
-        float2 deltaUV = dir * step_size.xy;
-        float2 texelDeltaUV = dir * invRes;
-        ao += horizon_occlusion(deltaUV, texelDeltaUV, input.TexCoord, P, numSteps, rand.z, dPdu, dPdv);
-    }
-#endif
+        0, 4, 8, 12,
+        5, 9, 13, 2,
+        8, 11, 15, 3,
+        14, 6, 10, 7
+    };
+    float3 ambientLight = float3(0.01f);
+    int2 patternIndex = int2(centerPixelCoord) % interleavedPatternSize;
+    /*int angOffsetInt = offsets[patternIndex.x + patternIndex.y * 4];
+    int linOffsetInt = (angOffsetInt % 4) * 4 + angOffsetInt / 4;
+    float angOffset = float(angOffsetInt) / 16.0f;
+    float linOffset = float(linOffsetInt) / 16.0f;*/
+  
+    int index = patternIndex.x + patternIndex.y * 4;
+    float2 distribution = HammersleyNorm(index, 16);
+    float angOffset = distribution.x;
+    float linOffset = distribution.y;
+  
+    const int dirsCount = 4;
+    const float nearStepSize = viewportSize.x / 1000.0f;
+  
+    const float pi = 3.1415f;
+    float pixelAngOffset = 2.0 * pi / dirsCount * angOffset;
+    float offsetEps = 0.01;
+  
+    float3 sumLight = float3(0.0f);
+    for (int dirIndex = 0; dirIndex < dirsCount; dirIndex++)
+    {
+        float dirPixelOffset = linOffset;
+        float screenAng = pixelAngOffset + 2.0 * pi / float(dirsCount) * float(dirIndex);
+        float2 screenPixelDir = float2(cos(screenAng), sin(screenAng));
 
-    ao = 1.0 - ao / NUM_DIRECTIONS * strengthPerRay;
-    return float4(ao, ao, ao, 1.f);
+        float eps = 10e-1;
+        float3 offsetWorldPos = Unproject(float3((centerPixelCoord + screenPixelDir * eps) / viewportSize.xy, centerDepthSample.r), invViewProjMatrix);
+        float3 eyeWorldDir = normalize(camWorldPos - centerWorldPos);
+        float3 eyeWorldTangent = normalize(normalize(offsetWorldPos - camWorldPos) - normalize(centerWorldPos - camWorldPos));
+    /*float3 eyeWorldDir = (invViewMatrix * float4(0.0f, 0.0f, -1.0f, 0.0f)).xyz;
+    if(dot(eyeWorldDir, centerWorldNorm) < 0.0f)
+      eyeWorldDir *= -1.0f;
+    float3 eyeWorldTangent = normalize(offsetWorldPos - centerWorldPos);*/
+    
+        float maxHorizonAngle = -1e5;
+
+
+    {
+            float3 dirNormalPoint = cross(-cross(eyeWorldTangent, eyeWorldDir), centerWorldNorm);
+            float2 projectedDirNormal = float2(dot(dirNormalPoint, eyeWorldDir), dot(dirNormalPoint, eyeWorldTangent));
+      /*if(projectedDirNormal.x < 0.0)
+      projectedDirNormal = -projectedDirNormal;*/
+
+            maxHorizonAngle = atan(projectedDirNormal.y, projectedDirNormal.x); //angle = 0 at view angle, not at horizon
+        }
+    
+        float tmin, tmax;
+        BoxRayCast(centerPixelCoord, screenPixelDir, float2(0.0, 0.0), viewportSize.xy, tmin, tmax);
+    //float2 endPixelCoord = centerPixelCoord + screenPixelDir * tmax;
+        float totalPixelPath = abs(tmax);
+    
+        float3 dirLight = float3(0.0f);
+    {
+       //dirLight = ambientLight * ComputeHorizonContribution(eyeWorldDir, eyeWorldTangent, centerWorldNorm, 0.0, maxHorizonAngle);
+            dirLight = ambientLight * ComputeHorizonContribution(eyeWorldDir, eyeWorldTangent, centerWorldNorm, 0.0, maxHorizonAngle);
+        }
+    
+        int iterationsCount = int(log(totalPixelPath / nearStepSize) / log(2.0f * pi / dirsCount + 1)) + 1;
+    
+        for (int offset = 0; offset < iterationsCount; offset++)
+        {
+            float pixelOffset = 0;
+            pixelOffset = nearStepSize * pow(2.0f * pi / dirsCount + 1, offset + dirPixelOffset) + 1 - nearStepSize;
+            float2 samplePixelCoord = centerPixelCoord + screenPixelDir * pixelOffset;
+            float2 sampleScreenCoord = samplePixelCoord / viewportSize.xy;
+            float sideMult = 1.0f;
+      {
+                float width = 0.1f;
+                float invWidth = 1.0f / width;
+                sideMult *= saturate((1.0f - sampleScreenCoord.x) * invWidth);
+                sideMult *= saturate(sampleScreenCoord.x * invWidth);
+                sideMult *= saturate((1.0f - sampleScreenCoord.y) * invWidth);
+                sideMult *= saturate(sampleScreenCoord.y * invWidth);
+            }
+
+      //float blurLodOffset = -3.0f; //blur radius 4 = 8 pixels blur
+            float blurLodOffset = -2.0f; //blur radius 2 = 4 pixels blur
+            float depthLodMult = 0.5f;
+            float colorLodMult = 0.5f;
+            float depthLod = log(max(0, 2.0f * pi / dirsCount * (pixelOffset - 1.0f) * depthLodMult)) / log(2.0) + blurLodOffset;
+            float colorLod = log(max(0, 2.0f * pi / dirsCount * (pixelOffset - 1.0f) * colorLodMult)) / log(2.0) + blurLodOffset;
+
+      /*float4 depthSample = textureLod(depthStencilSampler, sampleScreenCoord.xy, 0.0f);
+      float3 sampleWorldPos = Unproject(float3(sampleScreenCoord, depthSample.r), invViewProjMatrix);*/
+
+            float4 depthSample = textureLod(blurredDepthMomentsSampler, sampleScreenCoord.xy, depthLod);
+            float3 sampleWorldPos = camWorldPos + normalize(Unproject(float3(sampleScreenCoord, 1.0f), invViewProjMatrix) - camWorldPos) * depthSample.r;
+
+
+
+      /*float4 mippedCenterDepthSample = textureLod(blurredDepthMomentsSampler, centerScreenCoord.xy, depthLod);
+      float3 mippedCenterWorldPos = camWorldPos + normalize(Unproject(float3(centerScreenCoord, 1.0f), invViewProjMatrix) - camWorldPos) * mippedCenterDepthSample.r;
+      float3 worldDelta = sampleWorldPos - mippedCenterWorldPos;*/
+            float3 worldDelta = sampleWorldPos - centerWorldPos;
+            float2 horizonPoint = float2(dot(eyeWorldDir, worldDelta), dot(eyeWorldTangent, worldDelta));
+
+            float sampleHorizonAngle = atan(horizonPoint.y, horizonPoint.x);
+
+            if (sampleHorizonAngle < maxHorizonAngle)
+            {
+                float4 lightSample = textureLod(blurredDirectLightSampler, sampleScreenCoord.xy, colorLod);
+
+                float horizonContribution = ComputeHorizonContribution(eyeWorldDir, eyeWorldTangent, centerWorldNorm, sampleHorizonAngle, maxHorizonAngle) * sideMult;
+        //horizonContribution = min(horizonContribution, 0.05f);
+
+                dirLight += lightSample.rgb * horizonContribution;
+                dirLight -= ambientLight * horizonContribution;
+                maxHorizonAngle = sampleHorizonAngle;
+            }
+        }
+
+    
+        sumLight += float3(2.0) * dirLight / float(dirsCount); // integral ... sin * cos = pi. angle is 2*pi. => mult 2.
+    }
+    return float4(sumLight, 1.0f);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

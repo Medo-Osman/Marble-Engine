@@ -146,7 +146,7 @@ void GameObject::update(double dt)
 	// ImGui
 	//ImGui::Text(getModelNameAndId().c_str());
 	ImGui::PushID(m_id);
-	if (ImGui::CollapsingHeader("Movement Component"))
+	if (ImGui::CollapsingHeader("Movement"))
 	{
 		ImGui::DragFloat3("Scale", &m_movementComponent->scale.m128_f32[0], 0.1f);
 		ImGui::DragFloat3("Rotation", &m_movementComponent->rotation.m128_f32[0], 0.1f);

@@ -23,7 +23,7 @@ private:
 	// ImGui
 	bool m_windowMoveFlag;
 	bool m_windowResizeFlag;
-	bool m_enviormentPanelShow = true;
+	bool m_mouseCameraRotation = true;
 
 	float m_gameObjectSectionHeight = 420.f;
 	float m_lightSectionHeight = 275.f;

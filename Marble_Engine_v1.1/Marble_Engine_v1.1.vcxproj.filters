@@ -252,10 +252,10 @@
       <Filter>Source Files\Rendering</Filter>
     </ClCompile>
     <ClCompile Include="Sky.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Rendering</Filter>
     </ClCompile>
     <ClCompile Include="MapHandler.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Logic</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

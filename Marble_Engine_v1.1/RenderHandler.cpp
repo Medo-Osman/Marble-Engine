@@ -28,8 +28,24 @@ void RenderHandler::initDeviceAndSwapChain()
 
 	RECT winRect;
 	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
-	m_clientWidth = winRect.right;
-	m_clientHeight = winRect.bottom;
+
+	if (m_settings->fullscreen)
+	{
+		m_clientWidth = (UINT)GetSystemMetrics(SM_CXSCREEN);
+		m_clientHeight = (UINT)GetSystemMetrics(SM_CYSCREEN);
+		m_clientOriginX = 0;
+		m_clientOriginY = 0;
+
+
+	}
+	else
+	{
+		m_clientWidth = winRect.right;
+		m_clientHeight = winRect.bottom;
+		m_clientOriginX = winRect.left;
+		m_clientOriginY = winRect.top;
+	}
+
 
 	// Create Device and Swap Chain
 	swapChainDesc.BufferDesc.RefreshRate.Numerator = 0;
@@ -40,9 +56,9 @@ void RenderHandler::initDeviceAndSwapChain()
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.BufferCount = 2;
 	swapChainDesc.OutputWindow = *m_window;
-	swapChainDesc.Windowed = true;
-	swapChainDesc.BufferDesc.Width = winRect.right;
-	swapChainDesc.BufferDesc.Height = winRect.bottom;
+	swapChainDesc.Windowed = !m_settings->fullscreen;
+	swapChainDesc.BufferDesc.Width = m_clientWidth;
+	swapChainDesc.BufferDesc.Height = m_clientHeight;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 
 	D3D_FEATURE_LEVEL feature_level[] =
@@ -71,6 +87,12 @@ void RenderHandler::initDeviceAndSwapChain()
 		&m_deviceContext
 	);
 	assert(SUCCEEDED(hr) && "Error, failed to create device and swapchain!");
+
+	/*DirectX::D3DDEVICE_CREATION_PARAMETERS cparams;
+	RECT rect;
+
+	m_device->GetCreationParameters(&cparams);
+	GetWindowRect(cparams.hFocusWindow, &rect);*/
 }
 
 void RenderHandler::initRenderTarget(RenderTexture& rtv, UINT width, UINT height, UINT mipLevels)
@@ -127,24 +149,21 @@ void RenderHandler::initRenderTarget(RenderTexture& rtv, UINT width, UINT height
 
 void RenderHandler::initRenderTargets()
 {
-	RECT winRect;
-	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
-
 	// GBuffer
 	
 	// - Albedo Metallic
-	initRenderTarget(m_gBuffer.renderTextures[GBufferType::ALBEDO_METALLIC], winRect.right, winRect.bottom);
+	initRenderTarget(m_gBuffer.renderTextures[GBufferType::ALBEDO_METALLIC], m_clientWidth, m_clientHeight);
 	// - Normal Roughness
 	m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS].format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	initRenderTarget(m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS], winRect.right, winRect.bottom);
+	initRenderTarget(m_gBuffer.renderTextures[GBufferType::NORMAL_ROUGNESS], m_clientWidth, m_clientHeight);
 	// - Emissive Shadow Mask
-	initRenderTarget(m_gBuffer.renderTextures[GBufferType::EMISSIVE_SHADOWMASK], winRect.right, winRect.bottom);
+	initRenderTarget(m_gBuffer.renderTextures[GBufferType::EMISSIVE_SHADOWMASK], m_clientWidth, m_clientHeight);
 	// - Ambient Occlusion
-	initRenderTarget(m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION], winRect.right, winRect.bottom);
+	initRenderTarget(m_gBuffer.renderTextures[GBufferType::AMBIENT_OCCLUSION], m_clientWidth, m_clientHeight);
 
 	// HDR Render Target
 	m_hdrRTV.format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-	initRenderTarget(m_hdrRTV, winRect.right, winRect.bottom);
+	initRenderTarget(m_hdrRTV, m_clientWidth, m_clientHeight);
 
 	// Output Render Target
 	// - Get Back Buffer Texture for Output RenderTarget
@@ -159,26 +178,20 @@ void RenderHandler::initRenderTargets()
 
 void RenderHandler::initViewPort()
 {
-	RECT winRect;
-	GetClientRect(*m_window, &winRect);
-
-	m_viewport.TopLeftX = (FLOAT)winRect.left;
-	m_viewport.TopLeftY = (FLOAT)winRect.top;
-	m_viewport.Width = (FLOAT)winRect.right;
-	m_viewport.Height = (FLOAT)winRect.bottom;
+	m_viewport.TopLeftX = (FLOAT)m_clientOriginX;
+	m_viewport.TopLeftY = (FLOAT)m_clientOriginX;
+	m_viewport.Width = (FLOAT)m_clientWidth;
+	m_viewport.Height = (FLOAT)m_clientHeight;
 	m_viewport.MinDepth = 0.f;
 	m_viewport.MaxDepth = 1.f;
 }
 
 void RenderHandler::initDepthStencilBuffer()
 {
-	RECT winRect;
-	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
-
 	// Create Depth Stencil Buffer Texture
 	D3D11_TEXTURE2D_DESC dsBufferDesc;
-	dsBufferDesc.Width = winRect.right;
-	dsBufferDesc.Height = winRect.bottom;
+	dsBufferDesc.Width = m_clientWidth;
+	dsBufferDesc.Height = m_clientHeight;
 	dsBufferDesc.MipLevels = 1;
 	dsBufferDesc.ArraySize = 1;
 	dsBufferDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
@@ -1104,19 +1117,13 @@ void RenderHandler::particlePass()
 
 void RenderHandler::initCamera()
 {
-	RECT winRect;
-	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
-
-	m_camera.initialize(m_device.Get(), m_deviceContext.Get(), m_settings->fov, (float)winRect.right / (float)winRect.bottom, 0.1f, 1000.f);
+	m_camera.initialize(m_device.Get(), m_deviceContext.Get(), m_settings->fov, (float)m_clientWidth / (float)m_clientHeight, 0.1f, 1000.f);
 }
 
 void RenderHandler::initialize(HWND* window, Settings* settings)
 {
 	m_window = window;
 	m_settings = settings;
-
-	RECT winRect;
-	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
 
 	initDeviceAndSwapChain();
 	initRenderTargets();
@@ -1169,8 +1176,8 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	m_lightPassShaders.initialize(m_device.Get(), m_deviceContext.Get(), shaderFiles, LayoutType::POS);
 
 	// SSAO
-	m_HBAOInstance.initialize(m_device.Get(), m_deviceContext.Get(), winRect.right, winRect.bottom, m_camera.getFarZ(), m_camera.getFov(), m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
-	m_SSAOInstance.initialize(m_device.Get(), m_deviceContext.Get(), winRect.right, winRect.bottom, m_camera.getFarZ(), m_camera.getFov(), m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
+	m_HBAOInstance.initialize(m_device.Get(), m_deviceContext.Get(), m_clientWidth, m_clientHeight, m_camera.getFarZ(), m_camera.getFov(), m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
+	m_SSAOInstance.initialize(m_device.Get(), m_deviceContext.Get(), m_clientWidth, m_clientHeight, m_camera.getFarZ(), m_camera.getFov(), m_camera.getViewMatrix(), m_camera.getProjectionMatrix());
 
 	// Blur
 	initSSAOBlurPass(m_clientWidth, m_clientHeight, m_SSAOInstance.getAORenderTexture().format);
@@ -1179,7 +1186,7 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	initVolumetricSunPass();
 
 	// Bloom
-	initBloomPass((UINT)winRect.right, (UINT)winRect.bottom);
+	initBloomPass((UINT)m_clientWidth, (UINT)m_clientHeight);
 
 	// Lens Flare
 	m_lensFlareCBuffer.initialize(m_device.Get(), m_deviceContext.Get(), nullptr, BufferType::CONSTANT);
@@ -1211,13 +1218,13 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	particleStyle.fadeInAndOut = false;
 	particleStyle.idInterval = 5;
 
-	for (int i = 0; i < 4; i++)
+	/*for (int i = 0; i < 4; i++)
 		m_particleSystems["fire" + std::to_string(i)].Initialize(m_device.Get(), m_deviceContext.Get(), L"spot_gradient_tex.png", 20, particleStyle, XMFLOAT3(0,0,0), XMFLOAT2(3.f, 3.f));
 	
 	m_particleSystems["fire0"].setEmitPosition(XMFLOAT3(-8.85f, 4.8f, -23.7f));
 	m_particleSystems["fire1"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f, -23.7f));
 	m_particleSystems["fire2"].setEmitPosition(XMFLOAT3(-8.85f, 4.8f,  22.8f));
-	m_particleSystems["fire3"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f,  22.8f));
+	m_particleSystems["fire3"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f,  22.8f));*/
 
 	// Air
 	particleStyle.colorBegin = XMFLOAT3(1.f, 1.f, 1.f);
@@ -1237,8 +1244,8 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	particleStyle.fadeInAndOut = true;
 	particleStyle.idInterval = 300;
 
-	m_particleSystems["air"].Initialize(m_device.Get(), m_deviceContext.Get(), L"spot_gradient_tex.png", 400, particleStyle, XMFLOAT3(0, 0, 0), XMFLOAT2(0.1f, 0.1f));
-	m_particleSystems["air"].setEmitPosition(XMFLOAT3(0.f, 10.f, 0.f));
+	/*m_particleSystems["air"].Initialize(m_device.Get(), m_deviceContext.Get(), L"spot_gradient_tex.png", 400, particleStyle, XMFLOAT3(0, 0, 0), XMFLOAT2(0.1f, 0.1f));
+	m_particleSystems["air"].setEmitPosition(XMFLOAT3(0.f, 10.f, 0.f));*/
 
 	// Selection
 	
@@ -1566,19 +1573,16 @@ void RenderHandler::deselectObject()
 
 XMFLOAT3 RenderHandler::getRayWorldDirection(UINT pointX, UINT pointY)
 {
-	RECT winRect;
-	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
-
 	XMMATRIX view = m_camera.getViewMatrix();
 	XMMATRIX proj = m_camera.getProjectionMatrix();
 	float fov = m_camera.getFov();
-	float aspectRatio = (float)winRect.right / (float)winRect.bottom;
+	float aspectRatio = (float)m_clientWidth / (float)m_clientHeight;
 
 	// Projection conversion
 	float projectionX = 1 / (aspectRatio * tan(fov / 2));
 	float projectionY = 1 / tan(fov / 2);
-	float viewX = (2.f * pointX / winRect.right - 1.f) / projectionX;
-	float viewY = (-2.f * pointY / winRect.bottom + 1.f) / projectionY;
+	float viewX = (2.f * pointX / m_clientWidth - 1.f) / projectionX;
+	float viewY = (-2.f * pointY / m_clientHeight + 1.f) / projectionY;
 	float viewZ = 1.f;
 
 	XMVECTOR rayDirection = XMVectorSet(viewX, viewY, viewZ, 1.f);
@@ -1595,19 +1599,16 @@ XMFLOAT3 RenderHandler::getRayWorldDirection(UINT pointX, UINT pointY)
 
 float RenderHandler::selectionArrowPicking(UINT pointX, UINT pointY, char dimension)
 {
-	RECT winRect;
-	GetClientRect(*m_window, &winRect); // Contains Client Dimensions
-
 	XMMATRIX view = m_camera.getViewMatrix();
 	XMMATRIX proj = m_camera.getProjectionMatrix();
 	float fov = m_camera.getFov();
-	float aspectRatio = (float)winRect.right / (float)winRect.bottom;
+	float aspectRatio = (float)m_clientWidth / (float)m_clientHeight;
 	
 	// Projection conversion
 	float projectionX = 1 / (aspectRatio * tan(fov / 2));
 	float projectionY = 1 / tan(fov / 2);
-	float viewX = (2.f * pointX / winRect.right - 1.f) / projectionX;
-	float viewY = (-2.f * pointY / winRect.bottom + 1.f) / projectionY;
+	float viewX = (2.f * pointX / m_clientWidth - 1.f) / projectionX;
+	float viewY = (-2.f * pointY / m_clientHeight + 1.f) / projectionY;
 	float viewZ = 1.f;
 
 	XMVECTOR rayOrigin = XMVectorSet(0.f, 0.f, 0.f, 1.f);
@@ -1715,6 +1716,11 @@ void RenderHandler::updatePassShaders()
 	/*m_sky.updatePreviewShaders();
 	m_sky.cubemapPreviewsRenderSetup();
 	m_deviceContext->Draw(4, 0);*/
+}
+
+void RenderHandler::setImGuiEnabled(bool enabled)
+{
+	m_imguiToggle = enabled;
 }
 
 void RenderHandler::UIRenderShadowMap()
@@ -2170,7 +2176,7 @@ void RenderHandler::render(double dt)
 	
 	// Set G-Buffer Render Targets
 	m_deviceContext->OMSetRenderTargets(GBufferType::GB_NUM - 1, renderTargets, m_depthStencilView.Get());
-	
+
 	// Draw
 	
 	// - PHONG
@@ -2303,7 +2309,8 @@ void RenderHandler::render(double dt)
 	m_deviceContext->PSSetShaderResources(0, 5, m_shaderResourcesNullptr);
 
 	// ImGUI
-	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+	if (m_imguiToggle)
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
 	// Swap Frames
 	m_swapChain->Present(0, 0);
