@@ -222,8 +222,8 @@ float4 main(PS_IN input) : SV_TARGET
     float3 finalColor;
     float3 fogColor = float3(1.f, 0.9f, 1.f);
     
-    if (length(emissive) == 0.f)
-    {
+    //if (length(emissive) == 0.f)
+    //{
         float3 N = normalize(normal);
         float3 V = normalize(cameraPosition.xyz - worldPosition);
         float3 R = reflect(-V, N);
@@ -261,9 +261,9 @@ float4 main(PS_IN input) : SV_TARGET
             {
                 case DIRECTIONAL_LIGHT:
                 {
+                    direction = lights[i].direction.xyz;
                     L = normalize(-direction);
                     H = normalize(V + L);
-                    direction = normalize(lights[i].direction.xyz);
                     
                     Lo += lightCommon(N, H, V, NDotV, L, F0, roughness, metallic, radiance, albedo);
                 }
@@ -327,6 +327,7 @@ float4 main(PS_IN input) : SV_TARGET
             else
                 irradiance = IrradianceMap.Sample(sampState, N).rgb;
             diffuse = irradiance * albedo * enviormentDiffContribution;
+            
         }
 
         // Specular IBL
@@ -350,9 +351,9 @@ float4 main(PS_IN input) : SV_TARGET
         float3 ambient = (kD * diffuse + specular);
 
         finalColor = (ambient + Lo) * ambientOcclusion;
-    }
-    else
-        finalColor = emissive;
+    //}
+    //else
+        finalColor += emissive;
     
     // Volumetric Sun Scattering
     if (volumetricSunScattering)
@@ -365,7 +366,7 @@ float4 main(PS_IN input) : SV_TARGET
         float3 fogOrigin = cameraPosition.xyz;
         float3 fogDirection = normalize(worldPosition - fogOrigin);
         float fogDepth = distance(worldPosition, fogOrigin);
-    
+        
         float fogFactor =   HEIGHT_FACTOR * exp(-fogOrigin.y * FOG_DENSITIY) *
                             (1.f - exp(-fogDepth * fogDirection.y * FOG_DENSITIY)) / fogDirection.y;
     

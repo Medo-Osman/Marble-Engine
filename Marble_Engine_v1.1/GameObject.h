@@ -10,6 +10,7 @@ class GameObject
 private:
 	// ID
 	UINT m_id;
+	bool m_enabled = true;
 	std::string m_modelName;
 	int m_shaderType;
 
@@ -59,6 +60,7 @@ public:
 
 	void setMaterial(PS_MATERIAL_BUFFER material);
 	void setMaterial(PS_MATERIAL_PBR_BUFFER material);
+	void setEnabled(bool enabled);
 
 	void fillMeshData(std::vector<MeshData>* meshes);
 
@@ -68,6 +70,7 @@ public:
 
 	void setRotation(XMVECTOR rotation);
 	void setRotation(XMFLOAT3 rotation);
+	void rotate(XMFLOAT3 rotation);
 
 	void setPosition(XMVECTOR newPosition);
 	void setPosition(XMFLOAT3 newPosition);

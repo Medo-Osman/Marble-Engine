@@ -28,6 +28,11 @@ static float remap(float value, XMFLOAT2 inMinMax, XMFLOAT2 outMinMax)
     return outMinMax.x + (value - inMinMax.x) * (outMinMax.y - outMinMax.x) / (inMinMax.y - inMinMax.x);
 }
 
+static XMFLOAT3 normalizeRotationRad(XMFLOAT3 rotation)
+{
+    return XMFLOAT3(std::fmod(rotation.x, XM_2PI), fmod(rotation.y, XM_2PI), fmod(rotation.z, XM_2PI));
+}
+
 static XMMATRIX XM_CALLCONV lookAtMatrix(FXMVECTOR Position, FXMVECTOR Direction, FXMVECTOR Up)
 {
     XMVECTOR dir = Direction;

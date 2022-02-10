@@ -282,14 +282,17 @@ void GameState::initialize(Settings settings)
 	m_renderHandler = RenderHandler::getInstance();
 
 	// ImGui
+	
 	// - Styles
 	setImGuiStyles();
 
 	// - Game objects and Lighting window
-	float windowContentHeight = m_renderHandler->getClientHeight() - 70.f; // ImGui window header and border heights
-	m_gameObjectSectionHeight = windowContentHeight * 0.6f ;
-	m_lightSectionHeight = windowContentHeight - m_gameObjectSectionHeight - m_sectionSeperatorHeight - m_splitterButtonPadding;
+	m_windowContentHeight = m_renderHandler->getClientHeight(); // ImGui window header and border heights
+	if (m_renderHandler->isFullscreen())
+		m_windowContentHeight = (float)GetSystemMetrics(SM_CYSCREEN);
 
+	m_gameObjectSectionHeight = m_windowContentHeight * 0.6f ;
+	m_lightSectionHeight = m_windowContentHeight - m_gameObjectSectionHeight - m_sectionSeperatorHeight - m_splitterButtonPadding - m_splitterButtonPadding - m_objectWíndowHeaderHeight;
 	// - Model List
 	loadModelList();
 
@@ -306,7 +309,8 @@ void GameState::initialize(Settings settings)
 	m_gameObjects.back()->setMaterial(groundMat);
 
 	// Map Handler
-	m_mapHandler.initialize("map1.txt", (UINT)m_gameObjects.size(), true);
+	//m_mapHandler.initialize("map1.txt", (UINT)m_gameObjects.size(), true);
+	m_mapHandler.initialize("map_sponza2.txt", (UINT)m_gameObjects.size(), true);
 
 	// - Import Game Objects and Lights from Map file
 	m_mapHandler.importGameObjects(m_gameObjects, m_lights);
@@ -334,15 +338,22 @@ void GameState::controls(double dt)
 	{
 		if (InputHandler::getInstance().keyIsPressed(KeyCodes::F) || InputHandler::getInstance().isMouseRightDown())
 			m_mouseCameraRotation = true;
-		if (InputHandler::getInstance().keyIsPressed(KeyCodes::G))
+		if (InputHandler::getInstance().keyIsPressed(KeyCodes::G) || InputHandler::getInstance().isMouseLeftDown())
+		{
+			if (m_mouseCameraRotation)
+			{
+				while (::ShowCursor(TRUE) < 0);
+				ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+				Application::getInstance().setClipCursor(false);
+			}
 			m_mouseCameraRotation = false;
+		}
 		//Rotate Camera
 		while (!InputHandler::getInstance().mouseBufferIsEmpty())
 		{
 			MouseEvent mouseEvent = InputHandler::getInstance().readMouseEvent();
 			if (mouseEvent.type == MouseEventType::RawMove)
 			{
-
 				if (m_mouseCameraRotation)
 				{
 					// Hide Cursor
@@ -354,16 +365,10 @@ void GameState::controls(double dt)
 					// Camera Rotation
 					m_camera.rotate(mouseEvent.point.x, mouseEvent.point.y);
 				}
-				else
-				{
-					while (::ShowCursor(TRUE) < 0);
-					ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
-					Application::getInstance().setClipCursor(false);
-				}
 			}
 			else if (mouseEvent.type == MouseEventType::LPress)
 			{
-				if (m_selectedIndex > -1)
+				/*if (m_selectedIndex > -1)
 				{
 					if (!m_dragging)
 					{
@@ -391,72 +396,72 @@ void GameState::controls(double dt)
 							m_draggingDimension = 'z';
 						}
 					}
-				}
+				}*/
 			}
 			else if (mouseEvent.type == MouseEventType::LRelease)
 			{
-				if (m_dragging)
+				/*if (m_dragging)
 				{
 					m_dragging = false;
 					m_draggingDimension = 'n';
-				}
+				}*/
 			}
 			else if (mouseEvent.type == MouseEventType::Move)
 			{
-				if (m_selectedIndex > -1 && m_dragging)
-				{
-					// Dragging Logic
-					XMFLOAT3 objectPosition = m_gameObjects[m_selectedIndex]->getPositionF3();
-					XMFLOAT3 rayDirection = m_renderHandler->getRayWorldDirection(mouseEvent.point.x, mouseEvent.point.y);
-					XMFLOAT3 planeNormal;
-					switch (m_draggingDimension)
-					{
-					case 'x':
-						planeNormal = XMFLOAT3(0.f, -rayDirection.y, -rayDirection.z);
-						break;
+				//if (m_selectedIndex > -1 && m_dragging)
+				//{
+				//	// Dragging Logic
+				//	XMFLOAT3 objectPosition = m_gameObjects[m_selectedIndex]->getPositionF3();
+				//	XMFLOAT3 rayDirection = m_renderHandler->getRayWorldDirection(mouseEvent.point.x, mouseEvent.point.y);
+				//	XMFLOAT3 planeNormal;
+				//	switch (m_draggingDimension)
+				//	{
+				//	case 'x':
+				//		planeNormal = XMFLOAT3(0.f, -rayDirection.y, -rayDirection.z);
+				//		break;
 
-					case 'y':
-						planeNormal = XMFLOAT3(-rayDirection.x, 0.f, -rayDirection.z);
-						break;
+				//	case 'y':
+				//		planeNormal = XMFLOAT3(-rayDirection.x, 0.f, -rayDirection.z);
+				//		break;
 
-					case 'z':
-						planeNormal = XMFLOAT3(-rayDirection.x, -rayDirection.y, 0.f);
-						break;
+				//	case 'z':
+				//		planeNormal = XMFLOAT3(-rayDirection.x, -rayDirection.y, 0.f);
+				//		break;
 
-					default:
-						assert(!"Error, invalid dragging dimension!");
-						break;
-					}
-					SimpleMath::Plane plane(objectPosition, planeNormal);
-					SimpleMath::Ray ray(m_camera.getPositionF3(), rayDirection);
+				//	default:
+				//		assert(!"Error, invalid dragging dimension!");
+				//		break;
+				//	}
+				//	SimpleMath::Plane plane(objectPosition, planeNormal);
+				//	SimpleMath::Ray ray(m_camera.getPositionF3(), rayDirection);
 
-					float distance = -1.f;
-					ray.Intersects(plane, distance);
-					SimpleMath::Vector3 rayDirectionNorm = ray.direction;
-					rayDirectionNorm.Normalize();
+				//	float distance = -1.f;
+				//	ray.Intersects(plane, distance);
+				//	SimpleMath::Vector3 rayDirectionNorm = ray.direction;
+				//	rayDirectionNorm.Normalize();
 
-					XMFLOAT3 endPosition = (rayDirectionNorm * distance) + ray.position;
+				//	XMFLOAT3 endPosition = (rayDirectionNorm * distance) + ray.position;
 
-					switch (m_draggingDimension)
-					{
-					case 'x':
-						m_gameObjects[m_selectedIndex]->setPosition(XMVectorSet((m_origin + endPosition.x), objectPosition.y, objectPosition.z, 1.f));
-						break;
+				//	switch (m_draggingDimension)
+				//	{
+				//	case 'x':
+				//		m_gameObjects[m_selectedIndex]->setPosition(XMVectorSet((m_origin + endPosition.x), objectPosition.y, objectPosition.z, 1.f));
+				//		break;
 
-					case 'y':
-						m_gameObjects[m_selectedIndex]->setPosition(XMVectorSet(objectPosition.x, (m_origin + endPosition.y), objectPosition.z, 1.f));
-						break;
+				//	case 'y':
+				//		m_gameObjects[m_selectedIndex]->setPosition(XMVectorSet(objectPosition.x, (m_origin + endPosition.y), objectPosition.z, 1.f));
+				//		break;
 
-					case 'z':
-						m_gameObjects[m_selectedIndex]->setPosition(XMVectorSet(objectPosition.x, objectPosition.y, (m_origin + endPosition.z), 1.f));
-						break;
+				//	case 'z':
+				//		m_gameObjects[m_selectedIndex]->setPosition(XMVectorSet(objectPosition.x, objectPosition.y, (m_origin + endPosition.z), 1.f));
+				//		break;
 
-					default:
-						assert(!"Error, invalid dragging dimension!");
-						break;
-					}
-					m_renderHandler->updateSelectedObject(m_gameObjects[m_selectedIndex]->getKey(), m_gameObjects[m_selectedIndex]->getPositionF3());
-				}
+				//	default:
+				//		assert(!"Error, invalid dragging dimension!");
+				//		break;
+				//	}
+				//	m_renderHandler->updateSelectedObject(m_gameObjects[m_selectedIndex]->getKey(), m_gameObjects[m_selectedIndex]->getPositionF3());
+				//}
 			}
 		}
 
@@ -501,6 +506,12 @@ void GameState::controls(double dt)
 
 		if (InputHandler::getInstance().keyIsPressed(KeyCodes::P))
 			m_renderHandler->setImGuiEnabled(false);
+
+		if (InputHandler::getInstance().keyIsPressed(KeyCodes::D1))
+			m_shouldRotateLastObject = false;
+
+		if (InputHandler::getInstance().keyIsPressed(KeyCodes::D2))
+			m_shouldRotateLastObject = true;
 	}
 }
 
@@ -547,12 +558,12 @@ void GameState::update(double dt)
 
 		if (ImGui::CollapsingHeader("Settings"))
 		{
-			ImGui::Checkbox("Wireframe Mode", RenderHandler::getInstance()->getWireframeModePtr());
-			RenderHandler::getInstance()->UIssaoSettings();
-			RenderHandler::getInstance()->UIadaptiveExposureSettings();
-			RenderHandler::getInstance()->UIVolumetricSunSettings();
-			RenderHandler::getInstance()->UIbloomSettings();
-			RenderHandler::getInstance()->UILensFlareSettings();
+			ImGui::Checkbox("Wireframe Mode", m_renderHandler->getWireframeModePtr());
+			m_renderHandler->UIssaoSettings();
+			m_renderHandler->UITonemappingSettings();
+			m_renderHandler->UIVolumetricSunSettings();
+			m_renderHandler->UIbloomSettings();
+			m_renderHandler->UILensFlareSettings();
 			ImGui::PushItemWidth(-1);
 			ImGui::PopItemWidth();
 			ImGui::Checkbox("Window Resize", &m_windowResizeFlag);
@@ -560,6 +571,7 @@ void GameState::update(double dt)
 			if (ImGui::CollapsingHeader("Camera"))
 				m_camera.updateUI();
 		}
+		m_renderHandler->UITonemappingWindow();
 		ImGui::End();
 		ImGui::PopStyleColor();
 	}
@@ -654,7 +666,7 @@ void GameState::update(double dt)
 
 	// GameObject Menu
 	ImGui::Begin("Objects", NULL, windowFlags);
-
+	ImGui::SetWindowSize(ImVec2(m_objectsWindowWidth, m_windowContentHeight));
 	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.16f, 0.29f, 0.478f, 0.8f));
 	ImGui::BeginChildFrame(994999, ImVec2(ImGui::GetWindowSize().x - 10.f, 25.f));
 	ImGui::Text("Game Objects");
@@ -711,7 +723,7 @@ void GameState::update(double dt)
 	ImGui::BeginChild("Lights", ImVec2(ImGui::GetWindowSize().x - (imguiStyle.ScrollbarSize / 1.5f), m_lightSectionHeight), true);
 
 	// - - Enviorment
-	RenderHandler::getInstance()->UIEnviormentPanel();
+	m_renderHandler->UIEnviormentPanel();
 	// - - Lights
 	if (ImGui::CollapsingHeader("Lights Panel", ImGuiTreeNodeFlags_DefaultOpen))
 	{
@@ -725,18 +737,36 @@ void GameState::update(double dt)
 			{
 				if (ImGui::Selectable(LightTypeNames[n], false))
 				{
+					// New Light
 					Light newLight;
 					LightHelper newLightHelper;
 					newLight.position = XMFLOAT4(0.f, 5.f, 0.f, 1.f);
-					newLight.direction = XMFLOAT3(0.1f, -0.4f, 0.f);
 					newLight.color = XMFLOAT3(1.f, 1.f, 1.f);
 					newLight.intensity = 1.f;
-					newLight.spotAngles = XMFLOAT2(XMConvertToRadians(45.f), XMConvertToRadians(75.f));
-					newLight.range = 1.f;
+					newLight.range = 4.f;
 					newLight.type = (LightType)n;
 					newLight.enabled = true;
 
-					if (RenderHandler::getInstance()->addLight(newLight) != -1)
+					// Rotation / Direction
+					newLightHelper.rotationDeg = XMFLOAT3(60.f, 0.f, 0.f);
+					XMVECTOR rotQuat = XMQuaternionRotationRollPitchYaw(
+						XMConvertToRadians(newLightHelper.rotationDeg.x),
+						XMConvertToRadians(newLightHelper.rotationDeg.y),
+						XMConvertToRadians(newLightHelper.rotationDeg.z));
+
+					XMVECTOR rotQuatInverse = XMQuaternionInverse(rotQuat);
+					XMVECTOR lightDir = XMQuaternionMultiply(rotQuat, XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f));
+					XMStoreFloat3(&newLight.direction, XMQuaternionMultiply(lightDir, rotQuatInverse));
+
+					// Spot Angles
+					newLightHelper.spotAngles = XMFLOAT2(0.4f, 0.6f);
+					if (newLightHelper.spotAngles.x > newLightHelper.spotAngles.y)
+						newLightHelper.spotAngles.x = newLightHelper.spotAngles.y;
+					newLight.spotAngles.x = 1.f / (cosf(newLightHelper.spotAngles.x) - cosf(newLightHelper.spotAngles.y));
+					newLight.spotAngles.y = cosf(newLightHelper.spotAngles.y);
+
+					// Add
+					if (m_renderHandler->addLight(newLight) != -1)
 						m_lights.push_back(std::make_pair(newLight, newLightHelper));
 				}
 			}
@@ -886,24 +916,24 @@ void GameState::update(double dt)
 					}
 					ImGui::PopItemWidth();
 
+					/*ImGui::NextColumn();
+					ImGui::Text("Casts Shadow");
 					ImGui::NextColumn();
-					/*ImGui::Text("Casts Shadow");
-					ImGui::NextColumn();*/
-					//if (ImGui::Checkbox(std::string("##Casts Shadow" + std::to_string(i)).c_str(), (bool*)(&m_lights[i].first.isCastingShadow)))
-					//{
-					//	for (size_t j = 0; j < m_lights.size(); j++)
-					//	{
-					//		if (m_lights[j].first->type == DIRECTIONAL_LIGHT && j != i) // Not Current Directional Light
-					//			m_lights[j].first->isCastingShadow = false;
-					//	}
-					//	m_renderHandler->changeShadowMappingLight(
-					//		m_lights[i].first,
-					//		XMFLOAT3(
-					//			XMConvertToRadians(m_lights[i].second.rotationDeg.x),
-					//			XMConvertToRadians(m_lights[i].second.rotationDeg.y),
-					//			XMConvertToRadians(m_lights[i].second.rotationDeg.z)),
-					//		!m_lights[i].first.isCastingShadow);
-					//}
+					if (ImGui::Checkbox(std::string("##Casts Shadow" + std::to_string(i)).c_str(), (bool*)(&m_lights[i].first.isCastingShadow)))
+					{
+						for (size_t j = 0; j < m_lights.size(); j++)
+						{
+							if (m_lights[j].first->type == DIRECTIONAL_LIGHT && j != i) // Not Current Directional Light
+								m_lights[j].first->isCastingShadow = false;
+						}
+						m_renderHandler->changeShadowMappingLight(
+							m_lights[i].first,
+							XMFLOAT3(
+								XMConvertToRadians(m_lights[i].second.rotationDeg.x),
+								XMConvertToRadians(m_lights[i].second.rotationDeg.y),
+								XMConvertToRadians(m_lights[i].second.rotationDeg.z)),
+							!m_lights[i].first.isCastingShadow);
+					}*/
 				}
 				ImGui::NextColumn();
 			}
@@ -921,10 +951,19 @@ void GameState::update(double dt)
 	
 	ImGui::End();
 
+	// Rotate object
+	//if (m_shouldRotateLastObject)
+	//{
+	//	m_modelRotation = normalizeRotationRad({ m_modelRotation.x, m_modelRotation.y + (float)dt, m_modelRotation.z });
+
+	//	for (size_t i = 1; i < m_gameObjects.size(); i++)
+	//		m_gameObjects[i]->setRotation(m_modelRotation);
+	//	//m_gameObjects.back()->setRotation(m_modelRotation);
+	//}
+
 	// Render Texture Window, for Debug
 	//m_renderHandler->UIRenderShadowMap();
-	//m_renderHandler->UITonemappingWindow();
-	//m_renderHandler->UIRenderPipelineTexturesWindow();
+	m_renderHandler->UIRenderPipelineTexturesWindow();
 
 	//ImGui::ShowDemoWindow(); // For debugging
 	ImGui::Render(); // Render ImGui(Runs at the end of RenderHandler render funtion!)

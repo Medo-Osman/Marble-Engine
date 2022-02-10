@@ -1,0 +1,43 @@
+mf LowPolyCar.glb
+st 1
+ts 0.100000 0.100000 0.100000
+tr -1.570000 0.000000 0.000000
+tp 0.000000 3.600000 0.000000
+nm 3
+mn Cylinder.021-0
+dp lowPolyCar\Wheels&Accesories_BaseColor.png
+np lowPolyCar\Wheels&Accesories_Normal.png
+mp lowPolyCar\Wheels&Accesories_Metallic.png
+rp lowPolyCar\Wheels&Accesories_Roughness.png
+ep lowPolyCar\Wheels&Accesories_Emissive.png
+ap lowPolyCar\Wheels&Accesories_AO.png
+me 1
+re 1
+es 1
+te 1
+et 1
+mn Cylinder.021-1
+dp lowPolyCar\Body_BaseColor.png
+np lowPolyCar\Body_Normal.png
+mp lowPolyCar\Body_Metallic.png
+rp lowPolyCar\Body_Roughness.png
+ep lowPolyCar\Body_Emissive.png
+ap lowPolyCar\Body_AO.png
+me 0
+re 0
+es 1
+te 1
+et 1
+mn Cylinder.021-2
+dp lowPolyCar\Body_BaseColor.png
+np lowPolyCar\Body_Normal.png
+mp lowPolyCar\Body_Metallic.png
+rp lowPolyCar\Body_Roughness.png
+ep Textures\DefaultWhite.bmp
+ap lowPolyCar\Body_AO.png
+me 0
+re 1
+es 1
+te 1
+et 1
+ln 0

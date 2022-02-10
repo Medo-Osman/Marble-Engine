@@ -25,6 +25,9 @@ private:
 	bool m_windowResizeFlag;
 	bool m_mouseCameraRotation = true;
 
+	float m_windowContentHeight;
+	float m_objectsWindowWidth = 450.f;
+	float m_objectWíndowHeaderHeight = 70.f;
 	float m_gameObjectSectionHeight = 420.f;
 	float m_lightSectionHeight = 275.f;
 	float m_sectionSeperatorHeight = 25.f;
@@ -44,6 +47,10 @@ private:
 	bool m_dragging;
 	char m_draggingDimension;
 	float m_origin;
+
+	// Testing
+	bool m_shouldRotateLastObject = true;
+	XMFLOAT3 m_modelRotation = {XM_PIDIV2, 0, 0};
 
 	// Render Handler
 	RenderHandler* m_renderHandler;

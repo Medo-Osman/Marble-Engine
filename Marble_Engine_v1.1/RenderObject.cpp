@@ -77,6 +77,11 @@ void RenderObject::setTextures(TexturePathsPBR textures)
 	m_model->setTexture(textures);
 }
 
+void RenderObject::setEnabled(bool enabled)
+{
+	m_enabled = enabled;
+}
+
 void RenderObject::updateWCPBuffer(XMMATRIX worldMatrix, XMMATRIX viewMatrix, XMMATRIX ProjMatrix)
 {
 	VS_WVP_CBUFFER* wvpData = new VS_WVP_CBUFFER();
@@ -96,14 +101,17 @@ void RenderObject::fillMeshData(std::vector<MeshData>* meshes)
 
 void RenderObject::render(bool disableModelShaders)
 {
-	// Shaders
-	if (!disableModelShaders)
-		m_shaders.setShaders();
+	if (m_enabled)
+	{
+		// Shaders
+		if (!disableModelShaders)
+			m_shaders.setShaders();
 	
-	// Constant Buffer
-	m_deviceContext->VSSetConstantBuffers(0, 1, m_wvpCBuffer.GetAddressOf());
+		// Constant Buffer
+		m_deviceContext->VSSetConstantBuffers(0, 1, m_wvpCBuffer.GetAddressOf());
 
-	// Model
-	if (m_model)
-		m_model->render();
+		// Model
+		if (m_model)
+			m_model->render();
+	}
 }

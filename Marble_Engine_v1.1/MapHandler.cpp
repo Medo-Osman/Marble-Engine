@@ -117,6 +117,8 @@ void MapHandler::dumpDataToFile()
 					}
 
 					// Material Values
+					tempStr = f3ToString(m_gameObjectData[i].meshes[j].matPBR.albedo, " ");
+					m_file << MAT_DIFFUSE_COL_PREFIX << " " << tempStr << "\n";
 					m_file << PB_METALLIC_PREFIX << " " << m_gameObjectData[i].meshes[j].matPBR.metallic << "\n";
 					m_file << PB_ROUGHNESS_PREFIX << " " << m_gameObjectData[i].meshes[j].matPBR.roughness << "\n";
 					m_file << PB_EMISS_STR_PREFIX << " " << m_gameObjectData[i].meshes[j].matPBR.emissiveStrength << "\n";

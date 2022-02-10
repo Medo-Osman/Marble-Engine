@@ -15,6 +15,7 @@ private:
 
 	// Sky Mode
 	bool m_proceduralToggle = true;
+	bool m_skyLightToggle = true;
 
 	// Texture
 	
@@ -96,16 +97,18 @@ public:
 	std::wstring getIrradianceFileName() const { return m_irradianceTexturePath; }
 	ID3D11ShaderResourceView* getSkyPreviewSRV() const { return m_SkyPreviewTexture.srv; }
 	ID3D11ShaderResourceView* getIrradiancePreviewSRV() const { return m_irradiancePreviewTexture.srv; }
-	PROCEDURAL_SKY_CBUFFER* getProduralSkyDataPtr() { return &m_proceduralSkyData; }
-	bool* getProduralSkyTogglePtr() { return &m_proceduralToggle; }
+	PROCEDURAL_SKY_CBUFFER* getProceduralSkyDataPtr() { return &m_proceduralSkyData; }
+	bool* getProceduralSkyTogglePtr() { return &m_proceduralToggle; }
 	XMFLOAT3 getSkyLightDirection(SkyLightType types = SkyLightType::BOTH);
 
 	// Setters
 	void toggleProceduralSky(bool toggle) { m_proceduralToggle = toggle; }
+	void toggleSkyLight(bool toggle);
 
 	// Update
 	void updateUI();
 	void ambientSettingsUI();
+	void skyboxRotationUI();
 	void updateSkyCubemap(std::wstring path);
 	void updateIrradianceCubemap(std::wstring path);
 	void updateProceduralData();

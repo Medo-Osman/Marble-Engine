@@ -35,8 +35,6 @@ void RenderHandler::initDeviceAndSwapChain()
 		m_clientHeight = (UINT)GetSystemMetrics(SM_CYSCREEN);
 		m_clientOriginX = 0;
 		m_clientOriginY = 0;
-
-
 	}
 	else
 	{
@@ -1074,7 +1072,8 @@ void RenderHandler::adaptiveExposurePass(float deltaTime)
 	// - Dispatch
 	m_deviceContext->Dispatch(16, 16, 1);
 
-	// Unbind UAVs
+	// Unbind
+	m_deviceContext->CSSetShaderResources(0, 1, &m_shaderResourceNullptr);
 	m_deviceContext->CSSetUnorderedAccessViews(0, 2, m_unorderedAccessesNullptr, &cOffset);
 }
 
@@ -1147,9 +1146,16 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	moonLight.direction = XMFLOAT3(0, -1, 0);
 	moonLight.color = XMFLOAT3(0.2f, 0.3f, 0.4f);
 	moonLight.intensity = 1.f;
-	//m_sky.initialize(m_device.Get(), m_deviceContext.Get(), L"TableMountain1Cubemap.dds", L"TableMountain1Irradiance.dds");
-	m_sky.initialize(m_device.Get(), m_deviceContext.Get(), &m_shadowInstance, sunLight, moonLight, L"dikhololo_night_skybox.dds", L"dikhololo_night_sky_irradiance.dds");
-	
+
+	//m_sky.initialize(m_device.Get(), m_deviceContext.Get(), &m_shadowInstance, sunLight, moonLight, L"dikhololo_night_skybox.dds", L"dikhololo_night_sky_irradiance.dds");
+	//m_sky.initialize(m_device.Get(), m_deviceContext.Get(), &m_shadowInstance, sunLight, moonLight, L"TableMountain1Cubemap.dds", L"TableMountain1Irradiance.dds");
+	//m_sky.initialize(m_device.Get(), m_deviceContext.Get(), &m_shadowInstance, sunLight, moonLight, L"hilly_terrain_skybox.dds", L"hilly_terrain_irradiance.dds");
+	m_sky.initialize(m_device.Get(), m_deviceContext.Get(), &m_shadowInstance, sunLight, moonLight, L"kloppenheim2_skybox.dds", L"kloppenheim2_irradiance.dds");
+	bool* procedSkyToggle = m_sky.getProceduralSkyTogglePtr();
+	*procedSkyToggle = false;
+	m_lightManager.setProceduralSky(false);
+	m_sky.toggleSkyLight(false);
+
 	// - Render Cubemap Previews
 	m_deviceContext->RSSetState(m_defaultRasterizerState.Get());
 	m_sky.cubemapPreviewsRenderSetup();
@@ -1218,13 +1224,13 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	particleStyle.fadeInAndOut = false;
 	particleStyle.idInterval = 5;
 
-	/*for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 4; i++)
 		m_particleSystems["fire" + std::to_string(i)].Initialize(m_device.Get(), m_deviceContext.Get(), L"spot_gradient_tex.png", 20, particleStyle, XMFLOAT3(0,0,0), XMFLOAT2(3.f, 3.f));
 	
 	m_particleSystems["fire0"].setEmitPosition(XMFLOAT3(-8.85f, 4.8f, -23.7f));
 	m_particleSystems["fire1"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f, -23.7f));
 	m_particleSystems["fire2"].setEmitPosition(XMFLOAT3(-8.85f, 4.8f,  22.8f));
-	m_particleSystems["fire3"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f,  22.8f));*/
+	m_particleSystems["fire3"].setEmitPosition(XMFLOAT3( 8.2f, 4.8f,  22.8f));
 
 	// Air
 	particleStyle.colorBegin = XMFLOAT3(1.f, 1.f, 1.f);
@@ -1244,8 +1250,8 @@ void RenderHandler::initialize(HWND* window, Settings* settings)
 	particleStyle.fadeInAndOut = true;
 	particleStyle.idInterval = 300;
 
-	/*m_particleSystems["air"].Initialize(m_device.Get(), m_deviceContext.Get(), L"spot_gradient_tex.png", 400, particleStyle, XMFLOAT3(0, 0, 0), XMFLOAT2(0.1f, 0.1f));
-	m_particleSystems["air"].setEmitPosition(XMFLOAT3(0.f, 10.f, 0.f));*/
+	m_particleSystems["air"].Initialize(m_device.Get(), m_deviceContext.Get(), L"spot_gradient_tex.png", 400, particleStyle, XMFLOAT3(0, 0, 0), XMFLOAT2(0.1f, 0.1f));
+	m_particleSystems["air"].setEmitPosition(XMFLOAT3(0.f, 10.f, 0.f));
 
 	// Selection
 	
@@ -1281,6 +1287,11 @@ UINT RenderHandler::getClientWidth() const
 UINT RenderHandler::getClientHeight() const
 {
 	return m_clientHeight;
+}
+
+bool RenderHandler::isFullscreen() const
+{
+	return m_settings->fullscreen;
 }
 
 void RenderHandler::updateCamera(XMVECTOR position, XMVECTOR rotation)
@@ -1327,6 +1338,21 @@ RenderObjectKey RenderHandler::newRenderObject(std::string modelName, ShaderStat
 	}
 
 	return key;
+}
+
+void RenderHandler::setRenderObjectEnabled(RenderObjectKey key, bool enabled)
+{
+	switch (key.objectType)
+	{
+	case PBR:
+		m_renderObjectsPBR[key]->setEnabled(enabled);
+		break;
+	case PHONG:
+		m_renderObjects[key]->setEnabled(enabled);
+		break;
+	default:
+		break;
+	}
 }
 
 void RenderHandler::setRenderObjectTextures(RenderObjectKey key, TexturePaths textures)
@@ -1780,54 +1806,123 @@ float ACESFilmicTonemappingPlot(void* dataPtr, int index)
 		ACESFilmicTonemapping(data->LinearWhite, data->ACESss, data->ACESls, data->ACESla, data->ACESts, data->ACEStn, data->ACEStd);
 }
 
+void RenderHandler::UITonemappingSettings()
+{
+	//ImGui::Begin("Tonemapping");
+
+	if (ImGui::CollapsingHeader("Tonemapping", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		ImGui::Indent(16.0f);
+
+		ImGui::Checkbox("Adaptive Exposure", &m_adaptiveExposureToggle);
+
+		ImGui::PushItemWidth(-65.f);
+		if (ImGui::DragFloat("Exposure", &m_tonemapCData.Exposure, 0.01f, -10.0f, 10.0f))
+		{
+			m_bloomDownsampleData->exposure = m_tonemapCData.Exposure;
+			m_tonemapCBuffer.update(&m_tonemapCData);
+		}
+		ImGui::PopItemWidth();
+
+		if (ImGui::DragFloat("Gamma", &m_tonemapCData.Gamma, 0.01f, 0.01f, 5.0f))
+			m_tonemapCBuffer.update(&m_tonemapCData);
+
+
+		if (ImGui::Button("More Settings##tonemapSettings"))
+			m_tonemappingSettingsToggle = !m_tonemappingSettingsToggle;
+
+		ImGui::Unindent(16.0f);
+	}
+
+	//ImGui::End();
+}
+
 void RenderHandler::UITonemappingWindow()
 {
-	ImGui::Begin("Tonemapping");
-
-	ImGui::Checkbox("Adaptive Exposure", &m_adaptiveExposureToggle);
-	if (m_adaptiveExposureToggle)
+	if (m_tonemappingSettingsToggle)
 	{
-		if (ImGui::CollapsingHeader("Adaptive Exposure", ImGuiTreeNodeFlags_DefaultOpen))
+		ImGui::Begin("Tonemapping Settings");
+		
+		ImGui::PushItemWidth(-1.f);
+		if (ImGui::CollapsingHeader("Adaptive Exposure##adaptExposSettings"))
 		{
 			ImGui::Indent(16.0f);
+			ImGui::Checkbox("Adaptive Exposure", &m_adaptiveExposureToggle);
+			if (m_adaptiveExposureToggle)
 			{
-				if (ImGui::DragFloat("Min Log Luminance", &m_histogramCData.minLogLuminance))
+				ImGui::Text("Min Log Luminance");
+				if (ImGui::DragFloat("##Min Log Luminance", &m_histogramCData.minLogLuminance))
 				{
 					m_histogramAveragingCData.minLogLuminance = m_histogramCData.minLogLuminance;
 					m_histogramCData.oneOverLogLuminanceRange = 1.f / (std::abs(m_histogramCData.minLogLuminance) + m_histogramAveragingCData.logLuminanceRange);
+					m_tonemapCBuffer.update(&m_tonemapCData);
 				}
-		
-				if (ImGui::DragFloat("Log Luminance Range", &m_histogramAveragingCData.logLuminanceRange))
+
+				ImGui::Text("Log Luminance Range");
+				if (ImGui::DragFloat("##Log Luminance Range", &m_histogramAveragingCData.logLuminanceRange))
+				{
 					m_histogramCData.oneOverLogLuminanceRange = 1.f / (std::abs(m_histogramCData.minLogLuminance) + m_histogramAveragingCData.logLuminanceRange);
-		
-				ImGui::DragFloat("Tau", &m_histogramAveragingCData.tau);
-		
+					m_tonemapCBuffer.update(&m_tonemapCData);
+				}
+
+				ImGui::Text("Tau");
+				if (ImGui::DragFloat("##Tau", &m_histogramAveragingCData.tau))
+					m_tonemapCBuffer.update(&m_tonemapCData);
+
 				ImGui::Image(m_luminanceSRV.Get(), ImVec2(100.f, 100.f), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+				ImGui::Unindent(16.0f);
 			}
+		}
+
+		if (ImGui::CollapsingHeader("ACES"))
+		{
+			ImGui::Indent(16.0f);
+
+			ImGui::Text("ACES Filmic Tonemapping");
+			ImGui::PlotLines("##ACES Filmic Tonemapping", &ACESFilmicTonemappingPlot, &m_tonemapCData, 256, 0, nullptr, 0.0f, 1.0f, ImVec2(0, 250));
+
+			ImGui::Text("Shoulder Strength");
+			if (ImGui::DragFloat("##Shoulder Strength", &m_tonemapCData.ACESss, 0.01f, 0.01f, 5.0f))
+				m_tonemapCBuffer.update(&m_tonemapCData);
+
+			ImGui::Text("Linear Strength");
+			if (ImGui::DragFloat("##Linear Strength", &m_tonemapCData.ACESls, 0.01f, 0.0f, 100.0f))
+				m_tonemapCBuffer.update(&m_tonemapCData);
+
+			ImGui::Text("Linear Angle");
+			if (ImGui::DragFloat("##Linear Angle", &m_tonemapCData.ACESla, 0.01f, 0.0f, 1.0f))
+				m_tonemapCBuffer.update(&m_tonemapCData);
+
+			ImGui::Text("Toe Strength");
+			if (ImGui::DragFloat("##Toe Strength", &m_tonemapCData.ACESts, 0.01f, 0.01f, 1.0f))
+				m_tonemapCBuffer.update(&m_tonemapCData);
+
+			ImGui::Text("Toe Numerator");
+			if (ImGui::DragFloat("##Toe Numerator", &m_tonemapCData.ACEStn, 0.01f, 0.0f, 10.0f))
+				m_tonemapCBuffer.update(&m_tonemapCData);
+
+			ImGui::Text("Toe Denominator");
+			if (ImGui::DragFloat("##Toe Denominator", &m_tonemapCData.ACEStd, 0.01f, 0.0f, 10.0f))
+				m_tonemapCBuffer.update(&m_tonemapCData);
+
+			ImGui::Text("Linear White");
+			if (ImGui::DragFloat("##Linear White", &m_tonemapCData.LinearWhite, 0.01f, 1.0f, 120.0f))
+				m_tonemapCBuffer.update(&m_tonemapCData);
+
 			ImGui::Unindent(16.0f);
 		}
+		ImGui::PopItemWidth();
+		ImGui::Separator();
+
+		if (ImGui::Button("Reset"))
+		{
+			m_tonemapCData = PS_TONEMAP_CBUFFER();
+			m_tonemapCBuffer.update(&m_tonemapCData);
+		}
+		if (ImGui::Button("Close"))
+			m_tonemappingSettingsToggle = false;
+		ImGui::End();
 	}
-
-	if (ImGui::DragFloat("Exposure", &m_tonemapCData.Exposure, 0.01f, -10.0f, 10.0f))
-		m_bloomDownsampleData->exposure = m_tonemapCData.Exposure;
-	
-	ImGui::DragFloat("Gamma", &m_tonemapCData.Gamma, 0.01f, 0.01f, 5.0f);
-
-	ImGui::PlotLines("ACES Filmic Tonemapping", &ACESFilmicTonemappingPlot, &m_tonemapCData, 256, 0, nullptr, 0.0f, 1.0f, ImVec2(0, 250));
-	ImGui::DragFloat("Shoulder Strength", &m_tonemapCData.ACESss, 0.01f, 0.01f, 5.0f);
-	ImGui::DragFloat("Linear Strength", &m_tonemapCData.ACESls, 0.01f, 0.0f, 100.0f);
-	ImGui::DragFloat("Linear Angle", &m_tonemapCData.ACESla, 0.01f, 0.0f, 1.0f);
-	ImGui::DragFloat("Toe Strength", &m_tonemapCData.ACESts, 0.01f, 0.01f, 1.0f);
-	ImGui::DragFloat("Toe Numerator", &m_tonemapCData.ACEStn, 0.01f, 0.0f, 10.0f);
-	ImGui::DragFloat("Toe Denominator", &m_tonemapCData.ACEStd, 0.01f, 0.0f, 10.0f);
-	ImGui::DragFloat("Linear White", &m_tonemapCData.LinearWhite, 0.01f, 1.0f, 120.0f);
-
-	if (ImGui::Button("Reset"))
-		m_tonemapCData = PS_TONEMAP_CBUFFER();
-
-	m_tonemapCBuffer.update(&m_tonemapCData);
-
-	ImGui::End();
 }
 
 void RenderHandler::UIssaoSettings()
@@ -1888,11 +1983,6 @@ void RenderHandler::UIssaoSettings()
 		m_ssaoToggle = false;
 }
 
-void RenderHandler::UIadaptiveExposureSettings()
-{
-	ImGui::Checkbox("Adaptive Exposure", &m_adaptiveExposureToggle);
-}
-
 void RenderHandler::UIVolumetricSunSettings()
 {
 	if (ImGui::Checkbox("Volumetric Sun", &m_volumetricSunToggle))
@@ -1947,86 +2037,91 @@ void RenderHandler::UIEnviormentPanel()
 		ImGui::Text("Sky Light");
 		m_sky.updateUI();
 
-		bool* procederualSkyToggle = m_sky.getProduralSkyTogglePtr();
+		bool* proceduralSkyToggle = m_sky.getProceduralSkyTogglePtr();
 
-		if (ImGui::CollapsingHeader("Procedural Sky"))
+		ImGui::Text("Procedural Sky");
+		if (ImGui::Checkbox("On/Off", proceduralSkyToggle))
+			m_lightManager.setProceduralSky(*proceduralSkyToggle);
+
+		if (proceduralSkyToggle)
 		{
-			ImGui::Indent(indentSize);
-			if (ImGui::Checkbox("On/Off", procederualSkyToggle))
-				m_lightManager.setProceduralSky(*procederualSkyToggle);
-
-			PROCEDURAL_SKY_CBUFFER* proceduralData = m_sky.getProduralSkyDataPtr();
-			if (ImGui::DragFloat("Intensity", &proceduralData->intensity, 0.1f, 0.1f, 10.f))
-				m_sky.updateProceduralData();
-
-			ImGui::Separator();
-			
-			ImGui::Text("Sky");
-			if (ImGui::ColorEdit3("Sky Color", &proceduralData->skyColor.x, ImGuiColorEditFlags_Float))
-				m_sky.updateProceduralData();
-			if (ImGui::DragFloat("Sky Exponent", &proceduralData->skyExponent, 0.1f, 0.1f, 10.f))
-				m_sky.updateProceduralData();
-			if (ImGui::ColorEdit3("Sky Night Color", &proceduralData->skyNightColor.x, ImGuiColorEditFlags_Float))
-				m_sky.updateProceduralData();
-			if (ImGui::DragFloat("Sky Night Exponent", &proceduralData->skyNightExponent, 0.1f, 0.1f, 10.f))
-				m_sky.updateProceduralData();
-			ImGui::Separator();
-
-			ImGui::Text("Horizon");
-			bool* useSunMoonCol = (bool*)&proceduralData->useSunMoonColorforHorizon;
-			if (ImGui::Checkbox("Use Sun/Moon Color", useSunMoonCol))
-				m_sky.updateProceduralData();
-
-			if (!*useSunMoonCol)
+			if (ImGui::CollapsingHeader("Settings##proset"))
 			{
-				if (ImGui::ColorEdit3("Horizon Color", &proceduralData->horizonColor.x, ImGuiColorEditFlags_Float))
-					m_sky.updateProceduralData();
-				if (ImGui::ColorEdit3("Horizon Night Color", &proceduralData->horizonNightColor.x, ImGuiColorEditFlags_Float))
-					m_sky.updateProceduralData();
-			}
+				ImGui::Indent(indentSize);
 
-			ImGui::Separator();
+				PROCEDURAL_SKY_CBUFFER* proceduralData = m_sky.getProceduralSkyDataPtr();
+				if (ImGui::DragFloat("Intensity", &proceduralData->intensity, 0.1f, 0.1f, 10.f))
+					m_sky.updateProceduralData();
+
+				ImGui::Separator();
 			
-			ImGui::Text("Ground");
-			if (ImGui::ColorEdit3("Ground Color", &proceduralData->groundColor.x, ImGuiColorEditFlags_Float))
-				m_sky.updateProceduralData();
-			if (ImGui::DragFloat("Ground Exponent", &proceduralData->groundExponent, 0.1f, 0.1f, 10.f))
-				m_sky.updateProceduralData();
-			if (ImGui::ColorEdit3("Ground Night Color", &proceduralData->groundNightColor.x, ImGuiColorEditFlags_Float))
-				m_sky.updateProceduralData();
-			if (ImGui::DragFloat("Ground Night Exponent", &proceduralData->groundNightExponent, 0.1f, 0.1f, 10.f))
-				m_sky.updateProceduralData();
-			ImGui::Separator();
+				ImGui::Text("Sky");
+				if (ImGui::ColorEdit3("Sky Color", &proceduralData->skyColor.x, ImGuiColorEditFlags_Float))
+					m_sky.updateProceduralData();
+				if (ImGui::DragFloat("Sky Exponent", &proceduralData->skyExponent, 0.1f, 0.1f, 10.f))
+					m_sky.updateProceduralData();
+				if (ImGui::ColorEdit3("Sky Night Color", &proceduralData->skyNightColor.x, ImGuiColorEditFlags_Float))
+					m_sky.updateProceduralData();
+				if (ImGui::DragFloat("Sky Night Exponent", &proceduralData->skyNightExponent, 0.1f, 0.1f, 10.f))
+					m_sky.updateProceduralData();
+				ImGui::Separator();
 
-			ImGui::Text("Sun");
-			if (ImGui::DragFloat("Sun Strength", &proceduralData->sunExponent, 0.1f, 0.1f, 10.f))
-				m_sky.updateProceduralData();
+				ImGui::Text("Horizon");
+				bool* useSunMoonCol = (bool*)&proceduralData->useSunMoonColorforHorizon;
+				if (ImGui::Checkbox("Use Sun/Moon Color", useSunMoonCol))
+					m_sky.updateProceduralData();
 
-			if (ImGui::DragFloat("Sun Radius A", &proceduralData->sunRadiusA, 0.001f, 0.001f, 10.f))
-				m_sky.updateProceduralData();
+				if (!*useSunMoonCol)
+				{
+					if (ImGui::ColorEdit3("Horizon Color", &proceduralData->horizonColor.x, ImGuiColorEditFlags_Float))
+						m_sky.updateProceduralData();
+					if (ImGui::ColorEdit3("Horizon Night Color", &proceduralData->horizonNightColor.x, ImGuiColorEditFlags_Float))
+						m_sky.updateProceduralData();
+				}
 
-			if (ImGui::DragFloat("Sun Radius B", &proceduralData->sunRadiusB, 0.001f, 0.001f, 10.f))
-				m_sky.updateProceduralData();
-			ImGui::Separator();
+				ImGui::Separator();
+			
+				ImGui::Text("Ground");
+				if (ImGui::ColorEdit3("Ground Color", &proceduralData->groundColor.x, ImGuiColorEditFlags_Float))
+					m_sky.updateProceduralData();
+				if (ImGui::DragFloat("Ground Exponent", &proceduralData->groundExponent, 0.1f, 0.1f, 10.f))
+					m_sky.updateProceduralData();
+				if (ImGui::ColorEdit3("Ground Night Color", &proceduralData->groundNightColor.x, ImGuiColorEditFlags_Float))
+					m_sky.updateProceduralData();
+				if (ImGui::DragFloat("Ground Night Exponent", &proceduralData->groundNightExponent, 0.1f, 0.1f, 10.f))
+					m_sky.updateProceduralData();
+				ImGui::Separator();
 
-			ImGui::Text("Moon");
-			if (ImGui::DragFloat("Moon Exponent", &proceduralData->moonExponent, 0.1f, 0.1f, 10.f))
-				m_sky.updateProceduralData();
+				ImGui::Text("Sun");
+				if (ImGui::DragFloat("Sun Strength", &proceduralData->sunExponent, 0.1f, 0.1f, 10.f))
+					m_sky.updateProceduralData();
 
-			if (ImGui::DragFloat("Moon Radius A", &proceduralData->moonRadiusA, 0.001f, 0.001f, 10.f))
-				m_sky.updateProceduralData();
+				if (ImGui::DragFloat("Sun Radius A", &proceduralData->sunRadiusA, 0.001f, 0.001f, 10.f))
+					m_sky.updateProceduralData();
 
-			if (ImGui::DragFloat("Moon Radius B", &proceduralData->moonRadiusB, 0.001f, 0.001f, 10.f))
-				m_sky.updateProceduralData();
-			ImGui::Separator();
+				if (ImGui::DragFloat("Sun Radius B", &proceduralData->sunRadiusB, 0.001f, 0.001f, 10.f))
+					m_sky.updateProceduralData();
+				ImGui::Separator();
 
-			ImGui::Text("Stars");
-			if (ImGui::DragFloat("Stars Scale", &proceduralData->starsUVScale, 0.1f, 0.1f, 10.f))
-				m_sky.updateProceduralData();
+				ImGui::Text("Moon");
+				if (ImGui::DragFloat("Moon Exponent", &proceduralData->moonExponent, 0.1f, 0.1f, 10.f))
+					m_sky.updateProceduralData();
 
-			if (ImGui::DragFloat("Stars Intensity", &proceduralData->starsIntensity, 0.1f, 0.1f, 10.f))
-				m_sky.updateProceduralData();
-			ImGui::Unindent(indentSize);
+				if (ImGui::DragFloat("Moon Radius A", &proceduralData->moonRadiusA, 0.001f, 0.001f, 10.f))
+					m_sky.updateProceduralData();
+
+				if (ImGui::DragFloat("Moon Radius B", &proceduralData->moonRadiusB, 0.001f, 0.001f, 10.f))
+					m_sky.updateProceduralData();
+				ImGui::Separator();
+
+				ImGui::Text("Stars");
+				if (ImGui::DragFloat("Stars Scale", &proceduralData->starsUVScale, 0.1f, 0.1f, 10.f))
+					m_sky.updateProceduralData();
+
+				if (ImGui::DragFloat("Stars Intensity", &proceduralData->starsIntensity, 0.1f, 0.1f, 10.f))
+					m_sky.updateProceduralData();
+				ImGui::Unindent(indentSize);
+			}
 		}
 		ImGui::Separator();
 
@@ -2036,8 +2131,9 @@ void RenderHandler::UIEnviormentPanel()
 
 		m_sky.ambientSettingsUI();
 
-		if (!*procederualSkyToggle)
+		if (!*proceduralSkyToggle)
 		{
+			m_sky.skyboxRotationUI();
 			ImGui::Text("Skybox Cubemap");
 			nameCStr = m_sky.getSkyFileName().c_str();
 			ImGui::Image(m_sky.getSkyPreviewSRV(), ImVec2(imageSize, imageSize));
@@ -2045,7 +2141,7 @@ void RenderHandler::UIEnviormentPanel()
 		}
 		ImGui::BeginGroup();
 		{
-			if (!*procederualSkyToggle)
+			if (!*proceduralSkyToggle)
 			{
 				if (ImGui::Button((const char*)nameCStr))
 				{
@@ -2058,7 +2154,7 @@ void RenderHandler::UIEnviormentPanel()
 		}
 		ImGui::EndGroup();
 		
-		if (!*procederualSkyToggle)
+		if (!*proceduralSkyToggle)
 		{
 			ImGui::Text("Irradiance Cubemap");
 			nameCStr = m_sky.getIrradianceFileName().c_str();
@@ -2067,7 +2163,7 @@ void RenderHandler::UIEnviormentPanel()
 		}
 		ImGui::BeginGroup();
 		{
-			if (!*procederualSkyToggle)
+			if (!*proceduralSkyToggle)
 			{
 				if (ImGui::Button((const char*)nameCStr))
 				{
@@ -2080,7 +2176,7 @@ void RenderHandler::UIEnviormentPanel()
 		}
 		ImGui::EndGroup();
 
-		if (!*procederualSkyToggle)
+		if (!*proceduralSkyToggle)
 		{
 			m_fileDialog.Display();
 			if (m_fileDialog.HasSelected())
@@ -2144,7 +2240,6 @@ void RenderHandler::render(double dt)
 
 	// - Adaptive Exposure Histogram
 	m_deviceContext->ClearUnorderedAccessViewUint(m_histogramUAV.Get(), clearBlackUint);
-	/*m_deviceContext->ClearUnorderedAccessViewFloat(m_histogramImageTexture.uav, clearColorBlack);*/
 
 	// Render Shadow Map
 	if (m_shadowMappingEnabled)

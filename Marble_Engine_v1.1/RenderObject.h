@@ -22,6 +22,9 @@ private:
 	// Shaders
 	Shaders m_shaders;
 
+	// Enabled
+	bool m_enabled = true;
+
 public:
 	RenderObject();
 	~RenderObject();
@@ -43,6 +46,7 @@ public:
 	void setMaterialWithID(PS_MATERIAL_PBR_BUFFER material, int ID);
 	void setTextures(TexturePaths textures);
 	void setTextures(TexturePathsPBR textures);
+	void setEnabled(bool enabled);
 
 	// Update
 	void updateWCPBuffer(XMMATRIX worldMatrix, XMMATRIX viewMatrix, XMMATRIX ProjMatrix);

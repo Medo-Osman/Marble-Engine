@@ -12,7 +12,7 @@ Application::Application()
 	m_settings.height = 900;
 	m_settings.fov = 70;
 	m_settings.mouseSensitivity = 0.0005f;
-	m_settings.fullscreen = true;
+	m_settings.fullscreen = false;
 	m_deltaTime = 0.f;
 	m_shouldQuit = false;
 	m_clipCursor = false;

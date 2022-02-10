@@ -1,0 +1,91 @@
+mf SoiKnightA.fbx
+st 1
+ts 0.100000 0.100000 0.100000
+tr 1.570796 4.209198 0.000000
+tp 0.000000 0.300000 0.000000
+nm 2
+mn Plane.003
+dp Textures\SoiKnightA\T_Armour_Clean_Cloth_BaseColor.jpeg
+np Textures\SoiKnightA\T_Armour_Clean_Cloth_Normal.jpg
+mp Textures\SoiKnightA\T_Armour_Clean_Cloth_Metallic.jpeg
+rp Textures\DefaultGreyPoint8.jpg
+ap Textures\SoiKnightA\T_Armour_Clean_Cloth_AO.jpeg
+dc 0.121458 0.307683 1.000000
+me 1
+re 1
+es 0
+te 1
+et 0
+mn Plane.003
+dp Textures\SoiKnightA\T_Armour_Clean_Metal_BaseColor.jpeg
+np Textures\SoiKnightA\T_Armour_Clean_Metal_Normal.jpg
+mp Textures\SoiKnightA\T_Armour_Clean_Metal_Metallic.jpeg
+rp Textures\SoiKnightA\T_Armour_Clean_Metal_Roughness.jpeg
+ap Textures\SoiKnightA\T_Armour_Clean_Metal_AO.jpg
+dc 0.785425 0.534215 0.000000
+me 1.38564
+re 170.629
+es 0
+te 1
+et 0
+mf SoiKnightA.fbx
+st 1
+ts 0.100000 0.100000 0.100000
+tr 1.570796 4.209198 0.000000
+tp 10.000000 0.300000 0.000000
+nm 2
+mn Plane.003
+dp Textures\SoiKnightA\T_Armour_Battered_Cloth_BaseColor.jpeg
+np Textures\SoiKnightA\T_Armour_Battered_Cloth_Normal.jpg
+mp Textures\SoiKnightA\T_Armour_Battered_Cloth_Metallic.jpeg
+rp Textures\DefaultGreyPoint8.jpg
+ap Textures\SoiKnightA\T_Armour_Battered_Cloth_AO.jpeg
+dc 0.149798 0.000000 0.000000
+me 0
+re 0
+es 0
+te 1
+et 0
+mn Plane.003
+dp Textures\SoiKnightA\T_Armour_Battered_Metal_BaseColor.jpeg
+np Textures\SoiKnightA\T_Armour_Battered_Metal_Normal.jpg
+mp Textures\SoiKnightA\T_Armour_Battered_Metal_Metallic.jpeg
+rp Textures\SoiKnightA\T_Armour_Battered_Metal_Roughness.jpg
+ap Textures\SoiKnightA\T_Armour_Clean_Metal_AO.jpg
+dc 0.530364 0.000000 0.000000
+me 1.38564
+re 170.629
+es 0
+te 1
+et 0
+mf SoiKnightA.fbx
+st 1
+ts 0.100000 0.100000 0.100000
+tr 1.570796 4.209198 0.000000
+tp -9.000000 0.300000 0.000000
+nm 2
+mn Plane.003
+dp Textures\SoiKnightA\T_Armour_Worn_Cloth_BaseColor.jpeg
+np Textures\SoiKnightA\T_Armour_Worn_Cloth_Normal.jpg
+mp Textures\SoiKnightA\T_Armour_Worn_Cloth_Metallic.jpeg
+rp Textures\DefaultGreyPoint8.jpg
+ap Textures\SoiKnightA\T_Armour_Worn_Cloth_AO.jpeg
+dc 0.126183 0.251012 0.084348
+me 1.38564
+re 27.5625
+es 0
+te 1
+et 0
+mn Plane.003
+dp Textures\SoiKnightA\T_Armour_Worn_Metal_BaseColor.jpeg
+np Textures\SoiKnightA\T_Armour_Worn_Metal_Normal.jpg
+mp Textures\SoiKnightA\T_Armour_Worn_Metal_Metallic.jpeg
+rp Textures\SoiKnightA\T_Armour_Worn_Metal_Roughness.jpeg
+ap Textures\SoiKnightA\T_Armour_Worn_Metal_AO.jpg
+dc 0.000000 0.000000 0.000000
+me 1.38564
+re 170.629
+es 0
+te 1
+et 0
+ln 0

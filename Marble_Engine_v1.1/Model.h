@@ -176,28 +176,76 @@ private:
 			aiString texturePath;
 
 			if (aMaterial->GetTextureCount(aiTextureType_DIFFUSE) > 0 && aMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == AI_SUCCESS)
-				texturePaths.diffusePath = texturePathsPBR.albedoPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+			{
+				std::string strTexturePath(texturePath.C_Str());
+				size_t pos = strTexturePath.find("Textures\\");
+				strTexturePath.erase(0, pos);
+
+				texturePaths.diffusePath = texturePathsPBR.albedoPath = extractFileName(charToWchar(strTexturePath.c_str()).c_str());
+			}
 
 			if (aMaterial->GetTextureCount(aiTextureType_NORMALS) > 0 && aMaterial->GetTexture(aiTextureType_NORMALS, 0, &texturePath) == AI_SUCCESS)
-				texturePaths.normalPath = texturePathsPBR.normalPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+			{
+				std::string strTexturePath(texturePath.C_Str());
+				size_t pos = strTexturePath.find("Textures\\");
+				strTexturePath.erase(0, pos);
+
+				texturePaths.normalPath = texturePathsPBR.normalPath = extractFileName(charToWchar(strTexturePath.c_str()).c_str());
+			}
 
 			if (aMaterial->GetTextureCount(aiTextureType_SPECULAR) > 0 && aMaterial->GetTexture(aiTextureType_SPECULAR, 0, &texturePath) == AI_SUCCESS)
-				texturePaths.specularPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+			{
+				std::string strTexturePath(texturePath.C_Str());
+				size_t pos = strTexturePath.find("Textures\\");
+				strTexturePath.erase(0, pos);
+
+				texturePaths.specularPath = extractFileName(charToWchar(strTexturePath.c_str()).c_str());
+			}
 
 			if (aMaterial->GetTextureCount(aiTextureType_METALNESS) > 0 && aMaterial->GetTexture(aiTextureType_METALNESS, 0, &texturePath) == AI_SUCCESS)
-				texturePathsPBR.metallicPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+			{
+				std::string strTexturePath(texturePath.C_Str());
+				size_t pos = strTexturePath.find("Textures\\");
+				strTexturePath.erase(0, pos);
+
+				texturePathsPBR.metallicPath = extractFileName(charToWchar(strTexturePath.c_str()).c_str());
+			}
 
 			if (aMaterial->GetTextureCount(aiTextureType_SHININESS) > 0 && aMaterial->GetTexture(aiTextureType_SHININESS, 0, &texturePath) == AI_SUCCESS)
-				texturePathsPBR.roughnessPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+			{
+				std::string strTexturePath(texturePath.C_Str());
+				size_t pos = strTexturePath.find("Textures\\");
+				strTexturePath.erase(0, pos);
+
+				texturePathsPBR.roughnessPath = extractFileName(charToWchar(strTexturePath.c_str()).c_str());
+			}
 
 			if (aMaterial->GetTextureCount(aiTextureType_AMBIENT) > 0 && aMaterial->GetTexture(aiTextureType_AMBIENT, 0, &texturePath) == AI_SUCCESS)
-				texturePathsPBR.ambientOcclusionPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+			{
+				std::string strTexturePath(texturePath.C_Str());
+				size_t pos = strTexturePath.find("Textures\\");
+				strTexturePath.erase(0, pos);
+
+				texturePathsPBR.ambientOcclusionPath = extractFileName(charToWchar(strTexturePath.c_str()).c_str());
+			}
 
 			if (aMaterial->GetTextureCount(aiTextureType_EMISSIVE) > 0 && aMaterial->GetTexture(aiTextureType_EMISSIVE, 0, &texturePath) == AI_SUCCESS)
-				texturePathsPBR.emissivePath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+			{
+				std::string strTexturePath(texturePath.C_Str());
+				size_t pos = strTexturePath.find("Textures\\");
+				strTexturePath.erase(0, pos);
+
+				texturePathsPBR.emissivePath = extractFileName(charToWchar(strTexturePath.c_str()).c_str());
+			}
 
 			if (aMaterial->GetTextureCount(aiTextureType_DISPLACEMENT) > 0 && aMaterial->GetTexture(aiTextureType_DISPLACEMENT, 0, &texturePath) == AI_SUCCESS)
-				texturePaths.displacementPath = texturePathsPBR.displacementPath = extractFileName(charToWchar(texturePath.C_Str()).c_str());
+			{
+				std::string strTexturePath(texturePath.C_Str());
+				size_t pos = strTexturePath.find("Textures\\");
+				strTexturePath.erase(0, pos);
+
+				texturePaths.displacementPath = texturePathsPBR.displacementPath = extractFileName(charToWchar(strTexturePath.c_str()).c_str());
+			}
 
 
 			aiString fileBaseColor, fileMetallicRoughness;
@@ -417,7 +465,6 @@ public:
 				ImGui::PopID();
 			}
 		}
-		ImGui::Separator();
 	}
 
 	// Save Mesh Data

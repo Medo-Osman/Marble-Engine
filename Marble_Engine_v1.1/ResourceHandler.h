@@ -61,6 +61,8 @@ private:
 			OutputDebugString(L"Failed to load: '");
 			OutputDebugString(texturePath);
 			OutputDebugString(L"'\n");
+			path = rootTexturePath + L"Empty_Texture.jpg";
+			hr = CreateWICTextureFromFile(m_device, m_deviceContext, path.c_str(), nullptr, &m_textures[texturePath]);
 			couldLoad = false;
 		}
 		else
@@ -69,7 +71,7 @@ private:
 			OutputDebugString(texturePath);
 			OutputDebugString(L"'\n");
 		}
-		assert(SUCCEEDED(hr) && "Error, failed to load texture file!");
+		//assert(SUCCEEDED(hr) && "Error, failed to load texture file!");
 
 		/*if (FAILED(hr))
 			m_textures[texturePath] = getTexture(L"Empty_Texture.jpg");*/

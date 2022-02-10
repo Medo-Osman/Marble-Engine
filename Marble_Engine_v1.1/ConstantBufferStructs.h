@@ -69,15 +69,15 @@ struct Light
 {
     XMFLOAT4	position;
 
-    XMFLOAT3    direction;
+    XMFLOAT3    direction = XMFLOAT3(0.f, 0.f, 0.f);
     float       intensity = 1.f;
 
-    XMFLOAT3    color;
-    float       range;
+    XMFLOAT3    color = XMFLOAT3(1.f, 1.f, 1.f);
+    float       range = 1.f;
 
-    XMFLOAT2    spotAngles;
+    XMFLOAT2    spotAngles = XMFLOAT2(1.f, 1.f);
     int         type;
-    BOOL        enabled;
+    BOOL        enabled = true;
 };
 
 const UINT LIGHT_CAP = 40;
@@ -86,8 +86,8 @@ struct PS_LIGHT_BUFFER
 {
     Light lights[LIGHT_CAP];
     UINT nrOfLights;
-    float enviormentDiffContribution = 0.03f;
-    float enviormentSpecContribution = 0.04f;
+    float enviormentDiffContribution = 1.f;// 0.03f;
+    float enviormentSpecContribution = 1.f;//0.04f;
     BOOL volumetricSunScattering = TRUE;
     BOOL fog = TRUE;
     BOOL procederualSky = TRUE;

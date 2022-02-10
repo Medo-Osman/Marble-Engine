@@ -215,8 +215,9 @@ void Sky::initialize(ID3D11Device* device, ID3D11DeviceContext* deviceContext, S
 	// Constant Buffers
 	m_vpCBuffer.initialize(device, m_deviceContext, nullptr, BufferType::CONSTANT);
 
-	// Rotation
+	// Skybox Rotation
 	//m_rotation = XMVectorSet(0.f, XMConvertToRadians(160.f), 0.f, 0.f);
+	m_rotation = XMVectorZero();
 
 	m_sunLight = sunLight;
 	m_moonLight = moonLight;
@@ -254,48 +255,82 @@ XMFLOAT3 Sky::getSkyLightDirection(SkyLightType types)
 	}
 }
 
-void Sky::updateUI()
+void Sky::toggleSkyLight(bool toggle)
 {
-	// Sun / Moon Color and Intensity
-	if (ImGui::ColorEdit3("Sun Color", &m_sunLight.color.x, ImGuiColorEditFlags_Float))
-		updateSkyLight();
-
-	if (ImGui::DragFloat("Sun Intensity", &m_sunLight.intensity, 0.01f, 0.f, 200.f))
-		updateSkyLight();
-
-	if (ImGui::ColorEdit3("Sun Set/Rise Color", &m_proceduralSkyData.sunSetRiseColor.x, ImGuiColorEditFlags_Float))
-		updateProceduralData();
-
-	if (ImGui::ColorEdit3("Moon Color", &m_moonLight.color.x, ImGuiColorEditFlags_Float))
+	m_skyLightToggle = toggle;
+	if (!m_skyLightToggle)
 	{
-		m_proceduralSkyData.moonColor = m_moonLight.color;
-		updateProceduralData();
-		updateSkyLight();
-	}
+		m_skyLightData.color = XMFLOAT3(0.f, 0.f, 0.f);
+		m_skyLightData.intensity = 0.f;
+		m_skyLightCBuffer.update(&m_skyLightData);
 
-	if (ImGui::DragFloat("Moon Intensity", &m_moonLight.intensity, 0.01f, 0.f, 200.f))
-		updateSkyLight();
-	ImGui::Separator();
-
-	// Day Night Cycle
-	ImGui::Text("Day Night Cycle");
-	if (ImGui::DragFloat("Cycles Per Minute", &m_cyclePerMinute, 0.01f, 0.01f, 100.f))
-	{
-		if (m_cyclePerMinute <= 0.f)
-			m_cyclePerMinute = 0.01f;
-	}
-
-	if (ImGui::SliderFloat("Time Of Day", &m_timeOfDay, 0.f, 1.f))
-		updateSkyLight();
-
-	if (ImGui::Checkbox("Run Cycle", &m_dayNightCycleToggle))
-	{
 		if (m_dayNightCycleToggle)
 			m_dayNightTimer.start();
 		else
 			m_dayNightTimer.stop();
 	}
+}
 
+void Sky::updateUI()
+{
+	if (ImGui::Checkbox("Enabled##SkyLight", &m_skyLightToggle))
+	{
+		if (!m_skyLightToggle)
+		{
+			m_skyLightData.color = XMFLOAT3(0.f, 0.f, 0.f);
+			m_skyLightData.intensity = 0.f;
+			m_skyLightCBuffer.update(&m_skyLightData);
+
+			if (m_dayNightCycleToggle)
+				m_dayNightTimer.start();
+			else
+				m_dayNightTimer.stop();
+		}
+	}
+
+	if (m_skyLightToggle)
+	{
+		// Sun / Moon Color and Intensity
+		if (ImGui::ColorEdit3("Sun Color", &m_sunLight.color.x, ImGuiColorEditFlags_Float))
+			updateSkyLight();
+
+		if (ImGui::DragFloat("Sun Intensity", &m_sunLight.intensity, 0.01f, 0.f, 200.f))
+			updateSkyLight();
+
+		if (ImGui::ColorEdit3("Sun Set/Rise Color", &m_proceduralSkyData.sunSetRiseColor.x, ImGuiColorEditFlags_Float))
+			updateProceduralData();
+
+		if (ImGui::ColorEdit3("Moon Color", &m_moonLight.color.x, ImGuiColorEditFlags_Float))
+		{
+			m_proceduralSkyData.moonColor = m_moonLight.color;
+			updateProceduralData();
+			updateSkyLight();
+		}
+
+		if (ImGui::DragFloat("Moon Intensity", &m_moonLight.intensity, 0.01f, 0.f, 200.f))
+			updateSkyLight();
+		ImGui::Separator();
+
+		// Day Night Cycle
+		ImGui::Text("Day Night Cycle");
+		if (ImGui::DragFloat("Cycles Per Minute", &m_cyclePerMinute, 0.01f, 0.01f, 100.f))
+		{
+			if (m_cyclePerMinute <= 0.f)
+				m_cyclePerMinute = 0.01f;
+		}
+
+		if (ImGui::SliderFloat("Time Of Day", &m_timeOfDay, 0.f, 1.f))
+			updateSkyLight();
+
+		if (ImGui::Checkbox("Run Cycle", &m_dayNightCycleToggle))
+		{
+			if (m_dayNightCycleToggle)
+				m_dayNightTimer.start();
+			else
+				m_dayNightTimer.stop();
+		}
+
+	}
 	ImGui::Separator();
 }
 
@@ -311,6 +346,11 @@ void Sky::ambientSettingsUI()
 			ImGui::ColorEdit3("Ambient Color", &m_skyLightData.ambientColor.x, ImGuiColorEditFlags_Float);
 		ImGui::PopID();
 	}
+}
+
+void Sky::skyboxRotationUI()
+{
+	ImGui::DragFloat3("Skybox Rotation", &m_rotation.m128_f32[0], 0.01f);
 }
 
 void Sky::updateSkyCubemap(std::wstring path)
@@ -360,7 +400,7 @@ void Sky::updateMatrices(const XMMATRIX& viewMatrix, const XMMATRIX& projectionM
 
 void Sky::update(double dt)
 {
-	if (m_dayNightCycleToggle)
+	if (m_skyLightToggle && m_dayNightCycleToggle)
 	{
 		float time = (float)m_dayNightTimer.timeElapsed();
 		m_timeOfDay = std::fmod(m_timeOffset + time * (6.f / m_cyclePerMinute / 360.f), 1.f);

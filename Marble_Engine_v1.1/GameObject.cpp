@@ -53,6 +53,12 @@ void GameObject::setMaterial(PS_MATERIAL_PBR_BUFFER material)
 	m_renderHandler->setRenderObjectMaterialPBR(m_renderKey, material);
 }
 
+void GameObject::setEnabled(bool enabled)
+{
+	m_enabled = enabled;
+	m_renderHandler->setRenderObjectEnabled(m_renderKey, m_enabled);
+}
+
 void GameObject::fillMeshData(std::vector<MeshData>* meshes)
 {
 	m_renderHandler->fillMeshData(m_renderKey, meshes);
@@ -132,6 +138,11 @@ void GameObject::setRotation(XMFLOAT3 newRotation)
 	m_movementComponent->rotation = XMLoadFloat3(&newRotation);
 }
 
+void GameObject::rotate(XMFLOAT3 rotation)
+{
+	m_movementComponent->rotation += XMLoadFloat3(&rotation);
+}
+
 void GameObject::setPosition(XMVECTOR newPosition)
 {
 	m_movementComponent->position = newPosition;
@@ -144,47 +155,54 @@ void GameObject::setPosition(XMFLOAT3 newPosition)
 void GameObject::update(double dt)
 {
 	// ImGui
-	//ImGui::Text(getModelNameAndId().c_str());
 	ImGui::PushID(m_id);
-	if (ImGui::CollapsingHeader("Movement"))
-	{
-		ImGui::DragFloat3("Scale", &m_movementComponent->scale.m128_f32[0], 0.1f);
-		ImGui::DragFloat3("Rotation", &m_movementComponent->rotation.m128_f32[0], 0.1f);
-		ImGui::DragFloat3("Position", &m_movementComponent->position.m128_f32[0], 0.1f);
-	}
-	//if (ImGui::CollapsingHeader("Other Component"))
-	//{
-	//	ImGui::Checkbox("Audio Component", &m_audioComponent);
-	//	ImGui::Checkbox("Looping", &m_loopingAudio);
-	//	ImGui::InputText("Name", m_audioFileName, 5);
-	//	//ImGui::SameLine();
-	//	ImGui::DragFloat("Volume", &m_volumeAudio, 0.1f);
+	std::string enabledLabel = "Enabled##" + std::to_string(m_id);
+	if (ImGui::Checkbox(enabledLabel.c_str(), &m_enabled))
+		m_renderHandler->setRenderObjectEnabled(m_renderKey, m_enabled);
 
-	//	ImGui::Text("____________________________");
-
-	//	ImGui::Checkbox("Audio Component", &m_audioComponent);
-	//	ImGui::Checkbox("Looping", &m_loopingAudio);
-	//	ImGui::InputText("Name", m_audioFileName, 5);
-	//	//ImGui::SameLine();
-	//	ImGui::DragFloat("Volume", &m_volumeAudio, 0.1f);
-	//}
-	if (ImGui::BeginCombo("Shader State", ShaderStatesNames[m_shaderType]))
+	if (m_enabled)
 	{
-		for (int n = 0; n < (int)ShaderStates::NUM; n++)
+		//ImGui::Text(getModelNameAndId().c_str());
+		if (ImGui::CollapsingHeader("Movement"))
 		{
-			bool is_selected = (ShaderStatesNames[m_shaderType] == ShaderStatesNames[n]);
-			if (ImGui::Selectable(ShaderStatesNames[n], is_selected))
-			{
-				m_shaderType = n;
-				m_renderKey = m_renderHandler->setShaderState(m_renderKey, (ShaderStates)m_shaderType);
-			}
-			if (is_selected)
-				ImGui::SetItemDefaultFocus();
+			ImGui::DragFloat3("Scale", &m_movementComponent->scale.m128_f32[0], 0.1f);
+			ImGui::DragFloat3("Rotation", &m_movementComponent->rotation.m128_f32[0], 0.1f);
+			ImGui::DragFloat3("Position", &m_movementComponent->position.m128_f32[0], 0.1f);
 		}
-		ImGui::EndCombo();
-	}
-	m_renderHandler->modelTextureUIUpdate(m_renderKey);
 
+		//if (ImGui::CollapsingHeader("Other Component"))
+		//{
+		//	ImGui::Checkbox("Audio Component", &m_audioComponent);
+		//	ImGui::Checkbox("Looping", &m_loopingAudio);
+		//	ImGui::InputText("Name", m_audioFileName, 5);
+		//	//ImGui::SameLine();
+		//	ImGui::DragFloat("Volume", &m_volumeAudio, 0.1f);
+		//	ImGui::Text("____________________________");
+		//	ImGui::Checkbox("Audio Component", &m_audioComponent);
+		//	ImGui::Checkbox("Looping", &m_loopingAudio);
+		//	ImGui::InputText("Name", m_audioFileName, 5);
+		//	//ImGui::SameLine();
+		//	ImGui::DragFloat("Volume", &m_volumeAudio, 0.1f);
+		//}
+
+		if (ImGui::BeginCombo("Shader State", ShaderStatesNames[m_shaderType]))
+		{
+			for (int n = 0; n < (int)ShaderStates::NUM; n++)
+			{
+				bool is_selected = (ShaderStatesNames[m_shaderType] == ShaderStatesNames[n]);
+				if (ImGui::Selectable(ShaderStatesNames[n], is_selected))
+				{
+					m_shaderType = n;
+					m_renderKey = m_renderHandler->setShaderState(m_renderKey, (ShaderStates)m_shaderType);
+				}
+				if (is_selected)
+					ImGui::SetItemDefaultFocus();
+			}
+			ImGui::EndCombo();
+		}
+		m_renderHandler->modelTextureUIUpdate(m_renderKey);
+	}
+	ImGui::Separator();
 	ImGui::PopID();
 
 	// Movement

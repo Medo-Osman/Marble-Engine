@@ -182,6 +182,7 @@ private:
     Shaders m_tonemapShaders;
     PS_TONEMAP_CBUFFER m_tonemapCData;
     Buffer< PS_TONEMAP_CBUFFER > m_tonemapCBuffer;
+    bool m_tonemappingSettingsToggle = false;
 
     // Blend State
     ComPtr< ID3D11BlendState > m_blendStateNoBlend;
@@ -276,11 +277,15 @@ public:
     UINT getClientWidth() const;
     UINT getClientHeight() const;
 
+    // Settings
+    bool isFullscreen() const;
+
     // Camera
     void updateCamera(XMVECTOR position, XMVECTOR rotation);
 
     // Render Objects
     RenderObjectKey newRenderObject(std::string modelName, ShaderStates shaderState = ShaderStates::PHONG, std::vector<MeshData>* meshData = nullptr);
+    void setRenderObjectEnabled(RenderObjectKey key, bool enabled);
     void setRenderObjectTextures(RenderObjectKey key, TexturePaths textures);
     void setRenderObjectTextures(RenderObjectKey key, TexturePathsPBR textures);
     void setRenderObjectMaterial(RenderObjectKey key, PS_MATERIAL_BUFFER material);
@@ -318,9 +323,9 @@ public:
     // UI
     void UIRenderShadowMap();
     void UIRenderPipelineTexturesWindow();
+    void UITonemappingSettings();
     void UITonemappingWindow();
     void UIssaoSettings();
-    void UIadaptiveExposureSettings();
     void UIVolumetricSunSettings();
     void UIbloomSettings();
     void UILensFlareSettings();

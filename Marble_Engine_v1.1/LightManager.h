@@ -125,14 +125,14 @@ public:
     void enviormentDiffContributionUI()
     {
         ImGui::PushItemWidth(-90.f);
-        if (ImGui::SliderFloat("Contribution##Diff", &m_lightData.enviormentDiffContribution, 0.f, 1.f))
+        if (ImGui::SliderFloat("Diffuse##Diff", &m_lightData.enviormentDiffContribution, 0.f, 1.f))
             update();
         ImGui::PopItemWidth();
     }
     void enviormentSpecContributionUI()
     {
         ImGui::PushItemWidth(-90.f);
-        if (ImGui::SliderFloat("Contribution##Spec", &m_lightData.enviormentSpecContribution, 0.f, 1.f))
+        if (ImGui::SliderFloat("Specular##Spec", &m_lightData.enviormentSpecContribution, 0.f, 1.f))
             update();
         ImGui::PopItemWidth();
     }
@@ -183,7 +183,7 @@ public:
                 XMFLOAT4 col = XMFLOAT4(m_lightData.lights[i].color.x * 4.f, m_lightData.lights[i].color.y * 4.f, m_lightData.lights[i].color.z * 4.f, 1.f);
                 material.ambient = col;
                 material.diffuse = col;
-                material.specular = col;
+                material.specular = XMFLOAT4(0,0,0,0);
                 material.emissive = col;
                 m_renderObjects[POINT_MESH].setMaterial(material);
 
@@ -200,7 +200,7 @@ public:
                 XMFLOAT4 col = XMFLOAT4(m_lightData.lights[i].color.x * 4.f, m_lightData.lights[i].color.y * 4.f, m_lightData.lights[i].color.z * 4.f, 1.f);
                 material.ambient = col;
                 material.diffuse = col;
-                material.specular = col;
+                material.specular = XMFLOAT4(0,0,0,0);
                 material.emissive = col;
                 m_renderObjects[SPOT_MESH].setMaterial(material);
 
