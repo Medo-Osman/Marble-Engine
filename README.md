@@ -20,4 +20,6 @@ C++ DirectX 11 Engine
 * Lens Flare
 
 ## Video
-[![Showcase Video Link](https://i.imgur.com/BvUIQxz.png)](https://www.youtube.com/watch?v=w3qezCHFwR8)
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=w3qezCHFwR8" target="_blank"><img src="https://i.imgur.com/BvUIQxz.png" alt="Showcase Video Link"></a>
+</div>
