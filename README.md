@@ -3,10 +3,10 @@ C++ DirectX 11 Engine
 
 ## Features
 * Deferred Renderer
-* HDR Pipline
+* HDR Pipeline
 * ACES Tonemapping
 * Adaptive Exposure
-* PBR Pipline
+* PBR Pipeline
 * Bloom
 * SSAO
 * ImGui
